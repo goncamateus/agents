@@ -1,0 +1,4 @@
+monitor/
+saves/
+.vscode/
+*.pyc
