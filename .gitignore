@@ -2,3 +2,4 @@ monitor/
 saves/
 .vscode/
 *.pyc
+wandb/

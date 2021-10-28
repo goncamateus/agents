@@ -2,6 +2,7 @@ import gym
 import rsoccer_gym
 import torch
 import wandb
+from tqdm import tqdm
 
 from methods.ddpg import DDPGAgent
 from utils.experiment import HyperParameters, save_checkpoint
@@ -16,18 +17,18 @@ def schedule(episode_id):
 def main():
     hp = HyperParameters(
         EXP_NAME="DDPG-v0",
-        DEVICE=torch.device("cuda:0"),
+        DEVICE=torch.device("cuda"),
         ENV_NAME="VSS-v0",
-        LEARNING_RATE=0.001,
+        LEARNING_RATE=1e-3,
         BATCH_SIZE=256,
-        GAMMA=0.99,
+        GAMMA=0.95,
         NOISE_SIGMA_INITIAL=0.8,
         NOISE_THETA=0.15,
         NOISE_SIGMA_DECAY=0.99,
         NOISE_SIGMA_MIN=0.15,
         NOISE_SIGMA_GRAD_STEPS=3000,
         REPLAY_SIZE=500000,
-        REPLAY_INITIAL=1024,
+        REPLAY_INITIAL=100000,
         SAVE_FREQUENCY=100000,
         TOTAL_GRAD_STEPS=1000000,
     )
@@ -40,7 +41,8 @@ def main():
         entity="robocin",
         config=hp.to_dict(),
         monitor_gym=True,
-        mode="disabled",
+        mode=None,
+        # "disabled",
     )
     agent = DDPGAgent(hp)
     noise = OUNoise(
@@ -55,7 +57,7 @@ def main():
     steps = 0
 
     epi_reward = 0
-    while steps < hp.TOTAL_GRAD_STEPS:
+    for i in tqdm(range(1, hp.TOTAL_GRAD_STEPS + hp.REPLAY_INITIAL), smoothing=0.1):
         log_dict = {}
         action = agent.act(state)
         action = noise(action)
@@ -65,7 +67,6 @@ def main():
         epi_reward += reward
 
         if done:
-            print(epi_reward)
             info = {
                 "ep_info/" + key: item
                 for key, item in info.items()
@@ -77,7 +78,7 @@ def main():
             state = env.reset()
             epi_reward = 0
 
-        if len(agent.replay_buffer) >= hp.REPLAY_INITIAL:
+        if len(agent.replay_buffer) >= hp.REPLAY_INITIAL and i % 10 == 0:
             train_logs = agent.train()
             log_dict.update(train_logs)
             steps += 1
