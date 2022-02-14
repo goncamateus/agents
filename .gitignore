@@ -3,3 +3,4 @@ saves/
 .vscode/
 *.pyc
 wandb/
+runs/

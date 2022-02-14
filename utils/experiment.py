@@ -71,3 +71,17 @@ def soft_update(model, target, tau):
     for k, v in state.items():
         tgt_state[k] = tgt_state[k] * tau + (1 - tau) * v
     target.load_state_dict(tgt_state)
+
+def make_env(gym_id, seed, idx, capture_video, run_name):
+    def thunk():
+        env = gym.make(gym_id)
+        env = gym.wrappers.RecordEpisodeStatistics(env)
+        if capture_video:
+            if idx == 0:
+                env = gym.wrappers.RecordVideo(env, f"monitor/{run_name}")
+        env.seed(seed)
+        env.action_space.seed(seed)
+        env.observation_space.seed(seed)
+        return env
+
+    return thunk
