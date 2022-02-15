@@ -1,12 +1,31 @@
 import dataclasses
-
-import gym
-import rsoccer_gym
-import torch
 import os
 
+import gym
+import numpy as np
+import rsoccer_gym
+import torch
 import wandb
 
+
+class StratLastRewards:
+    def __init__(self, size, n_rewards):
+        self.pos = 0
+        self.size = size
+        self._can_do = False
+        self.rewards = np.zeros((size, n_rewards))
+
+    def add(self, rewards):
+        self.rewards[self.pos] = rewards
+        if self.pos == self.size - 1:
+            self._can_do = True
+        self.pos = (self.pos + 1) % self.rewards.shape[0]
+
+    def can_do(self):
+        return self._can_do
+
+    def mean(self):
+        return self.rewards.mean(0)
 
 @dataclasses.dataclass
 class HyperParameters:
@@ -72,13 +91,15 @@ def soft_update(model, target, tau):
         tgt_state[k] = tgt_state[k] * tau + (1 - tau) * v
     target.load_state_dict(tgt_state)
 
-def make_env(gym_id, seed, idx, capture_video, run_name):
+def make_env(gym_id, seed, idx, capture_video, run_name, extra_wrapper=None):
     def thunk():
         env = gym.make(gym_id)
         env = gym.wrappers.RecordEpisodeStatistics(env)
         if capture_video:
             if idx == 0:
                 env = gym.wrappers.RecordVideo(env, f"monitor/{run_name}")
+        if extra_wrapper is not None:
+            env = extra_wrapper(env)
         env.seed(seed)
         env.action_space.seed(seed)
         env.observation_space.seed(seed)
