@@ -15,8 +15,7 @@ import envs
 import wandb
 from methods.ppo import PPO
 from methods.ppo_strat import PPOStrat
-from utils.experiment import make_env
-from utils.wrappers import LunarLanderStratWrapper
+from utils.experiment import StratSyncVectorEnv, make_env
 
 
 def parse_args():
@@ -87,7 +86,7 @@ def main(args):
         sync_tensorboard=True,
         config=vars(args),
         monitor_gym=True,
-        mode="disabled",
+        mode=None,
         save_code=True,
     )
     writer = SummaryWriter(f"runs/{exp_name}")
@@ -106,12 +105,13 @@ def main(args):
     device = torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu")
 
     # env setup
-    envs = gym.vector.SyncVectorEnv(
+    envs = StratSyncVectorEnv(
         [
             make_env(args.gym_id, args.seed + i, i, args.capture_video,
                      exp_name)
             for i in range(args.num_envs)
-        ]
+        ],
+        num_rewards=args.num_rewards
     )
     agent = PPOStrat(args, envs).to(device)
 
@@ -126,6 +126,8 @@ def main(args):
     rewards = torch.zeros((args.num_steps, args.num_envs, args.num_rewards)).to(device)
     dones = torch.zeros((args.num_steps, args.num_envs)).to(device)
     values = torch.zeros((args.num_steps, args.num_envs, args.num_rewards)).to(device)
+    epi_lenghts = np.zeros(args.num_envs)
+    epi_rewards = np.zeros((args.num_envs, args.num_rewards))
 
     # TRY NOT TO MODIFY: start the game
     global_step = 0
@@ -145,7 +147,6 @@ def main(args):
             global_step += 1 * args.num_envs
             obs[step] = next_obs
             dones[step] = next_done
-            import ipdb; ipdb.set_trace()
             # ALGO LOGIC: action logic
             with torch.no_grad():
                 action, logprob, _, value = agent.get_action_and_value(next_obs)
@@ -155,31 +156,31 @@ def main(args):
 
             # TRY NOT TO MODIFY: execute the game and log data.
             next_obs, reward, done, info = envs.step(action.cpu().numpy())
+            epi_lenghts = epi_lenghts + 1
+            epi_rewards = epi_rewards + reward
             rewards[step] = torch.tensor(reward).to(device)
             next_obs, next_done = (
                 torch.Tensor(next_obs).to(device),
                 torch.Tensor(done).to(device),
             )
 
-            for item in info:
-                if "episode" in item.keys():
-                    # print(
-                    #     f"global_step={global_step}, episodic_return={item['episode']['r']}"
-                    # )
-                    writer.add_scalar(
-                        "charts/episodic_return", item["episode"]["r"], global_step
-                    )
-                    writer.add_scalar(
-                        "charts/episodic_length", item["episode"]["l"], global_step
-                    )
-                    break
+            
+            for i in range(len(done)):
+                if done[i]:
+                    writer.add_scalar("ep_info/ep_steps", epi_lenghts[i], global_step)
+                    epi_lenghts[i] = 0
+                    for key, value in info[i].items():
+                        writer.add_scalar(f"ep_info/{key}", value, global_step)
+                    agent.last_epi_rewards.add(epi_rewards[i])
+                    epi_rewards[i] = np.zeros(args.num_rewards)
 
         # bootstrap value if not done
         with torch.no_grad():
             next_value = agent.get_value(next_obs)
+            gamma = args.gamma
             if args.gae:
                 advantages = torch.zeros_like(rewards).to(device)
-                lastgaelam = 0
+                lastgaelam = torch.zeros_like(next_value).to(device)
                 for t in reversed(range(args.num_steps)):
                     if t == args.num_steps - 1:
                         nextnonterminal = 1.0 - next_done
@@ -187,15 +188,14 @@ def main(args):
                     else:
                         nextnonterminal = 1.0 - dones[t + 1]
                         nextvalues = values[t + 1]
-                    delta = (
-                        rewards[t]
-                        + args.gamma * nextvalues * nextnonterminal
-                        - values[t]
-                    )
-                    advantages[t] = lastgaelam = (
-                        delta
-                        + args.gamma * args.gae_lambda * nextnonterminal * lastgaelam
-                    )
+                    bootstrapped = torch.zeros_like(nextvalues).to(device)
+                    for i in range(len(nextnonterminal)):
+                        bootstrapped[i] = gamma * nextnonterminal[i] * nextvalues[i]
+                    delta = rewards[t] + bootstrapped- values[t]
+                    last_gae_lm_advantages = torch.zeros_like(next_value).to(device)
+                    for i in range(len(nextnonterminal)):
+                        last_gae_lm_advantages[i] = gamma * args.gae_lambda * nextnonterminal[i] * lastgaelam[i]
+                    advantages[t] = lastgaelam =  delta + last_gae_lm_advantages
                 returns = advantages + values
             else:
                 returns = torch.zeros_like(rewards).to(device)
@@ -208,14 +208,13 @@ def main(args):
                         next_return = returns[t + 1]
                     returns[t] = rewards[t] + args.gamma * nextnonterminal * next_return
                 advantages = returns - values
-
         # flatten the batch
         b_obs = obs.reshape((-1,) + envs.single_observation_space.shape)
         b_logprobs = logprobs.reshape(-1)
         b_actions = actions.reshape((-1,) + envs.single_action_space.shape)
-        b_advantages = advantages
-        b_returns = returns
-        b_values = values
+        b_advantages = advantages.reshape((args.batch_size, args.num_rewards))
+        b_returns = returns.reshape((args.batch_size, args.num_rewards))
+        b_values = values.reshape((args.batch_size, args.num_rewards))
 
         # Optimizing the policy and value network
         b_inds = np.arange(args.batch_size)
@@ -244,7 +243,7 @@ def main(args):
 
         # TRY NOT TO MODIFY: record rewards for plotting purposes
         writer.add_scalar(
-            "charts/learning_rate", agent.optimizer.param_groups[0]["lr"], global_step
+            "train/learning_rate", agent.optimizer.param_groups[0]["lr"], global_step
         )
         for i in range(len(alphas)):
             writer.add_scalar(
@@ -258,7 +257,7 @@ def main(args):
         writer.add_scalar("losses/clipfrac", np.mean(clipfracs), global_step)
         # print("SPS:", int(global_step / (time.time() - start_time)))
         writer.add_scalar(
-            "charts/SPS", int(global_step / (time.time() - start_time)), global_step
+            "ep_info/SPS", int(global_step / (time.time() - start_time)), global_step
         )
 
     envs.close()

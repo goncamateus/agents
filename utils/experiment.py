@@ -91,10 +91,14 @@ def soft_update(model, target, tau):
         tgt_state[k] = tgt_state[k] * tau + (1 - tau) * v
     target.load_state_dict(tgt_state)
 
+class StratSyncVectorEnv(gym.vector.SyncVectorEnv):
+    def __init__(self, env_fns, num_rewards, observation_space=None, action_space=None, copy=True):
+        super().__init__(env_fns, observation_space, action_space, copy)
+        self._rewards = np.zeros((self.num_envs, num_rewards), dtype=np.float64)
+
 def make_env(gym_id, seed, idx, capture_video, run_name, extra_wrapper=None):
     def thunk():
         env = gym.make(gym_id)
-        env = gym.wrappers.RecordEpisodeStatistics(env)
         if capture_video:
             if idx == 0:
                 env = gym.wrappers.RecordVideo(env, f"monitor/{run_name}")

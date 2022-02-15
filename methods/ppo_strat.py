@@ -35,6 +35,7 @@ class PPOStrat(nn.Module):
         )
         self.optimizer = optim.Adam(self.parameters(), lr=args.learning_rate, eps=1e-5)
         self.last_epi_rewards = StratLastRewards(10, self.args.num_rewards)
+        self.rew_mean = None
 
     def get_value(self, x):
         return self.critic(x)
@@ -80,11 +81,11 @@ class PPOStrat(nn.Module):
 
         if self.last_epi_rewards.can_do():
             last_rew = torch.Tensor(self.last_epi_rewards.mean()).to(self.device)
-            if rew_mean is None:
-                rew_mean = last_rew
+            if self.rew_mean is None:
+                self.rew_mean = last_rew
             else:
-                rew_mean = rew_mean + 1e-5 * (last_rew - rew_mean)
-            dQ = torch.clamp((r_max - rew_mean) / (r_max - r_min), 0, 1)
+                self.rew_mean = self.rew_mean + 1e-5 * (last_rew - self.rew_mean)
+            dQ = torch.clamp((r_max - self.rew_mean) / (r_max - r_min), 0, 1)
             expdQ = torch.exp(dQ) - 1
             alphas = expdQ / (torch.sum(expdQ, 0) + 1e-4)
 
@@ -98,7 +99,6 @@ class PPOStrat(nn.Module):
         pg_loss = torch.max(pg_loss1, pg_loss2).mean()
 
         # Value loss
-        newvalue = newvalue.view(-1)
         if self.args.clip_vloss:
             v_loss_unclipped = (newvalue - returns) ** 2
             v_clipped = values + torch.clamp(

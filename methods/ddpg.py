@@ -2,7 +2,7 @@ import torch
 from utils.buffer import ReplayBuffer
 from utils.experiment import HyperParameters, soft_update
 
-from methods.networks import Actor, Critic, TargetActor, TargetCritic
+from methods.networks import Actor, Critic
 
 
 class DDPGAgent:
@@ -46,7 +46,6 @@ class DDPGAgent:
         states, actions, rewards, next_states, dones = self.replay_buffer.sample(
             self.batch_size, self.device
         )
-
         # ---------------------------- update critic ---------------------------- #
         # Get predicted next-state actions and Q values from target models
         next_actions = self.actor_target(next_states)
@@ -79,8 +78,8 @@ class DDPGAgent:
         self.actor_optimizer.step()
 
         # ----------------------- update target networks ----------------------- #
-        soft_update(self.actor_target, self.actor, 1 - 1e-3)
-        soft_update(self.critic_target, self.critic, 1 - 1e-3)
+        soft_update(self.actor_target, self.actor, 0.995)
+        soft_update(self.critic_target, self.critic, 0.995)
 
         return train_logs
 

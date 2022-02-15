@@ -2,7 +2,7 @@ import numpy as np
 from gym.envs.box2d.lunar_lander import LunarLander
 
 
-class LunarLanderstrat(LunarLander):
+class LunarLanderStrat(LunarLander):
     def __init__(self):
         super().__init__()
         self.cumulative_reward_info = {
@@ -83,4 +83,4 @@ class LunarLanderstrat(LunarLander):
                 "Goal": 0,
                 "Original_reward": 0,
             }
-        return state, reward, done, info
+        return state, strat_reward, done, info
