@@ -37,6 +37,8 @@ def parse_args():
         help="if toggled, cuda will be enabled by default")
     parser.add_argument("--capture-video", type=lambda x: bool(strtobool(x)), default=True, nargs="?", const=True,
         help="weather to capture videos of the agent performances (check out `videos` folder)")
+    parser.add_argument("--track", type=lambda x: bool(strtobool(x)), default=False, nargs="?", const=True,
+        help="Log on wandb")
 
     # Algorithm specific arguments
     parser.add_argument("--num-rewards", type=int, default=1, help="number of rewards to alphas")
@@ -86,7 +88,7 @@ def main(args):
         sync_tensorboard=True,
         config=vars(args),
         monitor_gym=True,
-        mode=None,
+        mode=None if args.track else "disabled",
         save_code=True,
     )
     writer = SummaryWriter(f"runs/{exp_name}")

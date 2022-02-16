@@ -97,7 +97,6 @@ class PPOStrat(nn.Module):
 
         # Policy loss
         mb_advantages = (mb_advantages * alphas).sum(1)
-        mb_advantages = mb_advantages.mean()
         pg_loss1 = -mb_advantages * ratio
         pg_loss2 = -mb_advantages * torch.clamp(
             ratio, 1 - self.args.clip_coef, 1 + self.args.clip_coef
