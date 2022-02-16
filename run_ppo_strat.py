@@ -42,6 +42,7 @@ def parse_args():
 
     # Algorithm specific arguments
     parser.add_argument("--num-rewards", type=int, default=10, help="number of rewards to alphas")
+    parser.add_argument("--dynamic-alphas", type=lambda x: bool(strtobool(x)), default=False, help="Rather use dynamic alphas or not")
     parser.add_argument("--num-envs", type=int, default=4,
         help="the number of parallel game environments")
     parser.add_argument("--num-steps", type=int, default=128,
@@ -82,7 +83,7 @@ def parse_args():
 def main(args):
     exp_name = f"PPO_strat_{int(time.time())}_{args.gym_id}"
     wandb.init(
-        project="mestrado",
+        project="mestrado_ppo_lander",
         name=exp_name,
         entity="goncamateus",
         sync_tensorboard=True,

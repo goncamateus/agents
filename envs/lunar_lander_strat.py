@@ -3,7 +3,7 @@ from gym.envs.box2d.lunar_lander import LunarLander
 
 
 class LunarLanderStrat(LunarLander):
-    def __init__(self):
+    def __init__(self, stratified=True):
         super().__init__()
         self.cumulative_reward_info = {
             "Distance_x": 0,
@@ -18,6 +18,7 @@ class LunarLanderStrat(LunarLander):
             "Goal": 0,
             "Original_reward": 0,
         }
+        self.stratified = stratified
         self.prev_rew = np.zeros(10)
 
     def step(self, action):
@@ -83,4 +84,5 @@ class LunarLanderStrat(LunarLander):
                 "Goal": 0,
                 "Original_reward": 0,
             }
-        return state, strat_reward, done, info
+        reward = strat_reward if self.stratified else reward
+        return state, reward, done, info

@@ -85,7 +85,8 @@ class PPOStrat(nn.Module):
                 mb_advantages.std() + 1e-8
             )
 
-        if self.last_epi_rewards.can_do():
+        # Alpha automatic adjustment
+        if self.last_epi_rewards.can_do() and self.args.dynamic_alphas:
             last_rew = torch.Tensor(self.last_epi_rewards.mean()).to(self.device)
             if self.rew_mean is None:
                 self.rew_mean = last_rew
