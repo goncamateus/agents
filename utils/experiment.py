@@ -103,7 +103,7 @@ def make_env(gym_id, seed, idx, capture_video, run_name, statistics=True, extra_
             env = gym.wrappers.RecordEpisodeStatistics(env)
         if capture_video:
             if idx == 0:
-                env = gym.wrappers.RecordVideo(env, f"monitor/{run_name}")
+                env = gym.wrappers.RecordVideo(env, f"monitor/{run_name}", episode_trigger=lambda x: x % 100 == 0)
         if extra_wrapper is not None:
             env = extra_wrapper(env)
         env.seed(seed)
