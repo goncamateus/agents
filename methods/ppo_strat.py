@@ -53,7 +53,7 @@ class PPOStrat(nn.Module):
         alphas = torch.ones(self.args.num_rewards).to(self.device)
         alphas = alphas / self.args.num_rewards
         r_max = torch.Tensor(
-            [-0.2, 0, -0.03, -0.02, -0.214, -0.05, -0.5, 0.9, 0.9, 1]
+            [-0.2, 0, -0.03, -0.02, -0.214, -0.2, -0.5, 0.9, 0.9, 1]
         ).to(self.device)
         r_min = torch.Tensor([-1, -1.5, -2, -1.2, -2, -0.05, -0.5, -1, -1, -1]).to(
             self.device
