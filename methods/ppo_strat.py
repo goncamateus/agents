@@ -36,7 +36,7 @@ class PPOStrat(nn.Module):
             layer_init(nn.Linear(64, envs.single_action_space.n), std=0.01),
         )
         self.optimizer = optim.Adam(self.parameters(), lr=args.learning_rate, eps=1e-5)
-        self.last_epi_rewards = StratLastRewards(10, self.args.num_rewards)
+        self.last_epi_rewards = StratLastRewards(100, self.args.num_rewards)
         self.rew_mean = None
 
     def get_value(self, x):
@@ -85,15 +85,15 @@ class PPOStrat(nn.Module):
                 mb_advantages.std() + 1e-8
             )
 
-        if self.last_epi_rewards.can_do():
-            last_rew = torch.Tensor(self.last_epi_rewards.mean()).to(self.device)
-            if self.rew_mean is None:
-                self.rew_mean = last_rew
-            else:
-                self.rew_mean = self.rew_mean + 1e-5 * (last_rew - self.rew_mean)
-            dQ = torch.clamp((r_max - self.rew_mean) / (r_max - r_min), 0, 1)
-            expdQ = torch.exp(dQ) - 1
-            alphas = expdQ / (torch.sum(expdQ, 0) + 1e-4)
+        # if self.last_epi_rewards.can_do():
+        #     last_rew = torch.Tensor(self.last_epi_rewards.mean()).to(self.device)
+        #     if self.rew_mean is None:
+        #         self.rew_mean = last_rew
+        #     else:
+        #         self.rew_mean = self.rew_mean + 1e-5 * (last_rew - self.rew_mean)
+        #     dQ = torch.clamp((r_max - self.rew_mean) / (r_max - r_min), 0, 1)
+        #     expdQ = torch.exp(dQ) - 1
+        #     alphas = expdQ / (torch.sum(expdQ, 0) + 1e-4)
 
         # Policy loss
         mb_advantages = (mb_advantages * alphas).sum(1)
