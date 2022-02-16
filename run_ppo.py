@@ -1,20 +1,21 @@
 # https://github.com/vwxyzjn/cleanrl/blob/master/cleanrl/ppo.py
 import argparse
-from importlib.metadata import entry_points
 import os
 import random
 import time
+from distutils.util import strtobool
+from importlib.metadata import entry_points
 from typing import NamedTuple
+
 import gym
 import numpy as np
 import torch
+from torch.utils.tensorboard import SummaryWriter
 
+import envs
 import wandb
-
-from distutils.util import strtobool
 from methods.ppo import PPO
 from utils.experiment import make_env
-from torch.utils.tensorboard import SummaryWriter
 
 
 def parse_args():
@@ -34,7 +35,7 @@ def parse_args():
         help="if toggled, `torch.backends.cudnn.deterministic=False`")
     parser.add_argument("--cuda", type=lambda x: bool(strtobool(x)), default=True, nargs="?", const=True,
         help="if toggled, cuda will be enabled by default")
-    parser.add_argument("--capture-video", type=lambda x: bool(strtobool(x)), default=False, nargs="?", const=True,
+    parser.add_argument("--capture-video", type=lambda x: bool(strtobool(x)), default=True, nargs="?", const=True,
         help="weather to capture videos of the agent performances (check out `videos` folder)")
 
     # Algorithm specific arguments
@@ -158,6 +159,12 @@ def main(args):
                 torch.Tensor(done).to(device),
             )
 
+            for i in range(len(done)):
+                if done[i]:
+                    for key, value in info[i].items():
+                        if not isinstance(value, dict):
+                            writer.add_scalar(f"ep_info/{key}", value, global_step)
+                    
             for item in info:
                 if "episode" in item.keys():
                     print(

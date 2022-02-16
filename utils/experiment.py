@@ -99,6 +99,7 @@ class StratSyncVectorEnv(gym.vector.SyncVectorEnv):
 def make_env(gym_id, seed, idx, capture_video, run_name, extra_wrapper=None):
     def thunk():
         env = gym.make(gym_id)
+        env = gym.wrappers.RecordEpisodeStatistics(env)
         if capture_video:
             if idx == 0:
                 env = gym.wrappers.RecordVideo(env, f"monitor/{run_name}")
