@@ -41,7 +41,7 @@ def parse_args():
         help="Log on wandb")
 
     # Algorithm specific arguments
-    parser.add_argument("--num-rewards", type=int, default=1, help="number of rewards to alphas")
+    parser.add_argument("--num-rewards", type=int, default=10, help="number of rewards to alphas")
     parser.add_argument("--num-envs", type=int, default=4,
         help="the number of parallel game environments")
     parser.add_argument("--num-steps", type=int, default=128,

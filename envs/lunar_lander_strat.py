@@ -83,4 +83,4 @@ class LunarLanderStrat(LunarLander):
                 "Goal": 0,
                 "Original_reward": 0,
             }
-        return state, reward, done, info
+        return state, strat_reward, done, info
