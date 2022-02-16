@@ -14,7 +14,9 @@ class PPOStrat(nn.Module):
         self.obs_size = np.array(envs.single_observation_space.shape).prod()
         self.action_size = envs.single_action_space.n
         self.args = args
-        self.device = torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu")
+        self.device = torch.device(
+            "cuda" if torch.cuda.is_available() and args.cuda else "cpu"
+        )
         self.critic = nn.Sequential(
             layer_init(
                 nn.Linear(np.array(envs.single_observation_space.shape).prod(), 64)
@@ -50,8 +52,12 @@ class PPOStrat(nn.Module):
     def update(self, clipfracs, batch):
         alphas = torch.ones(self.args.num_rewards).to(self.device)
         alphas = alphas / self.args.num_rewards
-        r_max = torch.ones(self.args.num_rewards).to(self.device)
-        r_min = torch.ones(self.args.num_rewards).to(self.device)
+        r_max = torch.Tensor(
+            [-0.2, 0, -0.03, -0.02, -0.214, -0.05, -0.5, 0.9, 0.9, 1]
+        ).to(self.device)
+        r_min = torch.Tensor([-1, -1.5, -2, -1.2, -2, -0.05, -0.5, -1, -1, -1]).to(
+            self.device
+        )
         obs = batch[0]
         logprobs = batch[1]
         actions = batch[2]
