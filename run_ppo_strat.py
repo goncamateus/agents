@@ -108,7 +108,7 @@ def main(args):
     envs = StratSyncVectorEnv(
         [
             make_env(args.gym_id, args.seed + i, i, args.capture_video,
-                     exp_name)
+                     exp_name, statistics=False)
             for i in range(args.num_envs)
         ],
         num_rewards=args.num_rewards
