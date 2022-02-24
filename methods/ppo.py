@@ -9,14 +9,22 @@ from torch.distributions.categorical import Categorical
 
 
 class PPO(nn.Module):
-    def __init__(self, args, envs):
+    def __init__(self, args, envs, obs_critic_size=None, obs_actor_size=None):
         super(PPO, self).__init__()
         self.obs_size = np.array(envs.single_observation_space.shape).prod()
+        if obs_critic_size is not None:
+            self.obs_critic_size = obs_critic_size
+        else:
+            self.obs_critic_size = self.obs_size
+        if obs_actor_size is not None:
+            self.obs_actor_size = obs_actor_size
+        else:
+            self.obs_actor_size = self.obs_size
         self.action_size = envs.single_action_space.n
         self.args = args
         self.critic = nn.Sequential(
             layer_init(
-                nn.Linear(np.array(envs.single_observation_space.shape).prod(), 64)
+                nn.Linear(self.obs_critic_size, 64)
             ),
             nn.Tanh(),
             layer_init(nn.Linear(64, 64)),
@@ -25,7 +33,7 @@ class PPO(nn.Module):
         )
         self.actor = nn.Sequential(
             layer_init(
-                nn.Linear(np.array(envs.single_observation_space.shape).prod(), 64)
+                nn.Linear(self.obs_actor_size, 64)
             ),
             nn.Tanh(),
             layer_init(nn.Linear(64, 64)),
