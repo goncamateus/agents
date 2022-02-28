@@ -14,8 +14,8 @@ from torch.utils.tensorboard import SummaryWriter
 
 import envs
 import wandb
-from methods.ppo import PPO
-from utils.experiment import make_env
+from methods.ppo_bipars import PPOBipars
+from utils.experiment import StratSyncVectorEnv, make_env
 
 
 def parse_args():
@@ -79,7 +79,7 @@ def parse_args():
 
 
 def main(args):
-    exp_name = f"PPO_{int(time.time())}_{args.gym_id}"
+    exp_name = f"PPO_BiPaRS_{int(time.time())}_{args.gym_id}"
     wandb.init(
         project="mestrado_ppo_lander",
         name=exp_name,
@@ -108,12 +108,19 @@ def main(args):
     # env setup
     envs = gym.vector.SyncVectorEnv(
         [
-            make_env(args.gym_id, args.seed + i, i, args.capture_video, exp_name)
+            make_env(
+                args.gym_id,
+                args.seed + i,
+                i,
+                args.capture_video,
+                exp_name,
+                statistics=False,
+            )
             for i in range(args.num_envs)
         ]
     )
 
-    agent = PPO(args, envs).to(device)
+    agent = PPOBipars(args, envs).to(device)
 
     # ALGO Logic: Storage setup
     obs = torch.zeros(
@@ -126,6 +133,8 @@ def main(args):
     rewards = torch.zeros((args.num_steps, args.num_envs)).to(device)
     dones = torch.zeros((args.num_steps, args.num_envs)).to(device)
     values = torch.zeros((args.num_steps, args.num_envs)).to(device)
+    epi_lenghts = np.zeros(args.num_envs)
+    epi_rewards = np.zeros(args.num_envs)
 
     # TRY NOT TO MODIFY: start the game
     global_step = 0
@@ -155,7 +164,9 @@ def main(args):
 
             # TRY NOT TO MODIFY: execute the game and log data.
             next_obs, reward, done, info = envs.step(action.cpu().numpy())
-            rewards[step] = torch.tensor(reward).to(device).view(-1)
+            epi_lenghts = epi_lenghts + 1
+            epi_rewards = epi_rewards + reward
+            rewards[step] = torch.tensor(reward).to(device)
             next_obs, next_done = (
                 torch.Tensor(next_obs).to(device),
                 torch.Tensor(done).to(device),
@@ -163,28 +174,25 @@ def main(args):
 
             for i in range(len(done)):
                 if done[i]:
-                    for key, value in info[i].items():
-                        if not isinstance(value, dict):
-                            writer.add_scalar(f"ep_info/{key}", value, global_step)
-
-            for item in info:
-                if "episode" in item.keys():
                     print(
-                        f"global_step={global_step}, episodic_return={item['episode']['r']}"
+                        f"global_step={global_step}, episodic_return={epi_rewards[i].sum()}"
                     )
-                    writer.add_scalar(
-                        "charts/episodic_return", item["episode"]["r"], global_step
-                    )
-                    writer.add_scalar(
-                        "charts/episodic_length", item["episode"]["l"], global_step
-                    )
-                    break
+                    writer.add_scalar("ep_info/ep_steps", epi_lenghts[i], global_step)
+                    epi_lenghts[i] = 0
+                    for key, value in info[i].items():
+                        writer.add_scalar(f"ep_info/{key}", value, global_step)
+                    epi_rewards[i] = 0
 
         # bootstrap value if not done
         with torch.no_grad():
             next_value = agent.get_value(next_obs).reshape(1, -1)
+            zs = agent.get_z(obs)
+            zs = torch.cat([zs, agent.get_z(next_obs).unsqueeze(0)])
+            z_return = (args.gamma * zs[1:]) - zs[:-1]
+            z_return = z_return.squeeze()
+            weighted_rewards = torch.zeros_like(values).to(device)
             if args.gae:
-                advantages = torch.zeros_like(rewards).to(device)
+                advantages = torch.zeros_like(values).to(device)
                 lastgaelam = 0
                 for t in reversed(range(args.num_steps)):
                     if t == args.num_steps - 1:
@@ -193,8 +201,9 @@ def main(args):
                     else:
                         nextnonterminal = 1.0 - dones[t + 1]
                         nextvalues = values[t + 1]
+                    weighted_rewards[t] = rewards[t] + z_return[t]
                     delta = (
-                        rewards[t]
+                        weighted_rewards[t]
                         + args.gamma * nextvalues * nextnonterminal
                         - values[t]
                     )
@@ -240,9 +249,14 @@ def main(args):
                     b_returns[mb_inds],
                     b_values[mb_inds],
                 )
-                old_approx_kl, approx_kl, v_loss, pg_loss, entropy_loss = agent.update(
-                    clipfracs, batch
-                )
+                (
+                    old_approx_kl,
+                    approx_kl,
+                    v_loss,
+                    pg_loss,
+                    entropy_loss,
+                    z_loss,
+                ) = agent.update(clipfracs, batch)
 
             if args.target_kl is not None:
                 if approx_kl > args.target_kl:
@@ -263,6 +277,7 @@ def main(args):
         writer.add_scalar("losses/approx_kl", approx_kl.item(), global_step)
         writer.add_scalar("losses/clipfrac", np.mean(clipfracs), global_step)
         writer.add_scalar("losses/explained_variance", explained_var, global_step)
+        writer.add_scalar("losses/z_loss", z_loss.item(), global_step)
         print("SPS:", int(global_step / (time.time() - start_time)))
         writer.add_scalar(
             "charts/SPS", int(global_step / (time.time() - start_time)), global_step
