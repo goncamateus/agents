@@ -86,12 +86,13 @@ class PPOStrat(nn.Module):
             )
 
         # Alpha automatic adjustment
+        rew_tau = 0.995
         if self.last_epi_rewards.can_do() and self.args.dynamic_alphas:
-            last_rew = torch.Tensor(self.last_epi_rewards.mean()).to(self.device)
+            rew_mean_t = torch.Tensor(self.last_epi_rewards.mean()).to(self.device)
             if self.rew_mean is None:
-                self.rew_mean = last_rew
+                self.rew_mean = rew_mean_t
             else:
-                self.rew_mean = last_rew + 1e-5 * (self.rew_mean - last_rew)
+                self.rew_mean = rew_mean_t + (self.rew_mean - rew_mean_t) * rew_tau
             dQ = torch.clamp((r_max - self.rew_mean) / (r_max - r_min), 0, 1)
             expdQ = torch.exp(dQ) - 1
             alphas = expdQ / (torch.sum(expdQ, 0) + 1e-4)
