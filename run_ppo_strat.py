@@ -82,6 +82,7 @@ def parse_args():
 
 def main(args):
     exp_name = f"PPO_strat_{int(time.time())}_{args.gym_id}"
+    print(vars(args))
     wandb.init(
         project="mestrado_ppo_lander",
         name=exp_name,

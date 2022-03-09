@@ -52,9 +52,9 @@ class PPOStrat(nn.Module):
     def update(self, clipfracs, batch):
         alphas = torch.ones(self.args.num_rewards).to(self.device)
         alphas = alphas / self.args.num_rewards
-        r_max = torch.Tensor(
-            [0, 0, -0.03, -0.02, 0, -0.2, -0.2, 1, 1, 1]
-        ).to(self.device)
+        r_max = torch.Tensor([0, 0, -0.03, -0.02, 0, -0.2, -0.2, 1, 1, 1]).to(
+            self.device
+        )
         r_min = torch.Tensor([-1, -1, -0.8, -0.5, -1, -1, -1, -1, -1, -1]).to(
             self.device
         )
@@ -91,7 +91,7 @@ class PPOStrat(nn.Module):
             if self.rew_mean is None:
                 self.rew_mean = last_rew
             else:
-                self.rew_mean = self.rew_mean + 1e-5 * (last_rew - self.rew_mean)
+                self.rew_mean = last_rew + 1e-5 * (self.rew_mean - last_rew)
             dQ = torch.clamp((r_max - self.rew_mean) / (r_max - r_min), 0, 1)
             expdQ = torch.exp(dQ) - 1
             alphas = expdQ / (torch.sum(expdQ, 0) + 1e-4)
