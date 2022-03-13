@@ -45,11 +45,11 @@ class HyperParameters:
     SAVE_PATH: str = None
     DEVICE: str = None
     TOTAL_GRAD_STEPS: int = None
-    NOISE_SIGMA_INITIAL: float = None,
-    NOISE_THETA: float = None,
-    NOISE_SIGMA_DECAY: float = None,
-    NOISE_SIGMA_MIN: float = None,
-    NOISE_SIGMA_GRAD_STEPS: int = None,
+    NOISE_SIGMA_INITIAL: float = None
+    NOISE_THETA: float = None
+    NOISE_SIGMA_DECAY: float = None
+    NOISE_SIGMA_MIN: float = None
+    NOISE_SIGMA_GRAD_STEPS: int = None
 
     def to_dict(self):
         return self.__dict__

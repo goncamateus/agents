@@ -37,7 +37,7 @@ class PPOStrat(nn.Module):
         )
         self.optimizer = optim.Adam(self.parameters(), lr=args.learning_rate, eps=1e-5)
         self.last_epi_rewards = StratLastRewards(10, self.args.num_rewards)
-        self.rew_mean = None
+        self.last_rew_mean = None
 
     def get_value(self, x):
         return self.critic(x)
@@ -86,16 +86,15 @@ class PPOStrat(nn.Module):
             )
 
         # Alpha automatic adjustment
-        rew_tau = 0.995
+        rew_tau = self.args.rew_tau
         if self.last_epi_rewards.can_do() and self.args.dynamic_alphas:
             rew_mean_t = torch.Tensor(self.last_epi_rewards.mean()).to(self.device)
-            if self.rew_mean is None:
-                self.rew_mean = rew_mean_t
-            else:
-                self.rew_mean = rew_mean_t + (self.rew_mean - rew_mean_t) * rew_tau
-            dQ = torch.clamp((r_max - self.rew_mean) / (r_max - r_min), 0, 1)
+            if self.last_rew_mean is not None:
+                rew_mean_t = rew_mean_t + (self.last_rew_mean - rew_mean_t) * rew_tau
+            dQ = torch.clamp((r_max - rew_mean_t) / (r_max - r_min), 0, 1)
             expdQ = torch.exp(dQ) - 1
             alphas = expdQ / (torch.sum(expdQ, 0) + 1e-4)
+            self.last_rew_mean = rew_mean_t
 
         # Policy loss
         mb_advantages = (mb_advantages * alphas).sum(1)

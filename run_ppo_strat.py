@@ -42,6 +42,7 @@ def parse_args():
 
     # Algorithm specific arguments
     parser.add_argument("--num-rewards", type=int, default=10, help="number of rewards to alphas")
+    parser.add_argument("--rew-tau", type=float, default=0.995, help="number of rewards to alphas")
     parser.add_argument("--dynamic-alphas", type=lambda x: bool(strtobool(x)), default=False, help="Rather use dynamic alphas or not")
     parser.add_argument("--num-envs", type=int, default=4,
         help="the number of parallel game environments")
@@ -174,7 +175,8 @@ def main(args):
                     writer.add_scalar("ep_info/ep_steps", epi_lenghts[i], global_step)
                     epi_lenghts[i] = 0
                     for key, value in info[i].items():
-                        writer.add_scalar(f"ep_info/{key}", value, global_step)
+                        if key != "terminal_observation":
+                            writer.add_scalar(f"ep_info/{key}", value, global_step)
                     agent.last_epi_rewards.add(epi_rewards[i])
                     epi_rewards[i] = np.zeros(args.num_rewards)
 

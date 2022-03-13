@@ -165,7 +165,8 @@ def main(args):
                 if done[i]:
                     for key, value in info[i].items():
                         if not isinstance(value, dict):
-                            writer.add_scalar(f"ep_info/{key}", value, global_step)
+                            if key != "terminal_observation":
+                                writer.add_scalar(f"ep_info/{key}", value, global_step)
 
             for item in info:
                 if "episode" in item.keys():
