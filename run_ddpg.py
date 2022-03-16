@@ -1,93 +1,149 @@
+# https://github.com/vwxyzjn/cleanrl/blob/master/cleanrl/ppo.py
+import argparse
+import os
+import random
+import time
+from distutils.util import strtobool
+
 import gym
 import numpy as np
-import pybullet_envs
-import rsoccer_gym
 import torch
+from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
+import envs
 import wandb
 from methods.ddpg import DDPGAgent
-from utils.experiment import HyperParameters, save_checkpoint
-from utils.wrappers import LunarLanderStratWrapper
+from utils.experiment import make_env
 
 
-def main():
-    hp = HyperParameters(
-        EXP_NAME="LunarLander-0",
-        DEVICE=torch.device("cuda"),
-        ENV_NAME="LunarLanderContinuous-v2",
-        LEARNING_RATE=1e-3,
-        BATCH_SIZE=256,
-        GAMMA=0.99,
-        REPLAY_SIZE=1000000,
-        REPLAY_INITIAL=25e3,
-        SAVE_FREQUENCY=1000,
-        TOTAL_GRAD_STEPS=1000000,
-    )
-    env = gym.make(hp.ENV_NAME)
-    env = LunarLanderStratWrapper(env)
-    env = gym.wrappers.RecordVideo(
-        env, "./monitor/", step_trigger=lambda x: x % 100000 == 0
-    )
+def parse_args():
+    # fmt: off
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--exp-name", type=str, default=os.path.basename(__file__).rstrip(".py"),
+        help="the name of this experiment")
+    parser.add_argument("--gym-id", type=str, default="LunarLanderContinuous-v2",
+        help="the id of the gym environment")
+    parser.add_argument("--learning-rate", type=float, default=2.5e-4,
+        help="the learning rate of the optimizer")
+    parser.add_argument("--seed", type=int, default=1,
+        help="seed of the experiment")
+    parser.add_argument("--total-timesteps", type=int, default=3000000,
+        help="total timesteps of the experiments")
+    parser.add_argument("--torch-deterministic", type=lambda x: bool(strtobool(x)), default=True, nargs="?", const=True,
+        help="if toggled, `torch.backends.cudnn.deterministic=False`")
+    parser.add_argument("--cuda", type=lambda x: bool(strtobool(x)), default=True, nargs="?", const=True,
+        help="if toggled, cuda will be enabled by default")
+    parser.add_argument("--capture-video", type=lambda x: bool(strtobool(x)), default=True, nargs="?", const=True,
+        help="weather to capture videos of the agent performances (check out `videos` folder)")
+    parser.add_argument("--track", type=lambda x: bool(strtobool(x)), default=False, nargs="?", const=True,
+        help="Log on wandb")
 
+    # Algorithm specific arguments
+    parser.add_argument("--num-envs", type=int, default=4,
+        help="the number of parallel game environments")
+    parser.add_argument("--gamma", type=float, default=0.99,
+        help="the discount factor gamma")
+    parser.add_argument("--tau", type=float, default=0.995,
+        help="Tau updates on neural networks")
+    parser.add_argument("--replay-init", type=int, default=10000,
+        help="Size of replay buffer before training")
+    parser.add_argument("--replay-size", type=int, default=1000000,
+        help="Max size of replay buffer")
+    parser.add_argument("--batch-size", type=int, default=64,
+        help="Batch size for training")
+    parser.add_argument("--update-freq", type=int, default=4,
+        help="Update every freq steps")
+    parser.add_argument('--noise-theta', type=float, default=0.15,
+        help='noise theta')
+    parser.add_argument('--noise-sigma', type=float, default=0.2, 
+        help='noise sigma') 
+    parser.add_argument('--noise-mu', type=float, default=0.0,
+        help='noise mu')
+    parser.add_argument('--epsilon-decay', type=int, default=100000,
+        help='linear decay of exploration policy') 
+    args = parser.parse_args()
+
+    return args
+
+
+def main(args):
+    exp_name = f"DDPG_{int(time.time())}_{args.gym_id}"
+    print(vars(args))
     wandb.init(
-        project="mestrado",
-        name=hp.EXP_NAME,
+        project="mestrado_ddpg_lander",
+        name=exp_name,
         entity="goncamateus",
-        config=hp.to_dict(),
+        sync_tensorboard=True,
+        config=vars(args),
         monitor_gym=True,
-        # mode="disabled",
+        mode=None if args.track else "disabled",
+        save_code=True,
     )
-    agent = DDPGAgent(hp)
+    writer = SummaryWriter(f"runs/{exp_name}")
+    writer.add_text(
+        "hyperparameters",
+        "|param|value|\n|-|-|\n%s"
+        % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])),
+    )
 
-    grad_steps = 0
-    state = env.reset()
-    done = False
-    epi_reward = 0
-    epi_steps = 0
-    log_dict = {}
-    for _ in tqdm(range(hp.TOTAL_GRAD_STEPS), smoothing=0.1):
-        action = agent.act(state)
-        action += 0.1 * np.random.randn(env.action_space.shape[0])
-        action = np.clip(action, -env.action_space.high[0], env.action_space.high[0])
-        action[0] = np.clip(action[0], 0.0, 1.0)
-        next_state, reward, done, info = env.step(action)
-        agent.replay_buffer.add(state, action, reward, next_state, done)
-        state = next_state
-        epi_reward += reward
-        epi_steps += 1
+    # TRY NOT TO MODIFY: seeding
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    torch.backends.cudnn.deterministic = args.torch_deterministic
 
-        if len(agent.replay_buffer) >= hp.REPLAY_INITIAL:
-            # if epi_steps % 30 == 0:
-            train_logs = agent.train()
-            log_dict.update(train_logs)
-            grad_steps += 1
+    device = torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu")
 
-        if grad_steps % hp.SAVE_FREQUENCY == 0 and grad_steps > 0:
-            nets = {"actor": agent.actor, "critic": agent.critic}
-            optims = {
-                "actor_optimizer": agent.actor_optimizer,
-                "critic_optimizer": agent.critic_optimizer,
-            }
-            save_checkpoint(hp, grad_steps, nets, optims)
+    # env setup
+    envs = gym.vector.SyncVectorEnv(
+        [
+            make_env(args.gym_id, args.seed + i, i, args.capture_video, exp_name)
+            for i in range(args.num_envs)
+        ]
+    )
+    agent = DDPGAgent(args, envs).to(device)
 
-        info = {
-            "ep_info/" + key: item
-            for key, item in info.items()
-            if "truncated" not in key
-        }
-        log_dict.update(info)
-        if done:
-            log_dict["ep_info/ep_rw"] = epi_reward
-            log_dict["ep_info/ep_steps"] = epi_steps
+    # TRY NOT TO MODIFY: start the game
+    global_step = 0
+    start_time = time.time()
+    num_updates = args.total_timesteps
+    obs = envs.reset()
+    epi_lenghts = np.zeros(args.num_envs)
+    epi_rewards = np.zeros(args.num_envs)
 
-        wandb.log(log_dict)
-        if done:
-            state = env.reset()
-            epi_reward = 0
-            epi_steps = 0
-            log_dict = {}
+    for update in tqdm(range(1, num_updates + 1)):
+        global_step += 1 * args.num_envs
+        actions = agent.act(obs)
+        next_obs, reward, done, info = envs.step(actions)
+        epi_lenghts = epi_lenghts + 1
+        epi_rewards = epi_rewards + reward
+        for i in range(args.num_envs):
+            if done[i]:
+                writer.add_scalar("ep_info/ep_steps", epi_lenghts[i], global_step)
+                writer.add_scalar("ep_info/Original_reward", epi_rewards[i], global_step)
+                terminal_obs = info[i]["terminal_observation"]
+                agent.observe(obs[i], actions[i], reward[i], terminal_obs, done[i])
+                epi_lenghts[i] = 0
+                epi_rewards[i] = 0
+            else:
+                agent.observe(obs[i], actions[i], reward[i], next_obs[i], done[i])
+            obs[i] = next_obs[i]
+
+        if len(agent.replay_buffer) >= args.replay_init:
+            agent.training = True
+            if update % args.update_freq == 0:
+                train_logs = agent.train()
+                writer.add_scalar("losses/value_loss", train_logs['loss_Q'], global_step)
+                writer.add_scalar("losses/policy_loss", train_logs['loss_pi'], global_step)
+        writer.add_scalar(
+            "ep_info/SPS", int(global_step / (time.time() - start_time)), global_step
+        )
+
+    envs.close()
+    writer.close()
 
 
 if __name__ == "__main__":
-    main()
+    args = parse_args()
+    main(args)

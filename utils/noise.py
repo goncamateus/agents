@@ -83,4 +83,4 @@ class OrnsteinUhlenbeckNoise:
         self._noise += self.theta * \
             (self.mu - self._noise) + self.sigma * white_noise
         self._noise = np.clip(self._noise, self.min_value, self.max_value)
-        return a + self._noise
+        return self._noise
