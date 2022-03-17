@@ -49,15 +49,7 @@ class PPOStrat(nn.Module):
             action = probs.sample()
         return action, probs.log_prob(action), probs.entropy(), self.critic(x)
 
-    def update(self, clipfracs, batch):
-        alphas = torch.ones(self.args.num_rewards).to(self.device)
-        alphas = alphas / self.args.num_rewards
-        r_max = torch.Tensor([0, 0, -0.03, -0.02, 0, -0.2, -0.2, 1, 1, 1]).to(
-            self.device
-        )
-        r_min = torch.Tensor([-1, -1, -0.8, -0.5, -1, -1, -1, -1, -1, -1]).to(
-            self.device
-        )
+    def update(self, clipfracs, batch, alphas):
         obs = batch[0]
         logprobs = batch[1]
         actions = batch[2]
@@ -84,17 +76,6 @@ class PPOStrat(nn.Module):
             mb_advantages = (mb_advantages - mb_advantages.mean()) / (
                 mb_advantages.std() + 1e-8
             )
-
-        # Alpha automatic adjustment
-        rew_tau = self.args.rew_tau
-        if self.last_epi_rewards.can_do() and self.args.dynamic_alphas:
-            rew_mean_t = torch.Tensor(self.last_epi_rewards.mean()).to(self.device)
-            if self.last_rew_mean is not None:
-                rew_mean_t = rew_mean_t + (self.last_rew_mean - rew_mean_t) * rew_tau
-            dQ = torch.clamp((r_max - rew_mean_t) / (r_max - r_min), 0, 1)
-            expdQ = torch.exp(dQ) - 1
-            alphas = expdQ / (torch.sum(expdQ, 0) + 1e-4)
-            self.last_rew_mean = rew_mean_t
 
         # Policy loss
         mb_advantages = (mb_advantages * alphas).sum(1)

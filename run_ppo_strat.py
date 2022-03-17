@@ -225,6 +225,25 @@ def main(args):
         # Optimizing the policy and value network
         b_inds = np.arange(args.batch_size)
         clipfracs = []
+        alphas = torch.ones(args.num_rewards).to(agent.device)
+        alphas = alphas / args.num_rewards
+        r_max = torch.Tensor([0, 0, -0.03, -0.02, 0, -0.2, -0.2, 1, 1, 1]).to(
+            agent.device
+        )
+        r_min = torch.Tensor([-1, -1, -0.8, -0.5, -1, -1, -1, -1, -1, -1]).to(
+            agent.device
+        )
+        # Alpha automatic adjustment
+        rew_tau = args.rew_tau
+        if agent.last_epi_rewards.can_do() and args.dynamic_alphas:
+            rew_mean_t = torch.Tensor(agent.last_epi_rewards.mean()).to(agent.device)
+            if agent.last_rew_mean is not None:
+                rew_mean_t = rew_mean_t + (agent.last_rew_mean - rew_mean_t) * rew_tau
+            dQ = torch.clamp((r_max - rew_mean_t) / (r_max - r_min), 0, 1)
+            expdQ = torch.exp(dQ) - 1
+            alphas = expdQ / (torch.sum(expdQ, 0) + 1e-4)
+            agent.last_rew_mean = rew_mean_t
+
         for epoch in range(args.update_epochs):
             np.random.shuffle(b_inds)
             for start in range(0, args.batch_size, args.minibatch_size):
@@ -240,7 +259,7 @@ def main(args):
                     b_values[mb_inds],
                 )
                 old_approx_kl, approx_kl, v_loss, pg_loss, entropy_loss, alphas = agent.update(
-                    clipfracs, batch
+                    clipfracs, batch, alphas
                 )
 
             if args.target_kl is not None:
