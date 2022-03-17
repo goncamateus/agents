@@ -22,7 +22,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--exp-name", type=str, default=os.path.basename(__file__).rstrip(".py"),
         help="the name of this experiment")
-    parser.add_argument("--gym-id", type=str, default="LunarLanderContinuous-v2",
+    parser.add_argument("--gym-id", type=str, default="Pendulum-v0",
         help="the id of the gym environment")
     parser.add_argument("--learning-rate", type=float, default=2.5e-4,
         help="the learning rate of the optimizer")
@@ -44,15 +44,15 @@ def parse_args():
         help="the number of parallel game environments")
     parser.add_argument("--gamma", type=float, default=0.99,
         help="the discount factor gamma")
-    parser.add_argument("--tau", type=float, default=0.995,
+    parser.add_argument("--tau", type=float, default=0.999,
         help="Tau updates on neural networks")
     parser.add_argument("--replay-init", type=int, default=10000,
         help="Size of replay buffer before training")
     parser.add_argument("--replay-size", type=int, default=1000000,
         help="Max size of replay buffer")
-    parser.add_argument("--batch-size", type=int, default=64,
+    parser.add_argument("--batch-size", type=int, default=128,
         help="Batch size for training")
-    parser.add_argument("--update-freq", type=int, default=4,
+    parser.add_argument("--update-freq", type=int, default=20,
         help="Update every freq steps")
     parser.add_argument('--noise-theta', type=float, default=0.15,
         help='noise theta')
@@ -60,8 +60,8 @@ def parse_args():
         help='noise sigma') 
     parser.add_argument('--noise-mu', type=float, default=0.0,
         help='noise mu')
-    parser.add_argument('--epsilon-decay', type=int, default=100000,
-        help='linear decay of exploration policy') 
+    parser.add_argument('--epsilon-decay', type=float, default=(1-1e-5),
+        help='Decay of exploration policy') 
     args = parser.parse_args()
 
     return args

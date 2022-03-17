@@ -101,7 +101,7 @@ class DDPGAgent(nn.Module):
             action += max(self.noise_epsilon, 0) * self.noise(action)
             action = np.clip(action, -1, 1)
             if self.training:
-                self.noise_epsilon -= self.noise_epsilon_decay
+                self.noise_epsilon *= self.noise_epsilon_decay
         return action
 
     def train(self):
@@ -111,35 +111,35 @@ class DDPGAgent(nn.Module):
             self.batch_size, self.device
         )
         # ---------------------------- update critic ---------------------------- #
+        self.critic_optimizer.zero_grad()
         # Get predicted next-state actions and Q values from target models
         next_actions = self.actor_target(next_states)
         next_Qs = self.critic_target(torch.cat((next_states, next_actions), dim=1))
 
         # Compute Q targets for current states
-        next_Qs[dones] = 0.0
+        next_Qs[dones == 1.0] = 0.0
         Q_targets = rewards + self.gamma * next_Qs.detach()
 
         # Compute critic loss
         actual_Qs = self.critic(torch.cat((states, actions), dim=1))
         critic_loss = self.critic_loss_func(actual_Qs, Q_targets)
-        train_logs["loss_Q"] = critic_loss.item()
 
         # Minimize the loss
-        self.critic_optimizer.zero_grad()
         critic_loss.backward()
         self.critic_optimizer.step()
+        train_logs["loss_Q"] = critic_loss.item()
 
         # ---------------------------- update actor ---------------------------- #
         # Compute actor loss
+        self.actor_optimizer.zero_grad()
         actions_pred = self.actor(states)
-        critic_evaluation = self.critic(torch.cat((next_states, actions_pred), dim=1))
-        actor_loss = -critic_evaluation.mean()
-        train_logs["loss_pi"] = actor_loss.item()
+        critic_evaluation = -self.critic(torch.cat((next_states, actions_pred), dim=1))
+        actor_loss = critic_evaluation.mean()
 
         # Minimize the loss
-        self.actor_optimizer.zero_grad()
         actor_loss.backward()
         self.actor_optimizer.step()
+        train_logs["loss_pi"] = actor_loss.item()
 
         # ----------------------- update target networks ----------------------- #
         soft_update(self.actor_target, self.actor, self.args.tau)
