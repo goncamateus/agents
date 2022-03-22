@@ -9,7 +9,7 @@ register(
 )
 
 register(
-    id="LunarLanderOri-v0",
+    id="LunarLanderMod-v0",
     entry_point="envs.lunar_lander_strat:LunarLanderStrat",
     kwargs={"stratified": False},
     max_episode_steps=1000,
