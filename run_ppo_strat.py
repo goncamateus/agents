@@ -234,8 +234,6 @@ def main(args):
         alphas = torch.Tensor([0.35, 0, 0, 0, 0.1, 0, 0.002, 0.06, 0.06, 0.4]).to(
             agent.device
         )
-        if args.dynamic_alphas:
-            alphas = alphas / args.num_rewards
         r_max = torch.Tensor([0, 0, -0.03, -0.02, 0, -0.2, -0.2, 1, 1, 1]).to(
             agent.device
         )
