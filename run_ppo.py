@@ -11,6 +11,7 @@ import gym
 import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
+from tqdm import tqdm
 
 import envs
 import wandb
@@ -23,7 +24,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--exp-name", type=str, default=os.path.basename(__file__).rstrip(".py"),
         help="the name of this experiment")
-    parser.add_argument("--gym-id", type=str, default="CartPole-v1",
+    parser.add_argument("--gym-id", type=str, default="LunarLanderOri-v0",
         help="the id of the gym environment")
     parser.add_argument("--learning-rate", type=float, default=2.5e-4,
         help="the learning rate of the optimizer")
@@ -84,7 +85,6 @@ def main(args):
         project="mestrado_ppo_lander",
         name=exp_name,
         entity="goncamateus",
-        sync_tensorboard=True,
         config=vars(args),
         monitor_gym=True,
         mode=None if args.track else "disabled",
@@ -133,8 +133,10 @@ def main(args):
     next_obs = torch.Tensor(envs.reset()).to(device)
     next_done = torch.zeros(args.num_envs).to(device)
     num_updates = args.total_timesteps // args.batch_size
+    episode_num = 0
 
-    for update in range(1, num_updates + 1):
+    for update in tqdm(range(1, num_updates + 1)):
+        log = {}
         # Annealing the rate if instructed to do so.
         if args.anneal_lr:
             frac = 1.0 - (update - 1.0) / num_updates
@@ -166,18 +168,22 @@ def main(args):
                     for key, value in info[i].items():
                         if not isinstance(value, dict):
                             if key != "terminal_observation":
-                                writer.add_scalar(f"ep_info/{key}", value, global_step)
+                                log.update({f"ep_info/{key}": value})
+                                writer.add_scalar(f"ep_info/{key}", value, update)
+                    log.update({f"ep_info/ep_num": episode_num}) 
+                    writer.add_scalar(f"ep_info/ep_num", episode_num, update)
+                    episode_num += 1
 
             for item in info:
                 if "episode" in item.keys():
-                    print(
-                        f"global_step={global_step}, episodic_return={item['episode']['r']}"
+                    # print(
+                    #     f"global_step={global_step}, episodic_return={item['episode']['r']}"
+                    # )
+                    writer.add_scalar(
+                        "charts/episodic_return", item["episode"]["r"], update
                     )
                     writer.add_scalar(
-                        "charts/episodic_return", item["episode"]["r"], global_step
-                    )
-                    writer.add_scalar(
-                        "charts/episodic_length", item["episode"]["l"], global_step
+                        "charts/episodic_length", item["episode"]["l"], update
                     )
                     break
 
@@ -254,20 +260,31 @@ def main(args):
         explained_var = np.nan if var_y == 0 else 1 - np.var(y_true - y_pred) / var_y
 
         # TRY NOT TO MODIFY: record rewards for plotting purposes
+        log.update({"train/learning_rate": agent.optimizer.param_groups[0]["lr"]})
+        log.update({
+            "losses/value_loss": agent.optimizer.param_groups[0]["lr"],
+            "losses/policy_loss": pg_loss.item(),
+            "losses/entropy": entropy_loss.item(),
+            "losses/old_approx_kl": old_approx_kl.item(),
+            "losses/approx_kl": approx_kl.item(),
+            "losses/clipfrac": np.mean(clipfracs),
+            "ep_info/SPS": int(global_step / (time.time() - start_time))
+        })
         writer.add_scalar(
             "charts/learning_rate", agent.optimizer.param_groups[0]["lr"], global_step
         )
-        writer.add_scalar("losses/value_loss", v_loss.item(), global_step)
-        writer.add_scalar("losses/policy_loss", pg_loss.item(), global_step)
-        writer.add_scalar("losses/entropy", entropy_loss.item(), global_step)
-        writer.add_scalar("losses/old_approx_kl", old_approx_kl.item(), global_step)
-        writer.add_scalar("losses/approx_kl", approx_kl.item(), global_step)
-        writer.add_scalar("losses/clipfrac", np.mean(clipfracs), global_step)
-        writer.add_scalar("losses/explained_variance", explained_var, global_step)
-        print("SPS:", int(global_step / (time.time() - start_time)))
+        writer.add_scalar("losses/value_loss", v_loss.item(), update)
+        writer.add_scalar("losses/policy_loss", pg_loss.item(), update)
+        writer.add_scalar("losses/entropy", entropy_loss.item(), update)
+        writer.add_scalar("losses/old_approx_kl", old_approx_kl.item(), update)
+        writer.add_scalar("losses/approx_kl", approx_kl.item(), update)
+        writer.add_scalar("losses/clipfrac", np.mean(clipfracs), update)
+        writer.add_scalar("losses/explained_variance", explained_var, update)
+        # print("SPS:", int(global_step / (time.time() - start_time)))
         writer.add_scalar(
-            "charts/SPS", int(global_step / (time.time() - start_time)), global_step
+            "charts/SPS", int(global_step / (time.time() - start_time)), update
         )
+        wandb.log(log, step=update)
 
     envs.close()
     writer.close()

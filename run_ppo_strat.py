@@ -88,7 +88,6 @@ def main(args):
         project="mestrado_ppo_lander",
         name=exp_name,
         entity="goncamateus",
-        sync_tensorboard=True,
         config=vars(args),
         monitor_gym=True,
         mode=None if args.track else "disabled",
@@ -140,8 +139,10 @@ def main(args):
     next_obs = torch.Tensor(envs.reset()).to(device)
     next_done = torch.zeros(args.num_envs).to(device)
     num_updates = args.total_timesteps // args.batch_size
+    episode_num = 0
 
     for update in tqdm(range(1, num_updates + 1)):
+        log = {}
         # Annealing the rate if instructed to do so.
         if args.anneal_lr:
             frac = 1.0 - (update - 1.0) / num_updates
@@ -172,11 +173,16 @@ def main(args):
             
             for i in range(len(done)):
                 if done[i]:
-                    writer.add_scalar("ep_info/ep_steps", epi_lenghts[i], global_step)
+                    log.update({"ep_info/ep_steps": epi_lenghts[i]})
+                    writer.add_scalar("ep_info/ep_steps", epi_lenghts[i], update)
                     epi_lenghts[i] = 0
                     for key, value in info[i].items():
                         if key != "terminal_observation":
-                            writer.add_scalar(f"ep_info/{key}", value, global_step)
+                            log.update({f"ep_info/{key}": value})
+                            writer.add_scalar(f"ep_info/{key}", value, update)
+                    log.update({f"ep_info/ep_num": episode_num})        
+                    writer.add_scalar(f"ep_info/ep_num", episode_num, update)
+                    episode_num += 1
                     agent.last_epi_rewards.add(epi_rewards[i])
                     epi_rewards[i] = np.zeros(args.num_rewards)
 
@@ -225,8 +231,11 @@ def main(args):
         # Optimizing the policy and value network
         b_inds = np.arange(args.batch_size)
         clipfracs = []
-        alphas = torch.ones(args.num_rewards).to(agent.device)
-        alphas = alphas / args.num_rewards
+        alphas = torch.Tensor([0.35, 0, 0, 0, 0.1, 0, 0.002, 0.06, 0.06, 0.4]).to(
+            agent.device
+        )
+        if args.dynamic_alphas:
+            alphas = alphas / args.num_rewards
         r_max = torch.Tensor([0, 0, -0.03, -0.02, 0, -0.2, -0.2, 1, 1, 1]).to(
             agent.device
         )
@@ -267,24 +276,35 @@ def main(args):
                     break
 
         # TRY NOT TO MODIFY: record rewards for plotting purposes
+        log.update({"train/learning_rate": agent.optimizer.param_groups[0]["lr"]})
         writer.add_scalar(
-            "train/learning_rate", agent.optimizer.param_groups[0]["lr"], global_step
+            "train/learning_rate", agent.optimizer.param_groups[0]["lr"], update
         )
         for i in range(len(alphas)):
+            log.update({"alphas/component_" + str(i): alphas[i].item()})
             writer.add_scalar(
-                "alphas/component_" + str(i), alphas[i].item(), global_step
+                "alphas/component_" + str(i), alphas[i].item(), update
             )
-        writer.add_scalar("losses/value_loss", v_loss.item(), global_step)
-        writer.add_scalar("losses/policy_loss", pg_loss.item(), global_step)
-        writer.add_scalar("losses/entropy", entropy_loss.item(), global_step)
-        writer.add_scalar("losses/old_approx_kl", old_approx_kl.item(), global_step)
-        writer.add_scalar("losses/approx_kl", approx_kl.item(), global_step)
-        writer.add_scalar("losses/clipfrac", np.mean(clipfracs), global_step)
+        log.update({
+            "losses/value_loss": agent.optimizer.param_groups[0]["lr"],
+            "losses/policy_loss": pg_loss.item(),
+            "losses/entropy": entropy_loss.item(),
+            "losses/old_approx_kl": old_approx_kl.item(),
+            "losses/approx_kl": approx_kl.item(),
+            "losses/clipfrac": np.mean(clipfracs),
+            "ep_info/SPS": int(global_step / (time.time() - start_time))
+        })
+        writer.add_scalar("losses/value_loss", v_loss.item(), update)
+        writer.add_scalar("losses/policy_loss", pg_loss.item(), update)
+        writer.add_scalar("losses/entropy", entropy_loss.item(), update)
+        writer.add_scalar("losses/old_approx_kl", old_approx_kl.item(), update)
+        writer.add_scalar("losses/approx_kl", approx_kl.item(), update)
+        writer.add_scalar("losses/clipfrac", np.mean(clipfracs), update)
         # print("SPS:", int(global_step / (time.time() - start_time)))
         writer.add_scalar(
-            "ep_info/SPS", int(global_step / (time.time() - start_time)), global_step
+            "ep_info/SPS", int(global_step / (time.time() - start_time)), update
         )
-
+        wandb.log(log, step=update)
     envs.close()
     writer.close()
 
