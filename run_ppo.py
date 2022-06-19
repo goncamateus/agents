@@ -4,8 +4,6 @@ import os
 import random
 import time
 from distutils.util import strtobool
-from importlib.metadata import entry_points
-from typing import NamedTuple
 
 import gym
 import numpy as np
@@ -14,8 +12,10 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 import envs
+import rsoccer_gym
 import wandb
 from methods.ppo import PPO
+from methods.ppo_continuous import PPOContinuous
 from utils.experiment import make_env
 
 
@@ -40,6 +40,8 @@ def parse_args():
         help="weather to capture videos of the agent performances (check out `videos` folder)")
     parser.add_argument("--track", type=lambda x: bool(strtobool(x)), default=False, nargs="?", const=True,
         help="Log on wandb")
+    parser.add_argument("--continuous", type=lambda x: bool(strtobool(x)), default=False, nargs="?", const=True,
+        help="Whether to use continuous actions")
 
     # Algorithm specific arguments
     parser.add_argument("--num-envs", type=int, default=4,
@@ -113,7 +115,8 @@ def main(args):
         ]
     )
 
-    agent = PPO(args, envs).to(device)
+    algo = PPO if not args.continuous else PPOContinuous
+    agent = algo(args, envs).to(device)
 
     # ALGO Logic: Storage setup
     obs = torch.zeros(
@@ -170,7 +173,7 @@ def main(args):
                             if key != "terminal_observation":
                                 log.update({f"ep_info/{key}": value})
                                 writer.add_scalar(f"ep_info/{key}", value, update)
-                    log.update({f"ep_info/ep_num": episode_num}) 
+                    log.update({f"ep_info/ep_num": episode_num})
                     writer.add_scalar(f"ep_info/ep_num", episode_num, update)
                     episode_num += 1
 
@@ -261,15 +264,17 @@ def main(args):
 
         # TRY NOT TO MODIFY: record rewards for plotting purposes
         log.update({"train/learning_rate": agent.optimizer.param_groups[0]["lr"]})
-        log.update({
-            "losses/value_loss": agent.optimizer.param_groups[0]["lr"],
-            "losses/policy_loss": pg_loss.item(),
-            "losses/entropy": entropy_loss.item(),
-            "losses/old_approx_kl": old_approx_kl.item(),
-            "losses/approx_kl": approx_kl.item(),
-            "losses/clipfrac": np.mean(clipfracs),
-            "ep_info/SPS": int(global_step / (time.time() - start_time))
-        })
+        log.update(
+            {
+                "losses/value_loss": agent.optimizer.param_groups[0]["lr"],
+                "losses/policy_loss": pg_loss.item(),
+                "losses/entropy": entropy_loss.item(),
+                "losses/old_approx_kl": old_approx_kl.item(),
+                "losses/approx_kl": approx_kl.item(),
+                "losses/clipfrac": np.mean(clipfracs),
+                "ep_info/SPS": int(global_step / (time.time() - start_time)),
+            }
+        )
         writer.add_scalar(
             "charts/learning_rate", agent.optimizer.param_groups[0]["lr"], global_step
         )

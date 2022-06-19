@@ -3,13 +3,13 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from utils.network import layer_init
-from torch.distributions.categorical import Categorical
+from torch.distributions.normal import Normal
 
 
-class PPO(nn.Module):
+class PPOContinuous(nn.Module):
     def __init__(self, args, envs, obs_critic_size=None, obs_actor_size=None):
-        super(PPO, self).__init__()
-        self.obs_size = np.array(envs.single_observation_space.shape).prod()
+        super(PPOContinuous, self).__init__()
+        self.obs_size = np.prod(envs.single_observation_space.shape)
         if obs_critic_size is not None:
             self.obs_critic_size = obs_critic_size
         else:
@@ -18,37 +18,41 @@ class PPO(nn.Module):
             self.obs_actor_size = obs_actor_size
         else:
             self.obs_actor_size = self.obs_size
-        self.action_size = envs.single_action_space.n
+        self.action_size = np.prod(envs.single_action_space.shape)
         self.args = args
         self.critic = nn.Sequential(
-            layer_init(
-                nn.Linear(self.obs_critic_size, 64)
-            ),
+            layer_init(nn.Linear(self.obs_critic_size, 64)),
             nn.Tanh(),
             layer_init(nn.Linear(64, 64)),
             nn.Tanh(),
             layer_init(nn.Linear(64, 1), std=1.0),
         )
-        self.actor = nn.Sequential(
-            layer_init(
-                nn.Linear(self.obs_actor_size, 64)
-            ),
+        self.actor_mean = nn.Sequential(
+            layer_init(nn.Linear(self.obs_actor_size, 64)),
             nn.Tanh(),
             layer_init(nn.Linear(64, 64)),
             nn.Tanh(),
-            layer_init(nn.Linear(64, envs.single_action_space.n), std=0.01),
+            layer_init(nn.Linear(64, self.action_size), std=0.01),
         )
+        self.actor_logstd = nn.Parameter(torch.zeros(1, self.action_size))
         self.optimizer = optim.Adam(self.parameters(), lr=args.learning_rate, eps=1e-5)
 
     def get_value(self, x):
         return self.critic(x)
 
     def get_action_and_value(self, x, action=None):
-        logits = self.actor(x)
-        probs = Categorical(logits=logits)
+        action_mean = self.actor_mean(x)
+        action_logstd = self.actor_logstd.expand_as(action_mean)
+        action_std = torch.exp(action_logstd)
+        probs = Normal(action_mean, action_std)
         if action is None:
             action = probs.sample()
-        return action, probs.log_prob(action), probs.entropy(), self.critic(x)
+        return (
+            action,
+            probs.log_prob(action).sum(1),
+            probs.entropy().sum(1),
+            self.critic(x),
+        )
 
     def update(self, clipfracs, batch):
         obs = batch[0]
@@ -90,7 +94,9 @@ class PPO(nn.Module):
         if self.args.clip_vloss:
             v_loss_unclipped = (newvalue - returns) ** 2
             v_clipped = values + torch.clamp(
-                newvalue - values, -self.args.clip_coef, self.args.clip_coef,
+                newvalue - values,
+                -self.args.clip_coef,
+                self.args.clip_coef,
             )
             v_loss_clipped = (v_clipped - returns) ** 2
             v_loss_max = torch.max(v_loss_unclipped, v_loss_clipped)
