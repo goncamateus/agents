@@ -3,15 +3,15 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.distributions.categorical import Categorical
-from utils.buffer import ReplayBuffer
-from utils.experiment import HyperParameters, StratLastRewards
+from torch.distributions.normal import Normal
+from utils.experiment import StratLastRewards
 from utils.network import layer_init
 
 
 class PPOStrat(nn.Module):
     def __init__(self, args, envs):
         super(PPOStrat, self).__init__()
-        self.obs_size = np.array(envs.single_observation_space.shape).prod()
+        self.obs_size = np.array(envs.single_observation_space.shape)
         self.action_size = envs.single_action_space.n
         self.args = args
         self.device = torch.device(
@@ -36,7 +36,9 @@ class PPOStrat(nn.Module):
             layer_init(nn.Linear(64, envs.single_action_space.n), std=0.01),
         )
         self.optimizer = optim.Adam(self.parameters(), lr=args.learning_rate, eps=1e-5)
-        self.last_epi_rewards = StratLastRewards(10, self.args.num_rewards)
+        self.last_epi_rewards = StratLastRewards(
+            self.args.episodes_rb, self.args.num_rewards
+        )
         self.last_rew_mean = None
 
     def get_value(self, x):
@@ -89,7 +91,9 @@ class PPOStrat(nn.Module):
         if self.args.clip_vloss:
             v_loss_unclipped = (newvalue - returns) ** 2
             v_clipped = values + torch.clamp(
-                newvalue - values, -self.args.clip_coef, self.args.clip_coef,
+                newvalue - values,
+                -self.args.clip_coef,
+                self.args.clip_coef,
             )
             v_loss_clipped = (v_clipped - returns) ** 2
             v_loss_max = torch.max(v_loss_unclipped, v_loss_clipped)
@@ -106,3 +110,31 @@ class PPOStrat(nn.Module):
         self.optimizer.step()
 
         return old_approx_kl, approx_kl, v_loss, pg_loss, entropy_loss, alphas
+
+
+class PPOStratContinuous(PPOStrat):
+    def __init__(self, args, envs):
+        super(PPOStratContinuous, self).__init__(args, envs)
+        self.actor = nn.Sequential(
+            layer_init(nn.Linear(self.obs_actor_size, 64)),
+            nn.Tanh(),
+            layer_init(nn.Linear(64, 64)),
+            nn.Tanh(),
+            layer_init(nn.Linear(64, self.action_size), std=0.01),
+        )
+        self.actor_logstd = nn.Parameter(torch.zeros(1, self.action_size))
+        self.optimizer = optim.Adam(self.parameters(), lr=args.learning_rate, eps=1e-5)
+
+    def get_action_and_value(self, x, action=None):
+        action_mean = self.actor_mean(x)
+        action_logstd = self.actor_logstd.expand_as(action_mean)
+        action_std = torch.exp(action_logstd)
+        probs = Normal(action_mean, action_std)
+        if action is None:
+            action = probs.sample()
+        return (
+            action,
+            probs.log_prob(action).sum(1),
+            probs.entropy().sum(1),
+            self.critic(x),
+        )

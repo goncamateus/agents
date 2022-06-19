@@ -13,8 +13,7 @@ from tqdm import tqdm
 
 import envs
 import wandb
-from methods.ppo import PPO
-from methods.ppo_strat import PPOStrat
+from methods.ppo_strat import PPOStrat, PPOStratContinuous
 from utils.experiment import StratSyncVectorEnv, make_env
 
 
@@ -39,11 +38,14 @@ def parse_args():
         help="weather to capture videos of the agent performances (check out `videos` folder)")
     parser.add_argument("--track", type=lambda x: bool(strtobool(x)), default=False, nargs="?", const=True,
         help="Log on wandb")
+    parser.add_argument("--continuous", type=lambda x: bool(strtobool(x)), default=False, nargs="?", const=True,
+        help="Whether to use continuous actions")
 
     # Algorithm specific arguments
-    parser.add_argument("--num-rewards", type=int, default=10, help="number of rewards to alphas")
-    parser.add_argument("--rew-tau", type=float, default=0.995, help="number of rewards to alphas")
-    parser.add_argument("--dynamic-alphas", type=lambda x: bool(strtobool(x)), default=False, help="Rather use dynamic alphas or not")
+    parser.add_argument("--episodes-rb", type=int, default=10, help="number of episodes to calculate rb")
+    parser.add_argument("--num-rewards", type=int, default=10, help="number of rewards to lambdas")
+    parser.add_argument("--rew-tau", type=float, default=0.995, help="number of rewards to lambdas")
+    parser.add_argument("--dylam", type=lambda x: bool(strtobool(x)), default=False, help="Rather use DyLam or not")
     parser.add_argument("--num-envs", type=int, default=4,
         help="the number of parallel game environments")
     parser.add_argument("--num-steps", type=int, default=128,
@@ -117,7 +119,9 @@ def main(args):
         ],
         num_rewards=args.num_rewards
     )
-    agent = PPOStrat(args, envs).to(device)
+
+    algo = PPOStrat if not args.continuous else PPOStratContinuous
+    agent = algo(args, envs).to(device)
 
     # ALGO Logic: Storage setup
     obs = torch.zeros(
@@ -231,7 +235,7 @@ def main(args):
         # Optimizing the policy and value network
         b_inds = np.arange(args.batch_size)
         clipfracs = []
-        alphas = torch.Tensor([0.35, 0, 0, 0, 0.1, 0, 0.002, 0.06, 0.06, 0.4]).to(
+        lambdas = torch.Tensor([0.35, 0, 0, 0, 0.1, 0, 0.002, 0.06, 0.06, 0.4]).to(
             agent.device
         )
         r_max = torch.Tensor([0, 0, -0.03, -0.02, 0, -0.2, -0.2, 1, 1, 1]).to(
@@ -240,15 +244,15 @@ def main(args):
         r_min = torch.Tensor([-1, -1, -0.8, -0.5, -1, -1, -1, -1, -1, -1]).to(
             agent.device
         )
-        # Alpha automatic adjustment
+        # DyLam
         rew_tau = args.rew_tau
-        if agent.last_epi_rewards.can_do() and args.dynamic_alphas:
+        if agent.last_epi_rewards.can_do() and args.dylam:
             rew_mean_t = torch.Tensor(agent.last_epi_rewards.mean()).to(agent.device)
             if agent.last_rew_mean is not None:
                 rew_mean_t = rew_mean_t + (agent.last_rew_mean - rew_mean_t) * rew_tau
             dQ = torch.clamp((r_max - rew_mean_t) / (r_max - r_min), 0, 1)
             expdQ = torch.exp(dQ) - 1
-            alphas = expdQ / (torch.sum(expdQ, 0) + 1e-4)
+            lambdas = expdQ / (torch.sum(expdQ, 0) + 1e-4)
             agent.last_rew_mean = rew_mean_t
 
         for epoch in range(args.update_epochs):
@@ -265,8 +269,8 @@ def main(args):
                     b_returns[mb_inds],
                     b_values[mb_inds],
                 )
-                old_approx_kl, approx_kl, v_loss, pg_loss, entropy_loss, alphas = agent.update(
-                    clipfracs, batch, alphas
+                old_approx_kl, approx_kl, v_loss, pg_loss, entropy_loss, lambdas = agent.update(
+                    clipfracs, batch, lambdas
                 )
 
             if args.target_kl is not None:
@@ -278,10 +282,10 @@ def main(args):
         writer.add_scalar(
             "train/learning_rate", agent.optimizer.param_groups[0]["lr"], update
         )
-        for i in range(len(alphas)):
-            log.update({"alphas/component_" + str(i): alphas[i].item()})
+        for i in range(len(lambdas)):
+            log.update({"lambdas/component_" + str(i): lambdas[i].item()})
             writer.add_scalar(
-                "alphas/component_" + str(i), alphas[i].item(), update
+                "lambdas/component_" + str(i), lambdas[i].item(), update
             )
         log.update({
             "losses/value_loss": agent.optimizer.param_groups[0]["lr"],
