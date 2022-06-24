@@ -116,7 +116,7 @@ def make_env(
         if capture_video:
             if idx == 0:
                 env = gym.wrappers.RecordVideo(
-                    env, f"monitor/{run_name}", episode_trigger=lambda x: x % 5 == 0
+                    env, f"monitor/{run_name}", episode_trigger=lambda x: x % 50 == 0
                 )
         if normalize:
             env = gym.wrappers.ClipAction(env)

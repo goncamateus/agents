@@ -28,7 +28,7 @@ def parse_args():
         help="the id of the gym environment")
     parser.add_argument("--learning-rate", type=float, default=2.5e-4,
         help="the learning rate of the optimizer")
-    parser.add_argument("--seed", type=int, default=1,
+    parser.add_argument("--seed", type=int, default=0,
         help="seed of the experiment")
     parser.add_argument("--total-timesteps", type=int, default=25000,
         help="total timesteps of the experiments")
@@ -87,8 +87,12 @@ def parse_args():
 
 def main(args):
     exp_name = f"PPO_{int(time.time())}_{args.gym_id}"
+    project = args.gym_id.split("-")[0]
+    if args.seed == 0:
+        args.seed = int(time.time())
+    args.method = "ppo"
     wandb.init(
-        project="mestrado_ppo_lander",
+        project=project,
         name=exp_name,
         entity="goncamateus",
         config=vars(args),
