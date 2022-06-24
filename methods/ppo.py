@@ -9,7 +9,7 @@ from torch.distributions.categorical import Categorical
 class PPO(nn.Module):
     def __init__(self, args, envs, obs_critic_size=None, obs_actor_size=None):
         super(PPO, self).__init__()
-        self.obs_size = np.array(envs.single_observation_space.shape).prod()
+        self.obs_size = np.array(envs.observation_space.shape).prod()
         if obs_critic_size is not None:
             self.obs_critic_size = obs_critic_size
         else:
@@ -18,25 +18,21 @@ class PPO(nn.Module):
             self.obs_actor_size = obs_actor_size
         else:
             self.obs_actor_size = self.obs_size
-        self.action_size = envs.single_action_space.n
+        self.action_size = envs.action_space.n
         self.args = args
         self.critic = nn.Sequential(
-            layer_init(
-                nn.Linear(self.obs_critic_size, 64)
-            ),
+            layer_init(nn.Linear(self.obs_critic_size, 64)),
             nn.Tanh(),
             layer_init(nn.Linear(64, 64)),
             nn.Tanh(),
             layer_init(nn.Linear(64, 1), std=1.0),
         )
         self.actor = nn.Sequential(
-            layer_init(
-                nn.Linear(self.obs_actor_size, 64)
-            ),
+            layer_init(nn.Linear(self.obs_actor_size, 64)),
             nn.Tanh(),
             layer_init(nn.Linear(64, 64)),
             nn.Tanh(),
-            layer_init(nn.Linear(64, envs.single_action_space.n), std=0.01),
+            layer_init(nn.Linear(64, envs.action_space.n), std=0.01),
         )
         self.optimizer = optim.Adam(self.parameters(), lr=args.learning_rate, eps=1e-5)
 
@@ -90,7 +86,9 @@ class PPO(nn.Module):
         if self.args.clip_vloss:
             v_loss_unclipped = (newvalue - returns) ** 2
             v_clipped = values + torch.clamp(
-                newvalue - values, -self.args.clip_coef, self.args.clip_coef,
+                newvalue - values,
+                -self.args.clip_coef,
+                self.args.clip_coef,
             )
             v_loss_clipped = (v_clipped - returns) ** 2
             v_loss_max = torch.max(v_loss_unclipped, v_loss_clipped)

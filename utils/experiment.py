@@ -27,6 +27,7 @@ class StratLastRewards:
     def mean(self):
         return self.rewards.mean(0)
 
+
 @dataclasses.dataclass
 class HyperParameters:
     """Class containing all experiment hyperparameters"""
@@ -56,7 +57,7 @@ class HyperParameters:
 
     def __post_init__(self):
         env = gym.make(self.ENV_NAME)
-        self.N_OBS, self.N_ACTS= (
+        self.N_OBS, self.N_ACTS = (
             env.observation_space.shape[0],
             env.action_space.shape[0],
         )
@@ -73,10 +74,9 @@ def save_checkpoint(hp, steps, neural_nets, optimizers):
         checkpoint[name] = net.state_dict()
     for name, optim in optimizers.items():
         checkpoint[name] = optim.state_dict()
-    filename = os.path.join(
-        hp.CHECKPOINT_PATH, "checkpoint_{:09}.pth".format(steps)
-    )
+    filename = os.path.join(hp.CHECKPOINT_PATH, "checkpoint_{:09}.pth".format(steps))
     torch.save(checkpoint, filename)
+
 
 def soft_update(model, target, tau):
     """
@@ -91,19 +91,43 @@ def soft_update(model, target, tau):
         tgt_state[k] = tgt_state[k] * tau + (1 - tau) * v
     target.load_state_dict(tgt_state)
 
+
 class StratSyncVectorEnv(gym.vector.SyncVectorEnv):
-    def __init__(self, env_fns, num_rewards, observation_space=None, action_space=None, copy=True):
+    def __init__(
+        self, env_fns, num_rewards, observation_space=None, action_space=None, copy=True
+    ):
         super().__init__(env_fns, observation_space, action_space, copy)
         self._rewards = np.zeros((self.num_envs, num_rewards), dtype=np.float64)
 
-def make_env(gym_id, seed, idx, capture_video, run_name, statistics=True, extra_wrapper=None):
+
+def make_env(
+    gym_id,
+    seed,
+    idx,
+    capture_video,
+    run_name,
+    normalize=False,
+    gamma=0.99,
+    extra_wrapper=None,
+):
     def thunk():
         env = gym.make(gym_id)
-        if statistics:
-            env = gym.wrappers.RecordEpisodeStatistics(env)
+        env = gym.wrappers.RecordEpisodeStatistics(env)
         if capture_video:
             if idx == 0:
-                env = gym.wrappers.RecordVideo(env, f"monitor/{run_name}", episode_trigger=lambda x: x % 100 == 0)
+                env = gym.wrappers.RecordVideo(
+                    env, f"monitor/{run_name}", episode_trigger=lambda x: x % 5 == 0
+                )
+        if normalize:
+            env = gym.wrappers.ClipAction(env)
+            env = gym.wrappers.NormalizeObservation(env)
+            env = gym.wrappers.TransformObservation(
+                env, lambda obs: np.clip(obs, -10, 10)
+            )
+            env = gym.wrappers.NormalizeReward(env, gamma=gamma)
+            env = gym.wrappers.TransformReward(
+                env, lambda reward: np.clip(reward, -10, 10)
+            )
         if extra_wrapper is not None:
             env = extra_wrapper(env)
         env.seed(seed)

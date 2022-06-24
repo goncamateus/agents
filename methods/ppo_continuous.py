@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.optim as optim
 from utils.network import layer_init
 from torch.distributions.normal import Normal
+from torch.nn import functional as F
 
 
 class PPOContinuous(nn.Module):
@@ -21,20 +22,28 @@ class PPOContinuous(nn.Module):
         self.action_size = np.prod(envs.single_action_space.shape)
         self.args = args
         self.critic = nn.Sequential(
-            layer_init(nn.Linear(self.obs_critic_size, 64)),
+            layer_init(
+                nn.Linear(np.array(envs.single_observation_space.shape).prod(), 256)
+            ),
             nn.Tanh(),
-            layer_init(nn.Linear(64, 64)),
+            layer_init(nn.Linear(256, 256)),
             nn.Tanh(),
-            layer_init(nn.Linear(64, 1), std=1.0),
+            layer_init(nn.Linear(256, 1), std=1.0),
         )
         self.actor_mean = nn.Sequential(
-            layer_init(nn.Linear(self.obs_actor_size, 64)),
+            layer_init(
+                nn.Linear(np.array(envs.single_observation_space.shape).prod(), 256)
+            ),
             nn.Tanh(),
-            layer_init(nn.Linear(64, 64)),
+            layer_init(nn.Linear(256, 256)),
             nn.Tanh(),
-            layer_init(nn.Linear(64, self.action_size), std=0.01),
+            layer_init(
+                nn.Linear(256, np.prod(envs.single_action_space.shape)), std=0.01
+            ),
         )
-        self.actor_logstd = nn.Parameter(torch.zeros(1, self.action_size))
+        self.actor_logstd = nn.Parameter(
+            torch.ones(1, np.prod(envs.single_action_space.shape)) * args.log_std_init
+        )
         self.optimizer = optim.Adam(self.parameters(), lr=args.learning_rate, eps=1e-5)
 
     def get_value(self, x):
@@ -62,9 +71,7 @@ class PPOContinuous(nn.Module):
         returns = batch[4]
         values = batch[5]
 
-        _, newlogprob, entropy, newvalue = self.get_action_and_value(
-            obs, actions.long()
-        )
+        _, newlogprob, entropy, newvalue = self.get_action_and_value(obs, actions)
         logratio = newlogprob - logprobs
         ratio = logratio.exp()
 
@@ -83,11 +90,11 @@ class PPOContinuous(nn.Module):
             )
 
         # Policy loss
-        pg_loss1 = -mb_advantages * ratio
-        pg_loss2 = -mb_advantages * torch.clamp(
+        pg_loss1 = mb_advantages * ratio
+        pg_loss2 = mb_advantages * torch.clamp(
             ratio, 1 - self.args.clip_coef, 1 + self.args.clip_coef
         )
-        pg_loss = torch.max(pg_loss1, pg_loss2).mean()
+        pg_loss = -torch.min(pg_loss1, pg_loss2).mean()
 
         # Value loss
         newvalue = newvalue.view(-1)
@@ -102,10 +109,10 @@ class PPOContinuous(nn.Module):
             v_loss_max = torch.max(v_loss_unclipped, v_loss_clipped)
             v_loss = 0.5 * v_loss_max.mean()
         else:
-            v_loss = 0.5 * ((newvalue - returns) ** 2).mean()
+            v_loss = F.mse_loss(newvalue, returns)
 
-        entropy_loss = entropy.mean()
-        loss = pg_loss - self.args.ent_coef * entropy_loss + v_loss * self.args.vf_coef
+        entropy_loss = -entropy.mean()
+        loss = pg_loss + self.args.ent_coef * entropy_loss + v_loss * self.args.vf_coef
 
         self.optimizer.zero_grad()
         loss.backward()
