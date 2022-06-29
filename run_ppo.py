@@ -38,6 +38,8 @@ def parse_args():
         help="if toggled, cuda will be enabled by default")
     parser.add_argument("--capture-video", type=lambda x: bool(strtobool(x)), default=False, nargs="?", const=True,
         help="weather to capture videos of the agent performances (check out `videos` folder)")
+    parser.add_argument("--video-freq", type=int, default=50,
+        help="Frequency of saving videos, in episodes")    
     parser.add_argument("--track", type=lambda x: bool(strtobool(x)), default=False, nargs="?", const=True,
         help="Log on wandb")
     parser.add_argument("--continuous", type=lambda x: bool(strtobool(x)), default=False, nargs="?", const=True,
@@ -127,6 +129,7 @@ def main(args):
                 exp_name,
                 normalize=args.normalize,
                 gamma=args.gamma,
+                video_freq=args.video_freq,
             )
             for i in range(args.num_envs)
         ],
@@ -194,6 +197,10 @@ def main(args):
                     writer.add_scalar(
                         "charts/episodic_length", item["episode"]["l"], update
                     )
+                    strat_rewards = [x for x in item.keys() if x.startswith("reward_")]
+                    for key in strat_rewards:
+                        log.update({f"ep_info/{key.replace('reward_', '')}": item[key]})
+                        writer.add_scalar(f"charts/{key.replace('reward_', '')}", item[key], update)
                     break
         # bootstrap value if not done
         with torch.no_grad():
