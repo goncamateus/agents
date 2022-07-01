@@ -18,6 +18,11 @@ class LunarLanderStrat(LunarLander):
         }
         self.stratified = stratified
         self.prev_rew = None
+        self.strat_prev_rew = None
+        self.ori_weights = np.array([100.0, 100.0, 100.0, 0.3, 0.03, 10.0, 10.0, 100.0])
+        self.scale = np.array([1.4, 1, 2, 1000, 1000, 1, 1, 1])
+        if stratified:
+            self.num_rewards = 8
 
     def step(self, action):
         if self.continuous:
@@ -49,29 +54,31 @@ class LunarLanderStrat(LunarLander):
         shaping = np.zeros(8)
         strat_reward = np.zeros(8)
         # Distance to center
-        shaping[0] = -100 * np.sqrt(state[0] * state[0] + state[1] * state[1])
+        shaping[0] = -np.sqrt(state[0] * state[0] + state[1] * state[1])
         # Speed discount
-        shaping[1] = -100 * np.sqrt(state[2] * state[2] + state[3] * state[3])
+        shaping[1] = -np.sqrt(state[2] * state[2] + state[3] * state[3])
         # Angle discount
-        shaping[2] = -100 * abs(state[4])
+        shaping[2] = -abs(state[4])
         # Ground Contacts
-        shaping[5] = 10 * state[6]
-        shaping[6] = 10 * state[7]
+        shaping[5] = state[6]
+        shaping[6] = state[7]
 
         # Win/Lost
         if done:
             self.prev_rew = None
             shaping = np.zeros(8)
             if self.game_over or abs(state[0]) >= 1.0:
-                strat_reward[7] = -100
+                strat_reward[7] = -1
             if not self.lander.awake:
-                strat_reward[7] = 100
+                strat_reward[7] = 1
 
         if self.prev_rew is not None:
             strat_reward = shaping - self.prev_rew
             # Power discount
-            strat_reward[3] = -m_power * 0.30
-            strat_reward[4] = -s_power * 0.03
+            strat_reward[3] = -m_power
+            strat_reward[4] = -s_power
+
+        strat_reward = strat_reward / self.scale
 
         self.cumulative_reward_info["reward_Distance"] += strat_reward[0]
         self.cumulative_reward_info["reward_Speed"] += strat_reward[1]
@@ -88,9 +95,10 @@ class LunarLanderStrat(LunarLander):
 
         self.cumulative_reward_info["Original_reward"] += reward
         info.update(self.cumulative_reward_info)
-        # print("Original:", reward)
-        # print("Stratified:", strat_reward.sum())
-        reward = strat_reward if self.stratified else strat_reward.sum()
+        if not self.stratified:
+            reward = (strat_reward * self.ori_weights).sum()
+        else:
+            reward = strat_reward
         if done:
             self.prev_rew = None
             self.cumulative_reward_info = {

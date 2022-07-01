@@ -89,7 +89,8 @@ def parse_args():
 
 def main(args):
     exp_name = f"PPO_{int(time.time())}_{args.gym_id}"
-    project = args.gym_id.split("-")[0]
+    # project = args.gym_id.split("-")[0]
+    project = "LunarLanderContinuous"
     if args.seed == 0:
         args.seed = int(time.time())
     args.method = "ppo"
@@ -122,14 +123,9 @@ def main(args):
     envs = gym.vector.SyncVectorEnv(
         [
             make_env(
-                args.gym_id,
-                args.seed + i,
+                args,
                 i,
-                args.capture_video,
                 exp_name,
-                normalize=args.normalize,
-                gamma=args.gamma,
-                video_freq=args.video_freq,
             )
             for i in range(args.num_envs)
         ],

@@ -127,14 +127,9 @@ def main(args):
     envs = StratSyncVectorEnv(
         [
             make_env(
-                args.gym_id,
-                args.seed + i,
+                args,
                 i,
-                args.capture_video,
                 exp_name,
-                normalize=args.normalize,
-                gamma=args.gamma,
-                video_freq=args.video_freq,
             )
             for i in range(args.num_envs)
         ],
@@ -193,6 +188,14 @@ def main(args):
                 torch.Tensor(done).to(device),
             )
 
+            for i, d in enumerate(done):
+                if d:
+                    agent.last_epi_rewards.add(epi_rewards[i])
+                    # for j, r in enumerate(epi_rewards[i]):
+                    #     log.update({f"ep_info/component_{j}": r})
+                    #     writer.add_scalar(f"charts/component_{j}", r, update)
+                    epi_rewards[i] = 0
+                    
             for item in info:
                 if "episode" in item.keys():
                     # print(
@@ -256,11 +259,11 @@ def main(args):
         # Optimizing the policy and value network
         b_inds = np.arange(args.batch_size)
         clipfracs = []
-        lambdas = torch.ones(args.num_rewards).to(agent.device)
-        r_max = torch.Tensor([0, 0, -0.03, -0.02, 0, -0.2, -0.2, 1, 1, 1]).to(
+        lambdas = torch.ones(args.num_rewards).to(agent.device)/args.num_rewards
+        r_max = torch.Tensor([1, 0.7, 0, -5, -5, 1, 1, 1]).to(
             agent.device
         )
-        r_min = torch.Tensor([-1, -1, -0.8, -0.5, -1, -1, -1, -1, -1, -1]).to(
+        r_min = torch.Tensor([0.16, -1, -0.6, -20, -20, 0, 0, -1]).to(
             agent.device
         )
         # DyLam
