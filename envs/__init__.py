@@ -30,3 +30,18 @@ register(
     max_episode_steps=1000,
     reward_threshold=200,
 )
+
+register(
+    id="HalfCheetahStrat-v0",
+    entry_point="envs.half_cheetah_strat:HalfCheetahStratEnv",
+    max_episode_steps=1000,
+    reward_threshold=4800.0,
+)
+
+register(
+    id="HalfCheetahOri-v0",
+    entry_point="envs.half_cheetah_strat:HalfCheetahStratEnv",
+    kwargs={"stratified": False},
+    max_episode_steps=1000,
+    reward_threshold=4800.0,
+)
