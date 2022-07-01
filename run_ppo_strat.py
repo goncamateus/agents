@@ -160,7 +160,7 @@ def main(args):
     num_updates = args.total_timesteps // args.buffer_size
     episode_num = 0
 
-    for update in tqdm(range(1, num_updates + 1)):
+    for update in range(1, num_updates + 1):
         log = {}
         # Annealing the rate if instructed to do so.
         if args.anneal_lr:
@@ -194,17 +194,18 @@ def main(args):
                     # for j, r in enumerate(epi_rewards[i]):
                     #     log.update({f"ep_info/component_{j}": r})
                     #     writer.add_scalar(f"charts/component_{j}", r, update)
-                    epi_rewards[i] = 0
+                    epi_rewards[i] = np.zeros(args.num_rewards)
                     
             for item in info:
                 if "episode" in item.keys():
                     # print(
                     #     f"global_step={global_step}, episodic_return={item['episode']['r']}"
                     # )
-                    log.update({f"ep_info/reward_total": item["episode"]["r"]})
+                    log.update({f"ep_info/reward_total": item['Original_reward']})
                     writer.add_scalar(
-                        "charts/episodic_return", item["episode"]["r"], update
+                        "charts/episodic_return", item['Original_reward'], update
                     )
+                    log.update({f"ep_info/episodic_length": item["episode"]["l"]})
                     writer.add_scalar(
                         "charts/episodic_length", item["episode"]["l"], update
                     )
@@ -259,11 +260,11 @@ def main(args):
         # Optimizing the policy and value network
         b_inds = np.arange(args.batch_size)
         clipfracs = []
-        lambdas = torch.ones(args.num_rewards).to(agent.device)/args.num_rewards
-        r_max = torch.Tensor([1, 0.7, 0, -5, -5, 1, 1, 1]).to(
+        lambdas = torch.ones(args.num_rewards).to(agent.device)
+        r_max = torch.Tensor([1, 0.5, 0, -0.02, -0.02, 1, 1, 1]).to(
             agent.device
         )
-        r_min = torch.Tensor([0.16, -1, -0.6, -20, -20, 0, 0, -1]).to(
+        r_min = torch.Tensor([0.2, -0.5, -0.3, -0.4, -0.3, 0, 0, -1]).to(
             agent.device
         )
         # DyLam
