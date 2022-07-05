@@ -31,6 +31,14 @@ class HalfCheetahStratEnv(HalfCheetahEnv):
             **kwargs
         )
 
+    def reset(self):
+        self.cumulative_reward_info = {
+            "reward_run": 0,
+            "reward_ctrl": 0,
+            "Original_reward": 0,
+        }
+        return super().reset()
+
     def step(self, action):
         state, reward, done, info = super().step(action)
         strat_reward = np.zeros(2)
@@ -38,6 +46,7 @@ class HalfCheetahStratEnv(HalfCheetahEnv):
         strat_reward[0] = info["reward_run"]
         # Control reward
         strat_reward[1] = info["reward_ctrl"]
+
         strat_reward = strat_reward / self.ori_weights
 
         self.cumulative_reward_info["reward_run"] += strat_reward[0]
@@ -46,11 +55,4 @@ class HalfCheetahStratEnv(HalfCheetahEnv):
         reward = strat_reward
 
         info.update(self.cumulative_reward_info)
-
-        if done:
-            self.cumulative_reward_info = {
-                "reward_run": 0,
-                "reward_ctrl": 0,
-                "Original_reward": 0,
-            }
         return state, reward, done, info
