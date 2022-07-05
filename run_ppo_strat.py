@@ -83,7 +83,7 @@ def parse_args():
     parser.add_argument("--episodes-rb", type=int, default=10, help="number of episodes to calculate rb")
     parser.add_argument("--num-rewards", type=int, default=10, help="number of rewards to lambdas")
     parser.add_argument("--rew-tau", type=float, default=0.995, help="number of rewards to lambdas")
-    parser.add_argument("--dylam", type=lambda x: bool(strtobool(x)), default=False, help="Rather use DyLam or not")
+    parser.add_argument("--dylam", type=lambda x: bool(strtobool(x)), default=False, nargs="?", const=True, help="Rather use DyLam or not")
     args = parser.parse_args()
     args.buffer_size = int(args.num_envs * args.num_steps)
     args.n_batches = int(args.buffer_size // args.batch_size)
@@ -94,7 +94,7 @@ def parse_args():
 def main(args):
     exp_name = f"PPO_DyLam_{int(time.time())}_{args.gym_id}"
     # project = args.gym_id.split("-")[0]
-    project = "LunarLanderContinuous"
+    project = "Mujoco"
     if args.seed == 0:
         args.seed = int(time.time())
     args.method = "ppo_dylam"
@@ -191,28 +191,25 @@ def main(args):
             for i, d in enumerate(done):
                 if d:
                     agent.last_epi_rewards.add(epi_rewards[i])
-                    # for j, r in enumerate(epi_rewards[i]):
-                    #     log.update({f"ep_info/component_{j}": r})
-                    #     writer.add_scalar(f"charts/component_{j}", r, update)
                     epi_rewards[i] = np.zeros(args.num_rewards)
                     
             for item in info:
                 if "episode" in item.keys():
-                    # print(
-                    #     f"global_step={global_step}, episodic_return={item['episode']['r']}"
-                    # )
-                    log.update({f"ep_info/reward_total": item['Original_reward']})
+                    print(
+                        f"global_step={global_step}, episodic_return={item['episode']['r']}"
+                    )
+                    log.update({f"ep_info/reward_total": item["episode"]["r"]})
                     writer.add_scalar(
-                        "charts/episodic_return", item['Original_reward'], update
+                        "charts/episodic_return", item["episode"]["r"], update
                     )
                     log.update({f"ep_info/episodic_length": item["episode"]["l"]})
                     writer.add_scalar(
                         "charts/episodic_length", item["episode"]["l"], update
                     )
-                    strat_rewards = [x for x in item.keys() if x.startswith("reward_")]
-                    for key in strat_rewards:
-                        log.update({f"ep_info/{key.replace('reward_', '')}": item[key]})
-                        writer.add_scalar(f"charts/{key.replace('reward_', '')}", item[key], update)
+                    components = [item["episode"][f"component_{i}"] for i in range(2)]
+                    for i, component in enumerate(components):
+                        log.update({f"ep_info/component_{i}": component})
+                        writer.add_scalar(f"charts/component_{i}", component, update)
                     break
 
         # bootstrap value if not done
@@ -260,13 +257,9 @@ def main(args):
         # Optimizing the policy and value network
         b_inds = np.arange(args.batch_size)
         clipfracs = []
-        lambdas = torch.ones(args.num_rewards).to(agent.device)
-        r_max = torch.Tensor([1, 0.5, 0, -0.02, -0.02, 1, 1, 1]).to(
-            agent.device
-        )
-        r_min = torch.Tensor([0.2, -0.5, -0.3, -0.4, -0.3, 0, 0, -1]).to(
-            agent.device
-        )
+        lambdas = torch.Tensor([1, 0.1]).to(agent.device)
+        r_max = torch.Tensor([30, -35]).to(agent.device)
+        r_min = torch.Tensor([10, -40]).to(agent.device)
         # DyLam
         rew_tau = args.rew_tau
         if agent.last_epi_rewards.can_do() and args.dylam:

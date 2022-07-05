@@ -90,7 +90,7 @@ def parse_args():
 def main(args):
     exp_name = f"PPO_{int(time.time())}_{args.gym_id}"
     # project = args.gym_id.split("-")[0]
-    project = "LunarLanderContinuous"
+    project = "Mujoco"
     if args.seed == 0:
         args.seed = int(time.time())
     args.method = "ppo"
@@ -190,13 +190,14 @@ def main(args):
                     writer.add_scalar(
                         "charts/episodic_return", item["episode"]["r"], update
                     )
+                    log.update({f"ep_info/episodic_length": item["episode"]["l"]})
                     writer.add_scalar(
                         "charts/episodic_length", item["episode"]["l"], update
                     )
-                    strat_rewards = [x for x in item.keys() if x.startswith("reward_")]
-                    for key in strat_rewards:
-                        log.update({f"ep_info/{key.replace('reward_', '')}": item[key]})
-                        writer.add_scalar(f"charts/{key.replace('reward_', '')}", item[key], update)
+                    components = [item["episode"][f"component_{i}"] for i in range(2)]
+                    for i, component in enumerate(components):
+                        log.update({f"ep_info/component_{i}": component})
+                        writer.add_scalar(f"charts/component_{i}", component, update)
                     break
         # bootstrap value if not done
         with torch.no_grad():
