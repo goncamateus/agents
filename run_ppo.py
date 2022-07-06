@@ -184,20 +184,22 @@ def main(args):
             for item in info:
                 if "episode" in item.keys():
                     print(
-                        f"global_step={global_step}, episodic_return={item['episode']['r']}"
+                        f"global_step={global_step}, episodic_return={item['Original_reward']}"
                     )
-                    log.update({f"ep_info/reward_total": item["episode"]["r"]})
+                    log.update({f"ep_info/reward_total": item["Original_reward"]})
                     writer.add_scalar(
-                        "charts/episodic_return", item["episode"]["r"], update
+                        "charts/episodic_return", item["Original_reward"], update
                     )
                     log.update({f"ep_info/episodic_length": item["episode"]["l"]})
                     writer.add_scalar(
                         "charts/episodic_length", item["episode"]["l"], update
                     )
-                    components = [item["episode"][f"component_{i}"] for i in range(2)]
-                    for i, component in enumerate(components):
-                        log.update({f"ep_info/component_{i}": component})
-                        writer.add_scalar(f"charts/component_{i}", component, update)
+                    strat_rewards = [x for x in item.keys() if x.startswith("reward_")]
+                    for key in strat_rewards:
+                        log.update({f"ep_info/{key.replace('reward_', '')}": item[key]})
+                        writer.add_scalar(
+                            f"charts/{key.replace('reward_', '')}", item[key], update
+                        )
                     break
         # bootstrap value if not done
         with torch.no_grad():

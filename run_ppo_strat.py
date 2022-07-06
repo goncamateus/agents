@@ -15,6 +15,7 @@ import envs
 import wandb
 from methods.ppo_strat import PPOStrat, PPOStratContinuous
 from utils.experiment import StratSyncVectorEnv, make_env
+from utils.wrappers import RewardTransformer
 
 
 def parse_args():
@@ -139,6 +140,8 @@ def main(args):
     algo = PPOStrat if not args.continuous else PPOStratContinuous
     agent = algo(args, envs).to(device)
 
+    rew_transformer = RewardTransformer(args)
+
     # ALGO Logic: Storage setup
     obs = torch.zeros(
         (args.num_steps, args.num_envs) + envs.single_observation_space.shape
@@ -182,6 +185,7 @@ def main(args):
             # TRY NOT TO MODIFY: execute the game and log data.
             next_obs, reward, done, info = envs.step(action.cpu().numpy())
             epi_rewards = epi_rewards + reward
+            reward = rew_transformer.transform(reward, done)
             rewards[step] = torch.tensor(reward).to(device)
             next_obs, next_done = (
                 torch.Tensor(next_obs).to(device),
@@ -196,20 +200,20 @@ def main(args):
             for item in info:
                 if "episode" in item.keys():
                     print(
-                        f"global_step={global_step}, episodic_return={item['episode']['r']}"
+                        f"global_step={global_step}, episodic_return={item['Original_reward']}"
                     )
-                    log.update({f"ep_info/reward_total": item["episode"]["r"]})
+                    log.update({f"ep_info/reward_total": item["Original_reward"]})
                     writer.add_scalar(
-                        "charts/episodic_return", item["episode"]["r"], update
+                        "charts/episodic_return", item["Original_reward"], update
                     )
                     log.update({f"ep_info/episodic_length": item["episode"]["l"]})
                     writer.add_scalar(
                         "charts/episodic_length", item["episode"]["l"], update
                     )
-                    components = [item["episode"][f"component_{i}"] for i in range(2)]
-                    for i, component in enumerate(components):
-                        log.update({f"ep_info/component_{i}": component})
-                        writer.add_scalar(f"charts/component_{i}", component, update)
+                    strat_rewards = [x for x in item.keys() if x.startswith("reward_")]
+                    for key in strat_rewards:
+                        log.update({f"ep_info/{key.replace('reward_', '')}": item[key]})
+                        writer.add_scalar(f"charts/{key.replace('reward_', '')}", item[key], update)
                     break
 
         # bootstrap value if not done
@@ -229,7 +233,7 @@ def main(args):
                     bootstrapped = torch.zeros_like(nextvalues).to(device)
                     for i in range(len(nextnonterminal)):
                         bootstrapped[i] = gamma * nextnonterminal[i] * nextvalues[i]
-                    delta = rewards[t] + bootstrapped- values[t]
+                    delta = rewards[t] + bootstrapped - values[t]
                     last_gae_lm_advantages = torch.zeros_like(next_value).to(device)
                     for i in range(len(nextnonterminal)):
                         last_gae_lm_advantages[i] = gamma * args.gae_lambda * nextnonterminal[i] * lastgaelam[i]
@@ -257,9 +261,9 @@ def main(args):
         # Optimizing the policy and value network
         b_inds = np.arange(args.batch_size)
         clipfracs = []
-        lambdas = torch.Tensor([1, 0.1]).to(agent.device)
-        r_max = torch.Tensor([30, -35]).to(agent.device)
-        r_min = torch.Tensor([10, -40]).to(agent.device)
+        lambdas = torch.Tensor([0.5, 0.5]).to(agent.device)
+        r_max = torch.Tensor([5000, -1800]).to(agent.device)
+        r_min = torch.Tensor([1000, -2200]).to(agent.device)
         # DyLam
         rew_tau = args.rew_tau
         if agent.last_epi_rewards.can_do() and args.dylam:

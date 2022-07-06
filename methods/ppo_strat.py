@@ -31,21 +31,21 @@ class PPOStrat(nn.Module):
         )
         self.critic = nn.Sequential(
             layer_init(
-                nn.Linear(np.array(envs.single_observation_space.shape).prod(), 64)
+                nn.Linear(np.array(envs.single_observation_space.shape).prod(), 256)
             ),
             nn.Tanh(),
-            layer_init(nn.Linear(64, 64)),
+            layer_init(nn.Linear(256, 256)),
             nn.Tanh(),
-            layer_init(nn.Linear(64, args.num_rewards), std=1.0),
+            layer_init(nn.Linear(256, args.num_rewards), std=1.0),
         )
         self.actor = nn.Sequential(
             layer_init(
-                nn.Linear(np.array(envs.single_observation_space.shape).prod(), 64)
+                nn.Linear(np.array(envs.single_observation_space.shape).prod(), 256)
             ),
             nn.Tanh(),
-            layer_init(nn.Linear(64, 64)),
+            layer_init(nn.Linear(256, 256)),
             nn.Tanh(),
-            layer_init(nn.Linear(64, self.action_size), std=0.01),
+            layer_init(nn.Linear(256, self.action_size), std=0.01),
         )
         self.optimizer = optim.Adam(self.parameters(), lr=args.learning_rate, eps=1e-5)
         self.last_epi_rewards = StratLastRewards(
@@ -128,11 +128,11 @@ class PPOStratContinuous(PPOStrat):
     def __init__(self, args, envs):
         super(PPOStratContinuous, self).__init__(args, envs)
         self.actor = nn.Sequential(
-            layer_init(nn.Linear(self.obs_actor_size, 64)),
+            layer_init(nn.Linear(self.obs_actor_size, 256)),
             nn.Tanh(),
-            layer_init(nn.Linear(64, 64)),
+            layer_init(nn.Linear(256, 256)),
             nn.Tanh(),
-            layer_init(nn.Linear(64, self.action_size), std=0.01),
+            layer_init(nn.Linear(256, self.action_size), std=0.01),
         )
         self.actor_logstd = nn.Parameter(
             torch.ones(1, np.prod(envs.single_action_space.shape)) * args.log_std_init

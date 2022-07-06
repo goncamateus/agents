@@ -6,7 +6,7 @@ import numpy as np
 import rsoccer_gym
 import torch
 
-from utils.wrappers import (NormalizeStratReward, RecordEpisodeStatistics)
+from utils.wrappers import RecordEpisodeStatistics
 
 
 class StratLastRewards:
@@ -109,7 +109,6 @@ def make_env(
 ):
     def thunk():
         env = gym.make(args.gym_id)
-        env = RecordEpisodeStatistics(env)
         if args.capture_video:
             if idx == 0:
                 env = gym.wrappers.RecordVideo(
@@ -119,15 +118,16 @@ def make_env(
                 )
         if args.continuous:
             env = gym.wrappers.ClipAction(env)
-        if args.normalize:
             env = gym.wrappers.NormalizeObservation(env)
             env = gym.wrappers.TransformObservation(
                 env, lambda obs: np.clip(obs, -10, 10)
             )
+        if args.normalize:
             env = gym.wrappers.NormalizeReward(env, gamma=args.gamma)
             env = gym.wrappers.TransformReward(
                 env, lambda reward: np.clip(reward, -10, 10)
             )
+        env = RecordEpisodeStatistics(env)
         if extra_wrapper is not None:
             env = extra_wrapper(env)
         env.seed(args.seed)

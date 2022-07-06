@@ -40,11 +40,10 @@ class RecordEpisodeStatistics(gym.Wrapper):
         # else:
         if not self.is_vector_env:
             rewards = rewards.reshape((1, -1))
+        self.episode_returns += (rewards * self.weights).sum()
+        self.episode_returns_strat += rewards * self.weights
         # Changes based on the experiment
-        rewards = rewards
-        self.episode_returns += (rewards*self.weights).sum()
-        self.episode_returns_strat += rewards*self.weights
-        rewards = rewards.sum()
+        # rewards = rewards.sum()
         self.episode_lengths += 1
         if not self.is_vector_env:
             infos = [infos]
@@ -61,9 +60,7 @@ class RecordEpisodeStatistics(gym.Wrapper):
                 }
                 # if strat:
                 for j in range(self.num_rewards):
-                    episode_info["component_%d" % j] = self.episode_returns_strat[
-                        i, j
-                    ]
+                    episode_info["component_%d" % j] = self.episode_returns_strat[i, j]
                 self.return_strat_queue.append(episode_info["component_%d" % j])
                 infos[i]["episode"] = episode_info
                 self.return_queue.append(episode_return)
@@ -82,33 +79,20 @@ class RecordEpisodeStatistics(gym.Wrapper):
         )
 
 
-class NormalizeStratReward(gym.core.Wrapper):
+class RewardTransformer:
     def __init__(
         self,
-        env,
-        gamma=0.99,
+        args,
         epsilon=1e-8,
     ):
-        super(NormalizeStratReward, self).__init__(env)
-        self.num_envs = getattr(env, "num_envs", 1)
-        self.num_rewards = getattr(env, "num_rewards", 1)
-        self.is_vector_env = getattr(env, "is_vector_env", False)
         self.return_rms = RunningMeanStd(shape=())
-        self.returns = np.zeros((self.num_envs, self.num_rewards))
-        self.gamma = gamma
+        self.returns = np.zeros((args.num_envs, args.num_rewards))
+        self.gamma = args.gamma
         self.epsilon = epsilon
 
-    def step(self, action):
-        obs, rews, dones, infos = self.env.step(action)
-        if not self.is_vector_env:
-            rews = np.array([rews])
+    def transform(self, rews, dones):
         self.returns = self.returns * self.gamma + rews
-        rews = self.normalize(rews)
-        self.returns[dones] = 0.0
-        if not self.is_vector_env:
-            rews = rews[0]
-        return obs, rews, dones, infos
-
-    def normalize(self, rews):
         self.return_rms.update(self.returns)
-        return rews / np.sqrt(self.return_rms.var + self.epsilon)
+        rews = rews / np.sqrt(self.return_rms.var + self.epsilon)
+        self.returns[dones] = 0.0
+        return np.clip(rews, -10, 10)
