@@ -116,6 +116,7 @@ def make_env(
                     f"monitor/{run_name}",
                     episode_trigger=lambda x: x % args.video_freq == 0,
                 )
+        # For PPO -------------------------------------------------------
         if args.continuous:
             env = gym.wrappers.ClipAction(env)
             env = gym.wrappers.NormalizeObservation(env)
@@ -127,6 +128,7 @@ def make_env(
             env = gym.wrappers.TransformReward(
                 env, lambda reward: np.clip(reward, -10, 10)
             )
+        # ---------------------------------------------------------------
         env = RecordEpisodeStatistics(env)
         if extra_wrapper is not None:
             env = extra_wrapper(env)
