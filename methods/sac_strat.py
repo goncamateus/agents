@@ -9,6 +9,13 @@ from torch.distributions import Normal
 from torch.optim import Adam
 
 
+# Initialize Policy weights
+def weights_init_(m):
+    if isinstance(m, nn.Linear):
+        torch.nn.init.xavier_uniform_(m.weight, gain=1)
+        torch.nn.init.constant_(m.bias, 0)
+
+
 class QNetwork(nn.Module):
     def __init__(self, num_inputs, num_actions, num_rewards=1, hidden_dim=256):
         super(QNetwork, self).__init__()
@@ -30,6 +37,8 @@ class QNetwork(nn.Module):
             nn.ReLU(),
             nn.Linear(hidden_dim, num_rewards),
         )
+
+        self.apply(weights_init_)
 
     def forward(self, state, action):
         xu = torch.cat([state.clone(), action.clone()], 1)
@@ -58,6 +67,8 @@ class GaussianPolicy(nn.Module):
 
         self.mean_linear = nn.Linear(hidden_dim, num_actions)
         self.log_std_linear = nn.Linear(hidden_dim, num_actions)
+
+        self.apply(weights_init_)
 
         # action rescaling
         if action_space is None:
@@ -267,7 +278,7 @@ class SACStrat(nn.Module):
             if self.alpha_optim is not None:
                 with torch.no_grad():
                     _, log_pi, _ = self.actor.sample(state_batch)
-                alpha_loss = (-self.log_alpha * (log_pi + self.target_entropy)).mean()
+                alpha_loss = (-self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
 
                 self.alpha_optim.zero_grad()
                 alpha_loss.backward()

@@ -12,8 +12,8 @@ from torch.utils.tensorboard import SummaryWriter
 
 import envs
 import wandb
-from methods.sac import SAC
-from utils.experiment import make_env
+from methods.sac_strat import SACStrat
+from utils.experiment import StratSyncVectorEnv, make_env
 
 
 
@@ -77,18 +77,22 @@ def parse_args():
     parser.add_argument("--autotune", type=lambda x:bool(strtobool(x)), default=True, nargs="?", const=True,
         help="automatic tuning of the entropy coefficient")
  
+    # Arguments for DyLam
+    parser.add_argument("--episodes-rb", type=int, default=10, help="number of episodes to calculate rb")
+    parser.add_argument("--num-rewards", type=int, default=10, help="number of rewards to lambdas")
+    parser.add_argument("--rew-tau", type=float, default=0.995, help="number of rewards to lambdas")
+    parser.add_argument("--dylam", type=lambda x: bool(strtobool(x)), default=False, nargs="?", const=True, help="Rather use DyLam or not")
     args = parser.parse_args()
-
     return args
 
 
 def main(args):
-    exp_name = f"SAC_{int(time.time())}_{args.gym_id}"
+    exp_name = f"SAC_DyLam_{int(time.time())}_{args.gym_id}"
     # project = args.gym_id.split("-")[0]
     project = "Mujoco"
     if args.seed == 0:
         args.seed = int(time.time())
-    args.method = "sac"
+    args.method = "sac_dylam"
     wandb.init(
         project=project,
         name=exp_name,
@@ -113,7 +117,7 @@ def main(args):
     torch.backends.cudnn.deterministic = args.torch_deterministic
 
     # env setup
-    envs = gym.vector.SyncVectorEnv(
+    envs = StratSyncVectorEnv(
         [
             make_env(
                 args,
@@ -124,7 +128,7 @@ def main(args):
         ],
     )
 
-    agent = SAC(args, envs.single_observation_space, envs.single_action_space)
+    agent = SACStrat(args, envs.single_observation_space, envs.single_action_space)
     start_time = time.time()
 
     # TRY NOT TO MODIFY: training loop
