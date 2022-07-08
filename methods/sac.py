@@ -9,6 +9,13 @@ from torch.distributions import Normal
 from torch.optim import Adam
 
 
+# Initialize Policy weights
+def weights_init_(m):
+    if isinstance(m, nn.Linear):
+        torch.nn.init.xavier_uniform_(m.weight, gain=1)
+        torch.nn.init.constant_(m.bias, 0)
+
+
 class QNetwork(nn.Module):
     def __init__(self, num_inputs, num_actions, hidden_dim=256):
         super(QNetwork, self).__init__()
@@ -30,6 +37,8 @@ class QNetwork(nn.Module):
             nn.ReLU(),
             nn.Linear(hidden_dim, 1),
         )
+
+        self.apply(weights_init_)
 
     def forward(self, state, action):
         xu = torch.cat([state.clone(), action.clone()], 1)
@@ -58,6 +67,8 @@ class GaussianPolicy(nn.Module):
 
         self.mean_linear = nn.Linear(hidden_dim, num_actions)
         self.log_std_linear = nn.Linear(hidden_dim, num_actions)
+
+        self.apply(weights_init_)
 
         # action rescaling
         if action_space is None:
@@ -210,7 +221,7 @@ class SAC(nn.Module):
         action_batch = data.actions.float()
         reward_batch = data.rewards.float()
         next_state_batch = data.next_observations.float()
-        done_batch = data.dones
+        done_batch = data.dones.bool()
 
         with torch.no_grad():
             next_state_action, next_state_log_pi, _ = self.actor.sample(
@@ -223,9 +234,8 @@ class SAC(nn.Module):
                 torch.min(qf1_next_target, qf2_next_target)
                 - self.alpha * next_state_log_pi
             )
-            next_q_value = reward_batch.flatten() + (
-                1 - done_batch.flatten()
-            ) * self.gamma * (min_qf_next_target).view(-1)
+            min_qf_next_target[done_batch] = 0.0
+            next_q_value = reward_batch + self.gamma * min_qf_next_target
 
         # Two Q-functions to mitigate
         # positive bias in the policy improvement step
@@ -262,7 +272,8 @@ class SAC(nn.Module):
             if self.alpha_optim is not None:
                 with torch.no_grad():
                     _, log_pi, _ = self.actor.sample(state_batch)
-                alpha_loss = (-self.log_alpha * (log_pi + self.target_entropy)).mean()
+                alpha_loss = (-self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
+                alpha_loss = alpha_loss.mean()
 
                 self.alpha_optim.zero_grad()
                 alpha_loss.backward()

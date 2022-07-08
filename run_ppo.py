@@ -184,7 +184,7 @@ def main(args):
             for item in info:
                 if "episode" in item.keys():
                     print(
-                        f"global_step={global_step}, episodic_return={item['Original_reward']}"
+                        f'global_step={global_step}, episodic_return={item["Original_reward"]}'
                     )
                     log.update({f"ep_info/reward_total": item["Original_reward"]})
                     writer.add_scalar(

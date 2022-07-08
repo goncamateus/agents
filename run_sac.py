@@ -52,8 +52,8 @@ def parse_args():
         help="the replay memory buffer size")
     parser.add_argument("--gamma", type=float, default=0.99,
         help="the discount factor gamma")
-    parser.add_argument("--tau", type=float, default=0.005,
-        help="target smoothing coefficient (default: 0.005)")
+    parser.add_argument("--tau", type=float, default=1 - 1e-3,
+        help="target smoothing coefficient (default: 0.999)")
     parser.add_argument("--batch-size", type=int, default=256,
         help="the batch size of sample from the reply memory")
     parser.add_argument("--exploration-noise", type=float, default=0.1,
@@ -142,9 +142,6 @@ def main(args):
 
         # TRY NOT TO MODIFY: save data to reply buffer; handle `terminal_observation`
         real_next_obs = next_obs.copy()
-        for idx, d in enumerate(dones):
-            if d:
-                real_next_obs[idx] = infos[idx]["terminal_observation"]
         agent.replay_buffer.add(obs, real_next_obs, actions, rewards, dones, infos)
 
         # TRY NOT TO MODIFY: CRUCIAL step easy to overlook
