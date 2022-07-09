@@ -126,6 +126,7 @@ def main(args):
             )
             for i in range(args.num_envs)
         ],
+        num_rewards=args.num_rewards
     )
 
     agent = SACStrat(args, envs.single_observation_space, envs.single_action_space)
@@ -148,7 +149,7 @@ def main(args):
 
         # TRY NOT TO MODIFY: save data to reply buffer; handle `terminal_observation`
         real_next_obs = next_obs.copy()
-        agent.replay_buffer.add(obs, real_next_obs, actions, rewards, dones, infos)
+        agent.replay_buffer.add(obs, actions, rewards, real_next_obs, dones)
 
         # TRY NOT TO MODIFY: CRUCIAL step easy to overlook
         obs = next_obs

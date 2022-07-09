@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from stable_baselines3.common.buffers import ReplayBuffer
+from utils.buffer import ReplayBuffer
 from torch.distributions import Normal
 from torch.optim import Adam
 
@@ -177,7 +177,7 @@ class SACStrat(nn.Module):
             action_space=action_space,
         )
         self.device = torch.device(
-            "cuda" if torch.cuda.is_available() and args.device else "cpu"
+            "cuda" if torch.cuda.is_available() and args.cuda else "cpu"
         )
         self.critic = QNetwork(
             self.num_inputs,
@@ -203,16 +203,9 @@ class SACStrat(nn.Module):
         else:
             self.alpha = args.alpha
 
-        self.replay_buffer = ReplayBuffer(
-            args.buffer_size,
-            self.observation_space,
-            self.action_space,
-            self.device,
-            handle_timeout_termination=True,
-        )
-        self.last_epi_rewards = StratLastRewards(
-            self.args.episodes_rb, self.args.num_rewards
-        )
+        self.replay_buffer = ReplayBuffer(args.buffer_size, self.device)
+        self.last_epi_rewards = StratLastRewards(args.episodes_rb, args.num_rewards)
+        self.last_rew_mean = None
         self.to(self.device)
 
     def to(self, device):
@@ -226,13 +219,13 @@ class SACStrat(nn.Module):
         return self.actor.get_action(state)
 
     def update(self, batch_size, lambdas, update_actor=False):
-        data = self.replay_buffer.sample(batch_size)
-        state_batch = data.observations.float()
-        action_batch = data.actions.float()
-        reward_batch = data.rewards.float()
-        next_state_batch = data.next_observations.float()
-        done_batch = data.dones
-
+        (
+            state_batch,
+            action_batch,
+            reward_batch,
+            next_state_batch,
+            done_batch,
+        ) = self.replay_buffer.sample(batch_size)
         with torch.no_grad():
             next_state_action, next_state_log_pi, _ = self.actor.sample(
                 next_state_batch
@@ -244,19 +237,18 @@ class SACStrat(nn.Module):
                 torch.min(qf1_next_target, qf2_next_target)
                 - self.alpha * next_state_log_pi
             )
-            next_q_value = reward_batch.flatten() + (
-                1 - done_batch.flatten()
-            ) * self.gamma * (min_qf_next_target).view(-1)
+            min_qf_next_target[done_batch] = 0.0
+            next_q_value = reward_batch + self.gamma * min_qf_next_target
 
         # Two Q-functions to mitigate
         # positive bias in the policy improvement step
         qf1, qf2 = self.critic(state_batch, action_batch)
 
         # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
-        qf1_loss = F.mse_loss(qf1, next_q_value.view(-1, 1))
+        qf1_loss = F.mse_loss(qf1, next_q_value)
 
         # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
-        qf2_loss = F.mse_loss(qf2, next_q_value.view(-1, 1))
+        qf2_loss = F.mse_loss(qf2, next_q_value)
 
         # Minimize the loss between two Q-functions
         qf_loss = qf1_loss + qf2_loss
