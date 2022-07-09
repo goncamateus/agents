@@ -132,6 +132,7 @@ def main(args):
     start_time = time.time()
 
     # TRY NOT TO MODIFY: training loop
+    epi_rewards = np.zeros((args.num_envs, args.num_rewards))
     obs = envs.reset()
     log = {}
     for global_step in range(args.total_timesteps):
@@ -143,6 +144,7 @@ def main(args):
         
         # TRY NOT TO MODIFY: execute the action and collect the next obs
         next_obs, rewards, dones, infos = envs.step(actions)
+        epi_rewards = epi_rewards + rewards
 
         # TRY NOT TO MODIFY: save data to reply buffer; handle `terminal_observation`
         real_next_obs = next_obs.copy()
@@ -150,6 +152,10 @@ def main(args):
 
         # TRY NOT TO MODIFY: CRUCIAL step easy to overlook
         obs = next_obs
+        for i, d in enumerate(dones):
+            if d:
+                agent.last_epi_rewards.add(epi_rewards[i])
+                epi_rewards[i] = np.zeros(args.num_rewards)
         
         for item in infos:
             if "episode" in item.keys():
@@ -174,8 +180,26 @@ def main(args):
         
         # ALGO LOGIC: training.
         if global_step > args.learning_starts:
+            # DyLam
+            lambdas = torch.Tensor([0.5, 0.5]).to(agent.device)
+            r_max = torch.Tensor([9000, -3600]).to(agent.device)
+            r_min = torch.Tensor([6000, -3900]).to(agent.device)
+            rew_tau = args.rew_tau
+            if agent.last_epi_rewards.can_do() and args.dylam:
+                rew_mean_t = torch.Tensor(agent.last_epi_rewards.mean()).to(agent.device)
+                if agent.last_rew_mean is not None:
+                    rew_mean_t = rew_mean_t + (agent.last_rew_mean - rew_mean_t) * rew_tau
+                dQ = torch.clamp((r_max - rew_mean_t) / (r_max - r_min), 0, 1)
+                expdQ = torch.exp(dQ) - 1
+                lambdas = expdQ / (torch.sum(expdQ, 0) + 1e-4)
+                agent.last_rew_mean = rew_mean_t
+
             update_actor = global_step % args.policy_frequency == 0
-            policy_loss, qf1_loss, qf2_loss, alpha_loss = agent.update(args.batch_size, update_actor)
+            policy_loss, qf1_loss, qf2_loss, alpha_loss = agent.update(
+                                                                        args.batch_size,
+                                                                        lambdas,
+                                                                        update_actor
+                                                                        )
 
             if global_step % args.target_network_frequency == 0:
                 agent.critic_target.sync(args.tau)

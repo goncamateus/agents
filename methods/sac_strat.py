@@ -8,6 +8,8 @@ from stable_baselines3.common.buffers import ReplayBuffer
 from torch.distributions import Normal
 from torch.optim import Adam
 
+from utils.experiment import StratLastRewards
+
 
 # Initialize Policy weights
 def weights_init_(m):
@@ -208,6 +210,9 @@ class SACStrat(nn.Module):
             self.device,
             handle_timeout_termination=True,
         )
+        self.last_epi_rewards = StratLastRewards(
+            self.args.episodes_rb, self.args.num_rewards
+        )
         self.to(self.device)
 
     def to(self, device):
@@ -278,7 +283,9 @@ class SACStrat(nn.Module):
             if self.alpha_optim is not None:
                 with torch.no_grad():
                     _, log_pi, _ = self.actor.sample(state_batch)
-                alpha_loss = (-self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
+                alpha_loss = (
+                    -self.log_alpha * (log_pi + self.target_entropy).detach()
+                ).mean()
 
                 self.alpha_optim.zero_grad()
                 alpha_loss.backward()
