@@ -183,8 +183,8 @@ def main(args):
         if global_step > args.learning_starts:
             # DyLam
             lambdas = torch.Tensor([0.5, 0.5]).to(agent.device)
-            r_max = torch.Tensor([9000, -3600]).to(agent.device)
-            r_min = torch.Tensor([6000, -3900]).to(agent.device)
+            r_max = torch.Tensor([9000, -3700]).to(agent.device)
+            r_min = torch.Tensor([6000, -4000]).to(agent.device)
             rew_tau = args.rew_tau
             if agent.last_epi_rewards.can_do() and args.dylam:
                 rew_mean_t = torch.Tensor(agent.last_epi_rewards.mean()).to(agent.device)
@@ -206,6 +206,11 @@ def main(args):
                 agent.critic_target.sync(args.tau)
             
             if global_step % 100 == 0:
+                for i in range(len(lambdas)):
+                    log.update({"lambdas/component_" + str(i): lambdas[i].item()})
+                    writer.add_scalar(
+                        "lambdas/component_" + str(i), lambdas[i].item(), global_step
+                    )
                 log.update({
                     "losses/Value1_loss":qf1_loss.item(),
                     "losses/Value2_loss":qf2_loss.item(),

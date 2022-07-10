@@ -28,6 +28,7 @@ class ReplayBuffer:
 
     def clear(self):
         self.buffer.clear()
+        self.ptr = 0
 
     def sample(self, batch_size):
         """From a batch of experience, return values in Tensor form on device"""
