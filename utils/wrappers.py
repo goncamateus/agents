@@ -11,6 +11,7 @@ class RecordEpisodeStatistics(gym.Wrapper):
         self.num_envs = getattr(env, "num_envs", 1)
         self.num_rewards = getattr(env, "num_rewards", 1)
         self.weights = getattr(env, "ori_weights", None)
+        self.stratified = getattr(env, "stratified", False)
         self.t0 = time.perf_counter()
         self.episode_count = 0
         self.episode_returns = None
@@ -43,7 +44,8 @@ class RecordEpisodeStatistics(gym.Wrapper):
         self.episode_returns += (rewards * self.weights).sum()
         self.episode_returns_strat += rewards * self.weights
         # Changes based on the experiment
-        # rewards = (rewards * self.weights).sum()
+        if not self.stratified:
+            rewards = (rewards * self.weights).sum()
         self.episode_lengths += 1
         if not self.is_vector_env:
             infos = [infos]

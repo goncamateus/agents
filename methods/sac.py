@@ -272,7 +272,7 @@ class SAC(nn.Module):
             if self.alpha_optim is not None:
                 with torch.no_grad():
                     _, log_pi, _ = self.actor.sample(state_batch)
-                alpha_loss = (-self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
+                alpha_loss = (-self.log_alpha * (log_pi + self.target_entropy).detach())
                 alpha_loss = alpha_loss.mean()
 
                 self.alpha_optim.zero_grad()

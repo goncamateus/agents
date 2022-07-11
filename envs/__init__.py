@@ -45,3 +45,16 @@ register(
     max_episode_steps=1000,
     reward_threshold=4800.0,
 )
+
+register(
+    id="HumanoidStrat-v0",
+    entry_point="envs.humanoid_strat:HumanoidStratEnv",
+    max_episode_steps=1000,
+)
+
+register(
+    id="HumanoidOri-v0",
+    entry_point="envs.humanoid_strat:HumanoidStratEnv",
+    kwargs={"stratified": False},
+    max_episode_steps=1000,
+)

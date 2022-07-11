@@ -182,9 +182,9 @@ def main(args):
         # ALGO LOGIC: training.
         if global_step > args.learning_starts:
             # DyLam
-            lambdas = torch.Tensor([0.5, 0.5]).to(agent.device)
-            r_max = torch.Tensor([9000, -3700]).to(agent.device)
-            r_min = torch.Tensor([6000, -4000]).to(agent.device)
+            lambdas = torch.Tensor([1/3, 1/3, 1/3]).to(agent.device)
+            r_max = torch.Tensor([500, 1000, -800]).to(agent.device)
+            r_min = torch.Tensor([0, 0, -1000]).to(agent.device)
             rew_tau = args.rew_tau
             if agent.last_epi_rewards.can_do() and args.dylam:
                 rew_mean_t = torch.Tensor(agent.last_epi_rewards.mean()).to(agent.device)
