@@ -26,7 +26,7 @@ class HumanoidStratEnv(HumanoidEnv):
                 # contact_cost_weight,
             ]
         )
-        self.scale = np.array([1, 1, 1])
+        self.scale = np.array([1/1500, 1/1000, 1/3000])
         self.num_rewards = 3
         self.cumulative_reward_info = {
             "reward_linvel": 0,
@@ -77,6 +77,8 @@ class HumanoidStratEnv(HumanoidEnv):
         self.cumulative_reward_info["reward_quadctrl"] += strat_reward[2]
         # self.cumulative_reward_info["reward_impact"] += strat_reward[3]
         self.cumulative_reward_info["Original_reward"] += reward
+        if self.stratified:
+            strat_reward = strat_reward * self.scale
         reward = strat_reward
 
         info.update(self.cumulative_reward_info)

@@ -233,6 +233,7 @@ class SACStrat(nn.Module):
             qf1_next_target, qf2_next_target = self.critic_target.target_model(
                 next_state_batch, next_state_action
             )
+
             min_qf_next_target = (
                 torch.min(qf1_next_target, qf2_next_target)
                 - self.alpha * next_state_log_pi
@@ -245,10 +246,10 @@ class SACStrat(nn.Module):
         qf1, qf2 = self.critic(state_batch, action_batch)
 
         # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
-        qf1_loss = F.mse_loss(qf1, next_q_value)
+        qf1_loss = F.mse_loss(qf1, next_q_value, reduction="mean")
 
         # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
-        qf2_loss = F.mse_loss(qf2, next_q_value)
+        qf2_loss = F.mse_loss(qf2, next_q_value, reduction="mean")
 
         # Minimize the loss between two Q-functions
         qf_loss = qf1_loss + qf2_loss
@@ -265,8 +266,9 @@ class SACStrat(nn.Module):
             min_qf_pi = torch.min(qf1_pi, qf2_pi)
 
             # Jπ = 𝔼st∼D,εt∼N[α * logπ(f(εt;st)|st) − Q(st,f(εt;st))]
+            compesator_factor = self.action_space.high.sum()
             policy_loss = self.alpha * log_pi
-            policy_loss = policy_loss - (min_qf_pi * lambdas).sum(1)
+            policy_loss = policy_loss/compesator_factor - (min_qf_pi * lambdas).sum(1)
             policy_loss = policy_loss.mean()
             self.actor_optim.zero_grad()
             policy_loss.backward()
@@ -275,7 +277,7 @@ class SACStrat(nn.Module):
             if self.alpha_optim is not None:
                 with torch.no_grad():
                     _, log_pi, _ = self.actor.sample(state_batch)
-                alpha_loss = (-self.log_alpha * (log_pi + self.target_entropy).detach())
+                alpha_loss = -self.log_alpha * (log_pi + self.target_entropy).detach()
                 alpha_loss = alpha_loss.mean()
 
                 self.alpha_optim.zero_grad()

@@ -196,13 +196,14 @@ class SAC(nn.Module):
         else:
             self.alpha = args.alpha
 
-        self.replay_buffer = ReplayBuffer(
-            args.buffer_size,
-            self.observation_space,
-            self.action_space,
-            self.device,
-            handle_timeout_termination=True,
-        )
+        # self.replay_buffer = ReplayBuffer(
+        # args.buffer_size,
+        # self.observation_space,
+        # self.action_space,
+        # self.device,
+        # handle_timeout_termination=True,
+        # )
+        self.replay_buffer = ReplayBuffer(args.buffer_size, self.device)
         self.to(self.device)
 
     def to(self, device):
@@ -216,12 +217,13 @@ class SAC(nn.Module):
         return self.actor.get_action(state)
 
     def update(self, batch_size, update_actor=False):
-        data = self.replay_buffer.sample(batch_size)
-        state_batch = data.observations.float()
-        action_batch = data.actions.float()
-        reward_batch = data.rewards.float()
-        next_state_batch = data.next_observations.float()
-        done_batch = data.dones.bool()
+        (
+            state_batch,
+            action_batch,
+            reward_batch,
+            next_state_batch,
+            done_batch,
+        ) = self.replay_buffer.sample(batch_size)
 
         with torch.no_grad():
             next_state_action, next_state_log_pi, _ = self.actor.sample(
@@ -272,7 +274,7 @@ class SAC(nn.Module):
             if self.alpha_optim is not None:
                 with torch.no_grad():
                     _, log_pi, _ = self.actor.sample(state_batch)
-                alpha_loss = (-self.log_alpha * (log_pi + self.target_entropy).detach())
+                alpha_loss = -self.log_alpha * (log_pi + self.target_entropy).detach()
                 alpha_loss = alpha_loss.mean()
 
                 self.alpha_optim.zero_grad()

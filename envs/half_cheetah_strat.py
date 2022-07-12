@@ -48,6 +48,8 @@ class HalfCheetahStratEnv(HalfCheetahEnv):
         strat_reward[1] = info["reward_ctrl"]
 
         strat_reward = strat_reward / self.ori_weights
+        if self.stratified:
+            strat_reward = strat_reward * self.scale
 
         self.cumulative_reward_info["reward_run"] += strat_reward[0]
         self.cumulative_reward_info["reward_ctrl"] += strat_reward[1]
