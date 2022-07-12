@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from stable_baselines3.common.buffers import ReplayBuffer
+from utils.buffer import ReplayBuffer
 from torch.distributions import Normal
 from torch.optim import Adam
 
@@ -224,7 +224,6 @@ class SAC(nn.Module):
             next_state_batch,
             done_batch,
         ) = self.replay_buffer.sample(batch_size)
-
         with torch.no_grad():
             next_state_action, next_state_log_pi, _ = self.actor.sample(
                 next_state_batch
@@ -232,22 +231,22 @@ class SAC(nn.Module):
             qf1_next_target, qf2_next_target = self.critic_target.target_model(
                 next_state_batch, next_state_action
             )
+
             min_qf_next_target = (
                 torch.min(qf1_next_target, qf2_next_target)
                 - self.alpha * next_state_log_pi
             )
             min_qf_next_target[done_batch] = 0.0
-            next_q_value = reward_batch + self.gamma * min_qf_next_target
-
+            next_q_value = reward_batch.view((-1, 1)) + self.gamma * min_qf_next_target
         # Two Q-functions to mitigate
         # positive bias in the policy improvement step
         qf1, qf2 = self.critic(state_batch, action_batch)
 
         # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
-        qf1_loss = F.mse_loss(qf1, next_q_value.view(-1, 1))
+        qf1_loss = F.mse_loss(qf1, next_q_value)
 
         # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
-        qf2_loss = F.mse_loss(qf2, next_q_value.view(-1, 1))
+        qf2_loss = F.mse_loss(qf2, next_q_value)
 
         # Minimize the loss between two Q-functions
         qf_loss = qf1_loss + qf2_loss

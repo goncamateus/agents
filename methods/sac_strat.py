@@ -246,10 +246,10 @@ class SACStrat(nn.Module):
         qf1, qf2 = self.critic(state_batch, action_batch)
 
         # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
-        qf1_loss = F.mse_loss(qf1, next_q_value, reduction="mean")
+        qf1_loss = F.mse_loss(qf1, next_q_value)
 
         # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
-        qf2_loss = F.mse_loss(qf2, next_q_value, reduction="mean")
+        qf2_loss = F.mse_loss(qf2, next_q_value)
 
         # Minimize the loss between two Q-functions
         qf_loss = qf1_loss + qf2_loss
