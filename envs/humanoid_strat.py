@@ -77,9 +77,8 @@ class HumanoidStratEnv(HumanoidEnv):
         self.cumulative_reward_info["reward_quadctrl"] += strat_reward[2]
         # self.cumulative_reward_info["reward_impact"] += strat_reward[3]
         self.cumulative_reward_info["Original_reward"] += reward
-        if self.stratified:
-            strat_reward = strat_reward * self.scale
-        reward = strat_reward
+        # Scaling the reward to [-1, 1] means random agent in this environment
+        # strat_reward = strat_reward * self.scale
 
         info.update(self.cumulative_reward_info)
-        return state, reward, done, info
+        return state, strat_reward, done, info

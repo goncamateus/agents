@@ -152,6 +152,7 @@ class SACStrat(nn.Module):
         args,
         observation_space,
         action_space,
+        original_weights,
         log_sig_min=-5,
         log_sig_max=2,
         hidden_dim=256,
@@ -204,6 +205,9 @@ class SACStrat(nn.Module):
             self.alpha = args.alpha
 
         self.replay_buffer = ReplayBuffer(args.buffer_size, self.device)
+
+        # DyLam
+        self.original_weights = torch.Tensor(original_weights).to(self.device)
         self.last_epi_rewards = StratLastRewards(args.episodes_rb, args.num_rewards)
         self.last_rew_mean = None
         self.to(self.device)
@@ -239,7 +243,7 @@ class SACStrat(nn.Module):
                 - self.alpha * next_state_log_pi
             )
             min_qf_next_target[done_batch] = 0.0
-            next_q_value = reward_batch + self.gamma * min_qf_next_target
+            next_q_value = reward_batch*self.original_weights + self.gamma * min_qf_next_target
 
         # Two Q-functions to mitigate
         # positive bias in the policy improvement step
@@ -264,11 +268,11 @@ class SACStrat(nn.Module):
 
             qf1_pi, qf2_pi = self.critic(state_batch, pi)
             min_qf_pi = torch.min(qf1_pi, qf2_pi)
+            min_qf_pi = min_qf_pi/self.original_weights
 
             # Jπ = 𝔼st∼D,εt∼N[α * logπ(f(εt;st)|st) − Q(st,f(εt;st))]
-            compesator_factor = self.action_space.high.sum()
             policy_loss = self.alpha * log_pi
-            policy_loss = policy_loss/compesator_factor - (min_qf_pi * lambdas).sum(1)
+            policy_loss = policy_loss - (min_qf_pi * lambdas).sum(1)
             policy_loss = policy_loss.mean()
             self.actor_optim.zero_grad()
             policy_loss.backward()

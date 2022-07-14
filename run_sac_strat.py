@@ -129,7 +129,12 @@ def main(args):
         num_rewards=args.num_rewards
     )
 
-    agent = SACStrat(args, envs.single_observation_space, envs.single_action_space)
+    agent = SACStrat(
+                        args,
+                        envs.single_observation_space,
+                        envs.single_action_space,
+                        envs.envs[0].ori_weights,
+                    )
     start_time = time.time()
 
     # TRY NOT TO MODIFY: training loop
@@ -148,8 +153,7 @@ def main(args):
         epi_rewards = epi_rewards + rewards
 
         # TRY NOT TO MODIFY: save data to reply buffer; handle `terminal_observation`
-        real_next_obs = next_obs.copy()
-        agent.replay_buffer.add(obs, actions, rewards, real_next_obs, dones)
+        agent.replay_buffer.add(obs, actions, rewards, next_obs, dones)
 
         # TRY NOT TO MODIFY: CRUCIAL step easy to overlook
         obs = next_obs
@@ -182,9 +186,9 @@ def main(args):
         # ALGO LOGIC: training.
         if global_step > args.learning_starts:
             # DyLam
-            lambdas = torch.Tensor([1/3, 1/3, 1/3]).to(agent.device)
-            r_max = torch.Tensor([1, 1, 0]).to(agent.device)
-            r_min = torch.Tensor([0, 0, -1]).to(agent.device)
+            lambdas = torch.Tensor(envs.envs[0].ori_weights).to(agent.device)
+            r_max = torch.Tensor([500, 1000, -800]).to(agent.device)
+            r_min = torch.Tensor([0, 0, -1200]).to(agent.device)
             rew_tau = args.rew_tau
             if agent.last_epi_rewards.can_do() and args.dylam:
                 rew_mean_t = torch.Tensor(agent.last_epi_rewards.mean()).to(agent.device)
