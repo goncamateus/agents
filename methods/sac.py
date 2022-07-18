@@ -224,6 +224,7 @@ class SAC(nn.Module):
             next_state_batch,
             done_batch,
         ) = self.replay_buffer.sample(batch_size)
+        reward_batch = reward_batch*2000
         with torch.no_grad():
             next_state_action, next_state_log_pi, _ = self.actor.sample(
                 next_state_batch

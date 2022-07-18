@@ -168,6 +168,7 @@ class SACStrat(nn.Module):
         self.observation_space = observation_space
         self.num_inputs = np.array(observation_space.shape).prod()
         self.num_actions = np.array(action_space.shape).prod()
+        self.num_rewards = args.num_rewards
         self.actor = GaussianPolicy(
             self.num_inputs,
             self.num_actions,
@@ -183,7 +184,7 @@ class SACStrat(nn.Module):
         self.critic = QNetwork(
             self.num_inputs,
             self.num_actions,
-            num_rewards=args.num_rewards,
+            num_rewards=self.num_rewards,
             hidden_dim=hidden_dim,
         )
         self.critic_target = TargetCritic(self.critic)
@@ -208,7 +209,7 @@ class SACStrat(nn.Module):
 
         # DyLam
         self.original_weights = torch.Tensor(original_weights).to(self.device)
-        self.last_epi_rewards = StratLastRewards(args.episodes_rb, args.num_rewards)
+        self.last_epi_rewards = StratLastRewards(args.episodes_rb, self.num_rewards)
         self.last_rew_mean = None
         self.to(self.device)
 
@@ -230,6 +231,9 @@ class SACStrat(nn.Module):
             next_state_batch,
             done_batch,
         ) = self.replay_buffer.sample(batch_size)
+        
+        reward_batch = reward_batch*2000
+
         with torch.no_grad():
             next_state_action, next_state_log_pi, _ = self.actor.sample(
                 next_state_batch
@@ -249,11 +253,16 @@ class SACStrat(nn.Module):
         # positive bias in the policy improvement step
         qf1, qf2 = self.critic(state_batch, action_batch)
 
-        # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
-        qf1_loss = F.mse_loss(qf1, next_q_value)
+        qf1_loss = 0
+        qf2_loss = 0
+        for i in range(self.num_rewards):
+            # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
+            qf1_loss += F.mse_loss(qf1[:, i], next_q_value[:, i])
+            # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
+            qf2_loss +=  F.mse_loss(qf2[:, i], next_q_value[:, i])
+        # qf1_loss = F.mse_loss(qf1, next_q_value)
 
-        # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
-        qf2_loss = F.mse_loss(qf2, next_q_value)
+        # qf2_loss = F.mse_loss(qf2, next_q_value)
 
         # Minimize the loss between two Q-functions
         qf_loss = qf1_loss + qf2_loss

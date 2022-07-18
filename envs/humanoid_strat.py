@@ -26,7 +26,7 @@ class HumanoidStratEnv(HumanoidEnv):
                 # contact_cost_weight,
             ]
         )
-        self.scale = np.array([1/1500, 1/1000, 1/3000])
+        self.scale = np.array([1/2500, 1/1000, 1/1500])
         self.num_rewards = 3
         self.cumulative_reward_info = {
             "reward_linvel": 0,
@@ -78,7 +78,7 @@ class HumanoidStratEnv(HumanoidEnv):
         # self.cumulative_reward_info["reward_impact"] += strat_reward[3]
         self.cumulative_reward_info["Original_reward"] += reward
         # Scaling the reward to [-1, 1] means random agent in this environment
-        # strat_reward = strat_reward * self.scale
+        strat_reward = strat_reward * self.scale
 
         info.update(self.cumulative_reward_info)
         return state, strat_reward, done, info
