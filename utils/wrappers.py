@@ -45,8 +45,7 @@ class RecordEpisodeStatistics(gym.Wrapper):
         self.episode_returns_strat += rewards * self.weights
         # Changes based on the experiment
         if not self.stratified:
-            abc = self.weights/self.weights.sum()
-            rewards = (rewards * abc).sum()
+            rewards = (rewards * self.weights).sum()
         self.episode_lengths += 1
         if not self.is_vector_env:
             infos = [infos]
