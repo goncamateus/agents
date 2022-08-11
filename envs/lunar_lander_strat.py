@@ -20,9 +20,7 @@ class LunarLanderStrat(LunarLander):
         self.prev_rew = None
         self.strat_prev_rew = None
         self.ori_weights = np.array([100.0, 100.0, 100.0, 0.3, 0.03, 10.0, 10.0, 100.0])
-        self.scale = np.array([1.4, 1, 2, 1000, 1000, 1, 1, 1])
-        if stratified:
-            self.num_rewards = 8
+        self.num_rewards = 8
 
     def step(self, action):
         if self.continuous:
@@ -51,8 +49,8 @@ class LunarLanderStrat(LunarLander):
                 s_power = 1.0
 
         state, reward, done, info = super().step(action)
-        shaping = np.zeros(8)
-        strat_reward = np.zeros(8)
+        shaping = np.zeros(self.num_rewards)
+        strat_reward = np.zeros(self.num_rewards)
         # Distance to center
         shaping[0] = -np.sqrt(state[0] * state[0] + state[1] * state[1])
         # Speed discount
@@ -62,23 +60,30 @@ class LunarLanderStrat(LunarLander):
         # Ground Contacts
         shaping[5] = state[6]
         shaping[6] = state[7]
+        if self.prev_rew is not None:
+            strat_reward = shaping - self.prev_rew
+        # Power discount
+        strat_reward[3] = -m_power
+        strat_reward[4] = -s_power
 
         # Win/Lost
         if done:
             self.prev_rew = None
-            shaping = np.zeros(8)
+            shaping = np.zeros(self.num_rewards)
+            strat_reward = np.zeros(self.num_rewards)
             if self.game_over or abs(state[0]) >= 1.0:
                 strat_reward[7] = -1
             if not self.lander.awake:
                 strat_reward[7] = 1
 
-        if self.prev_rew is not None:
-            strat_reward = shaping - self.prev_rew
-            # Power discount
-            strat_reward[3] = -m_power
-            strat_reward[4] = -s_power
+        if reward == 0:
+            strat_reward = np.zeros(self.num_rewards)
+        diff_rews = abs((strat_reward*self.ori_weights).sum() - reward)
+        assert diff_rews < 1e-4, "Reward is not the same"
 
-        strat_reward = strat_reward / self.scale
+        self.prev_rew = shaping
+        self.prev_rew[3] = 0
+        self.prev_rew[4] = 0
 
         self.cumulative_reward_info["reward_Distance"] += strat_reward[0]
         self.cumulative_reward_info["reward_Speed"] += strat_reward[1]
@@ -89,16 +94,9 @@ class LunarLanderStrat(LunarLander):
         self.cumulative_reward_info["reward_Right_contact"] += strat_reward[6]
         self.cumulative_reward_info["reward_Goal"] += strat_reward[7]
 
-        self.prev_rew = shaping
-        self.prev_rew[3] = 0
-        self.prev_rew[4] = 0
-
         self.cumulative_reward_info["Original_reward"] += reward
         info.update(self.cumulative_reward_info)
-        if not self.stratified:
-            reward = (strat_reward * self.ori_weights).sum()
-        else:
-            reward = strat_reward
+        reward = strat_reward
         if done:
             self.prev_rew = None
             self.cumulative_reward_info = {

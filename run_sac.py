@@ -150,11 +150,11 @@ def main(args):
         for item in infos:
             if "episode" in item.keys():
                 print(
-                    f"global_step={global_step}, episodic_return={item['Original_reward']}"
+                    f'global_step={global_step}, episodic_return={item["episode"]["r"]}'
                 )
-                log.update({f"ep_info/reward_total": item["Original_reward"]})
+                log.update({f"ep_info/reward_total": item["episode"]["r"]})
                 writer.add_scalar(
-                    "charts/episodic_return", item["Original_reward"], global_step
+                    "charts/episodic_return", item["episode"]["r"], global_step
                 )
                 log.update({f"ep_info/episodic_length": item["episode"]["l"]})
                 writer.add_scalar(
