@@ -261,8 +261,8 @@ def main(args):
         # Optimizing the policy and value network
         b_inds = np.arange(args.batch_size)
         clipfracs = []
-        lambdas = torch.Tensor([0.5, 0.5]).to(agent.device)
-        r_max = torch.Tensor([5000, -1800]).to(agent.device)
+        lambdas = torch.Tensor([1]).to(agent.device)
+        r_max = torch.Tensor([]).to(agent.device)
         r_min = torch.Tensor([1000, -2200]).to(agent.device)
         # DyLam
         rew_tau = args.rew_tau

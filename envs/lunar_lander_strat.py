@@ -79,7 +79,10 @@ class LunarLanderStrat(LunarLander):
         if reward == 0:
             strat_reward = np.zeros(self.num_rewards)
         diff_rews = abs((strat_reward*self.ori_weights).sum() - reward)
-        assert diff_rews < 1e-4, "Reward is not the same"
+        try:
+            assert diff_rews < 1e-4
+        except AssertionError:
+            print("[Warning] Reward is not the same:" + diff_rews)
 
         self.prev_rew = shaping
         self.prev_rew[3] = 0

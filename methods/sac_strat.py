@@ -232,7 +232,7 @@ class SACStrat(nn.Module):
             done_batch,
         ) = self.replay_buffer.sample(batch_size)
         
-        reward_batch = reward_batch*2000
+        # reward_batch = reward_batch*2000
 
         with torch.no_grad():
             next_state_action, next_state_log_pi, _ = self.actor.sample(
@@ -247,22 +247,25 @@ class SACStrat(nn.Module):
                 - self.alpha * next_state_log_pi
             )
             min_qf_next_target[done_batch] = 0.0
-            next_q_value = reward_batch*self.original_weights + self.gamma * min_qf_next_target
-
+            next_q_value = reward_batch + self.gamma * min_qf_next_target
+            next_q_value = next_q_value.sum(1)
+        
         # Two Q-functions to mitigate
         # positive bias in the policy improvement step
         qf1, qf2 = self.critic(state_batch, action_batch)
+        qf1 = qf1.sum(1)
+        qf2 = qf2.sum(1)
 
-        qf1_loss = 0
-        qf2_loss = 0
-        for i in range(self.num_rewards):
-            # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
-            qf1_loss += F.mse_loss(qf1[:, i], next_q_value[:, i])
-            # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
-            qf2_loss +=  F.mse_loss(qf2[:, i], next_q_value[:, i])
-        # qf1_loss = F.mse_loss(qf1, next_q_value)
+        # qf1_loss = 0
+        # qf2_loss = 0
+        # for i in range(self.num_rewards):
+        #     # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
+        #     qf1_loss += F.mse_loss(qf1[:, i], next_q_value[:, i])
+        #     # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
+        #     qf2_loss +=  F.mse_loss(qf2[:, i], next_q_value[:, i])
+        qf1_loss = F.mse_loss(qf1, next_q_value)
 
-        # qf2_loss = F.mse_loss(qf2, next_q_value)
+        qf2_loss = F.mse_loss(qf2, next_q_value)
 
         # Minimize the loss between two Q-functions
         qf_loss = qf1_loss + qf2_loss
@@ -277,11 +280,12 @@ class SACStrat(nn.Module):
 
             qf1_pi, qf2_pi = self.critic(state_batch, pi)
             min_qf_pi = torch.min(qf1_pi, qf2_pi)
-            min_qf_pi = min_qf_pi/self.original_weights
+            min_qf_pi = (min_qf_pi*lambdas).sum(1).view(-1, 1)
 
             # Jπ = 𝔼st∼D,εt∼N[α * logπ(f(εt;st)|st) − Q(st,f(εt;st))]
             policy_loss = self.alpha * log_pi
-            policy_loss = policy_loss - (min_qf_pi * lambdas).sum(1)
+            import ipdb; ipdb.set_trace()
+            policy_loss = policy_loss - min_qf_pi
             policy_loss = policy_loss.mean()
             self.actor_optim.zero_grad()
             policy_loss.backward()
