@@ -36,9 +36,9 @@ class ReplayBuffer:
         states, actions, rewards, next_states, dones = map(np.array, zip(*batch))
         states_v = torch.Tensor(states).to(self.device)
         actions_v = torch.Tensor(actions).to(self.device)
-        rewards_v = torch.Tensor(rewards).to(self.device)
+        rewards_v = torch.Tensor(rewards).to(self.device).view((-1, 1))
         last_states_v = torch.Tensor(next_states).to(self.device)
-        dones_t = torch.BoolTensor(dones).to(self.device)
+        dones_t = torch.BoolTensor(dones).to(self.device).view((-1, 1))
         return states_v, actions_v, rewards_v, last_states_v, dones_t
 
     def __len__(self):

@@ -15,6 +15,7 @@ import envs
 import wandb
 from methods.ddpg import DDPGAgent
 from utils.experiment import make_env
+from utils.noise import OrnsteinUhlenbeckNoise
 
 
 def parse_args():
@@ -22,7 +23,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--exp-name", type=str, default=os.path.basename(__file__).rstrip(".py"),
         help="the name of this experiment")
-    parser.add_argument("--gym-id", type=str, default="Pendulum-v0",
+    parser.add_argument("--gym-id", type=str, default="Pendulum-v1",
         help="the id of the gym environment")
     parser.add_argument("--learning-rate", type=float, default=2.5e-4,
         help="the learning rate of the optimizer")
@@ -36,8 +37,14 @@ def parse_args():
         help="if toggled, cuda will be enabled by default")
     parser.add_argument("--capture-video", type=lambda x: bool(strtobool(x)), default=True, nargs="?", const=True,
         help="weather to capture videos of the agent performances (check out `videos` folder)")
+    parser.add_argument("--video-freq", type=int, default=50,
+        help="Frequency of saving videos, in episodes")    
     parser.add_argument("--track", type=lambda x: bool(strtobool(x)), default=False, nargs="?", const=True,
         help="Log on wandb")
+    parser.add_argument("--continuous", type=lambda x: bool(strtobool(x)), default=False, nargs="?", const=True,
+        help="Whether to use continuous actions")
+    parser.add_argument("--normalize", type=lambda x: bool(strtobool(x)), default=False, nargs="?", const=True,
+        help="Whether to Normalize observations and rewards")
 
     # Algorithm specific arguments
     parser.add_argument("--num-envs", type=int, default=4,
@@ -50,7 +57,7 @@ def parse_args():
         help="Size of replay buffer before training")
     parser.add_argument("--replay-size", type=int, default=1000000,
         help="Max size of replay buffer")
-    parser.add_argument("--batch-size", type=int, default=128,
+    parser.add_argument("--batch-size", type=int, default=256,
         help="Batch size for training")
     parser.add_argument("--update-freq", type=int, default=20,
         help="Update every freq steps")
@@ -60,8 +67,6 @@ def parse_args():
         help='noise sigma') 
     parser.add_argument('--noise-mu', type=float, default=0.0,
         help='noise mu')
-    parser.add_argument('--epsilon-decay', type=float, default=(1-1e-5),
-        help='Decay of exploration policy') 
     args = parser.parse_args()
 
     return args
@@ -71,7 +76,7 @@ def main(args):
     exp_name = f"DDPG_{int(time.time())}_{args.gym_id}"
     print(vars(args))
     wandb.init(
-        project="mestrado_ddpg_lander",
+        project="Mujoco",
         name=exp_name,
         entity="goncamateus",
         sync_tensorboard=True,
@@ -98,11 +103,18 @@ def main(args):
     # env setup
     envs = gym.vector.SyncVectorEnv(
         [
-            make_env(args.gym_id, args.seed + i, i, args.capture_video, exp_name)
+            make_env(args, i, exp_name)
             for i in range(args.num_envs)
         ]
     )
     agent = DDPGAgent(args, envs).to(device)
+    noise = OrnsteinUhlenbeckNoise(
+        sigma=args.noise_sigma,
+        theta=args.noise_theta,
+        min_value=envs.single_action_space.low,
+        max_value=envs.single_action_space.high
+    )
+    noise.reset()
 
     # TRY NOT TO MODIFY: start the game
     global_step = 0
@@ -111,24 +123,38 @@ def main(args):
     obs = envs.reset()
     epi_lenghts = np.zeros(args.num_envs)
     epi_rewards = np.zeros(args.num_envs)
+    log = {}
 
-    for update in tqdm(range(1, num_updates + 1)):
+    for update in range(1, num_updates + 1):
         global_step += 1 * args.num_envs
         actions = agent.act(obs)
+        actions = noise(actions)
         next_obs, reward, done, info = envs.step(actions)
         epi_lenghts = epi_lenghts + 1
         epi_rewards = epi_rewards + reward
-        for i in range(args.num_envs):
-            if done[i]:
-                writer.add_scalar("ep_info/ep_steps", epi_lenghts[i], global_step)
-                writer.add_scalar("ep_info/Original_reward", epi_rewards[i], global_step)
-                terminal_obs = info[i]["terminal_observation"]
-                agent.observe(obs[i], actions[i], reward[i], terminal_obs, done[i])
-                epi_lenghts[i] = 0
-                epi_rewards[i] = 0
-            else:
-                agent.observe(obs[i], actions[i], reward[i], next_obs[i], done[i])
-            obs[i] = next_obs[i]
+        for item in info:
+            if "episode" in item.keys():
+                noise.reset()
+                print(
+                    f"global_step={global_step}, episodic_return={item['Original_reward']}"
+                )
+                log.update({f"ep_info/reward_total": item["Original_reward"]})
+                writer.add_scalar(
+                    "charts/episodic_return", item["Original_reward"], global_step
+                )
+                log.update({f"ep_info/episodic_length": item["episode"]["l"]})
+                writer.add_scalar(
+                    "charts/episodic_length", item["episode"]["l"], global_step
+                )
+                strat_rewards = [x for x in item.keys() if x.startswith("reward_")]
+                for key in strat_rewards:
+                    log.update({f"ep_info/{key.replace('reward_', '')}": item[key]})
+                    writer.add_scalar(
+                        f"charts/{key.replace('reward_', '')}", item[key], global_step
+                    )
+                break
+        agent.observe(obs, actions, reward, next_obs, done)
+        obs = next_obs
 
         if len(agent.replay_buffer) >= args.replay_init:
             agent.training = True
