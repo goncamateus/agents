@@ -2,7 +2,7 @@ import numpy as np
 from gym.envs.box2d.lunar_lander import LunarLander
 
 
-class LunarLanderStrat(LunarLander):
+class LunarLanderStratV1(LunarLander):
     def __init__(self, stratified=True):
         super().__init__()
         self.cumulative_reward_info = {
@@ -21,6 +21,9 @@ class LunarLanderStrat(LunarLander):
         self.stratified = stratified
         self.prev_rew = np.zeros(10)
         self.num_rewards = 10
+        self.ori_weights = np.array(
+            [100.0, 100.0, 100.0, 100.0, 100.0, 0.3, 0.03, 10.0, 10.0, 100.0]
+        )
 
     def step(self, action):
         if self.continuous:
@@ -115,5 +118,5 @@ class LunarLanderStrat(LunarLander):
         return state, strat_reward, done, info
 
 
-class LunarLanderContinuousStrat(LunarLanderStrat):
+class LunarLanderContinuousStratV1(LunarLanderStratV1):
     continuous = True
