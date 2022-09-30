@@ -261,13 +261,13 @@ def main(args):
         # Optimizing the policy and value network
         b_inds = np.arange(args.batch_size)
         clipfracs = []
-        lambdas = torch.Tensor([0.35, 0, 0, 0, 0.1, 0, 0.002, 0.06, 0.06, 0.4]).to(
+        lambdas = torch.Tensor([0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125]).to(
             agent.device
         )
-        r_max = torch.Tensor([0, 0, -0.03, -0.02, 0, -0.2, -0.2, 1, 1, 1]).to(
+        r_max = torch.Tensor([0, -0.03, 0, -0.2, -0.2, 1, 1, 1]).to(
             agent.device
         )
-        r_min = torch.Tensor([-1, -1, -0.8, -0.5, -1, -1, -1, -1, -1, -1]).to(
+        r_min = torch.Tensor([-1, -0.5, -1, -1, -1, -1, -1, -1]).to(
             agent.device
         )
         # DyLam

@@ -57,14 +57,14 @@ class LunarLanderStrat(LunarLander):
         shaping[1] = -np.sqrt(state[2] * state[2] + state[3] * state[3])
         # Angle discount
         shaping[2] = -abs(state[4])
+        # Power discount
+        shaping[3] = -m_power
+        shaping[4] = -s_power
         # Ground Contacts
         shaping[5] = state[6]
         shaping[6] = state[7]
         if self.prev_rew is not None:
             strat_reward = shaping - self.prev_rew
-        # Power discount
-        strat_reward[3] = -m_power
-        strat_reward[4] = -s_power
 
         # Win/Lost
         if done:
@@ -78,15 +78,15 @@ class LunarLanderStrat(LunarLander):
 
         if reward == 0:
             strat_reward = np.zeros(self.num_rewards)
-        diff_rews = abs((strat_reward*self.ori_weights).sum() - reward)
-        try:
-            assert diff_rews < 1e-4
-        except AssertionError:
-            print("[Warning] Reward is not the same:" + diff_rews)
+        # diff_rews = abs((strat_reward*self.ori_weights).sum() - reward)
+        # try:
+        #     assert diff_rews < 1e-4
+        # except AssertionError:
+        #     print("[Warning] Reward is not the same:" + diff_rews)
 
         self.prev_rew = shaping
-        self.prev_rew[3] = 0
-        self.prev_rew[4] = 0
+        # self.prev_rew[3] = 0
+        # self.prev_rew[4] = 0
 
         self.cumulative_reward_info["reward_Distance"] += strat_reward[0]
         self.cumulative_reward_info["reward_Speed"] += strat_reward[1]
