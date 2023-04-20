@@ -11,8 +11,6 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 
 import envs
-import rsoccer_gym
-import pybullet_envs
 import wandb
 from methods.ppo import PPO
 from methods.ppo_continuous import PPOContinuous

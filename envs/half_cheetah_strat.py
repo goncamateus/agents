@@ -51,7 +51,8 @@ class HalfCheetahStratEnv(HalfCheetahEnv):
         self.cumulative_reward_info["reward_run"] += strat_reward[0]
         self.cumulative_reward_info["reward_ctrl"] += strat_reward[1]
         self.cumulative_reward_info["Original_reward"] += reward
-        reward = strat_reward
+        if self.stratified:
+            reward = strat_reward
 
         info.update(self.cumulative_reward_info)
         return state, reward, done, info
