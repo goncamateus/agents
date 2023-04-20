@@ -134,13 +134,11 @@ def main(args):
             )
             for i in range(args.num_envs)
         ],
-        num_rewards=args.num_rewards
+        num_rewards=args.num_rewards,
     )
 
     algo = PPOStrat if not args.continuous else PPOStratContinuous
     agent = algo(args, envs).to(device)
-
-    rew_transformer = RewardTransformer(args)
 
     # ALGO Logic: Storage setup
     obs = torch.zeros(
@@ -161,7 +159,6 @@ def main(args):
     next_obs = torch.Tensor(envs.reset()).to(device)
     next_done = torch.zeros(args.num_envs).to(device)
     num_updates = args.total_timesteps // args.buffer_size
-    episode_num = 0
 
     for update in range(1, num_updates + 1):
         log = {}
@@ -185,7 +182,6 @@ def main(args):
             # TRY NOT TO MODIFY: execute the game and log data.
             next_obs, reward, done, info = envs.step(action.cpu().numpy())
             epi_rewards = epi_rewards + reward
-            reward = rew_transformer.transform(reward, done)
             rewards[step] = torch.tensor(reward).to(device)
             next_obs, next_done = (
                 torch.Tensor(next_obs).to(device),
@@ -196,7 +192,7 @@ def main(args):
                 if d:
                     agent.last_epi_rewards.add(epi_rewards[i])
                     epi_rewards[i] = np.zeros(args.num_rewards)
-                    
+
             for item in info:
                 if "episode" in item.keys():
                     print(
@@ -213,7 +209,9 @@ def main(args):
                     strat_rewards = [x for x in item.keys() if x.startswith("reward_")]
                     for key in strat_rewards:
                         log.update({f"ep_info/{key.replace('reward_', '')}": item[key]})
-                        writer.add_scalar(f"charts/{key.replace('reward_', '')}", item[key], update)
+                        writer.add_scalar(
+                            f"charts/{key.replace('reward_', '')}", item[key], update
+                        )
                     break
 
         # bootstrap value if not done
@@ -236,8 +234,10 @@ def main(args):
                     delta = rewards[t] + bootstrapped - values[t]
                     last_gae_lm_advantages = torch.zeros_like(next_value).to(device)
                     for i in range(len(nextnonterminal)):
-                        last_gae_lm_advantages[i] = gamma * args.gae_lambda * nextnonterminal[i] * lastgaelam[i]
-                    advantages[t] = lastgaelam =  delta + last_gae_lm_advantages
+                        last_gae_lm_advantages[i] = (
+                            gamma * args.gae_lambda * nextnonterminal[i] * lastgaelam[i]
+                        )
+                    advantages[t] = lastgaelam = delta + last_gae_lm_advantages
                 returns = advantages + values
             else:
                 returns = torch.zeros_like(rewards).to(device)
@@ -261,13 +261,13 @@ def main(args):
         # Optimizing the policy and value network
         b_inds = np.arange(args.batch_size)
         clipfracs = []
-        lambdas = torch.Tensor([0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125]).to(
+        lambdas = torch.Tensor([0.35, 0, 0, 0, 0.1, 0, 0.002, 0.06, 0.06, 0.4]).to(
             agent.device
         )
-        r_max = torch.Tensor([0, -0.03, 0, -0.2, -0.2, 1, 1, 1]).to(
+        r_max = torch.Tensor([0, 0, -0.03, -0.02, 0, -0.2, -0.2, 1, 1, 1]).to(
             agent.device
         )
-        r_min = torch.Tensor([-1, -0.5, -1, -1, -1, -1, -1, -1]).to(
+        r_min = torch.Tensor([-1, -1, -0.8, -0.5, -1, -1, -1, -1, -1, -1]).to(
             agent.device
         )
         # DyLam
@@ -284,7 +284,6 @@ def main(args):
         for epoch in range(args.update_epochs):
             b_inds = np.random.permutation(args.buffer_size)
             for start in range(0, args.buffer_size, args.batch_size):
-
                 end = start + args.batch_size
                 mb_inds = b_inds[start:end]
 
@@ -311,18 +310,18 @@ def main(args):
         )
         for i in range(len(lambdas)):
             log.update({"lambdas/component_" + str(i): lambdas[i].item()})
-            writer.add_scalar(
-                "lambdas/component_" + str(i), lambdas[i].item(), update
-            )
-        log.update({
-            "losses/value_loss": agent.optimizer.param_groups[0]["lr"],
-            "losses/policy_loss": pg_loss.item(),
-            "losses/entropy": entropy_loss.item(),
-            "losses/old_approx_kl": old_approx_kl.item(),
-            "losses/approx_kl": approx_kl.item(),
-            "losses/clipfrac": np.mean(clipfracs),
-            "ep_info/SPS": int(global_step / (time.time() - start_time))
-        })
+            writer.add_scalar("lambdas/component_" + str(i), lambdas[i].item(), update)
+        log.update(
+            {
+                "losses/value_loss": agent.optimizer.param_groups[0]["lr"],
+                "losses/policy_loss": pg_loss.item(),
+                "losses/entropy": entropy_loss.item(),
+                "losses/old_approx_kl": old_approx_kl.item(),
+                "losses/approx_kl": approx_kl.item(),
+                "losses/clipfrac": np.mean(clipfracs),
+                "ep_info/SPS": int(global_step / (time.time() - start_time)),
+            }
+        )
         writer.add_scalar("losses/value_loss", v_loss.item(), update)
         writer.add_scalar("losses/policy_loss", pg_loss.item(), update)
         writer.add_scalar("losses/entropy", entropy_loss.item(), update)
