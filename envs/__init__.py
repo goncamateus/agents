@@ -62,6 +62,36 @@ register(
 )
 
 register(
+    id="LunarLanderStrat-v2",
+    entry_point="envs.lunar_lander_strat_v2:LunarLanderStratV2",
+    max_episode_steps=1000,
+    reward_threshold=200,
+)
+
+register(
+    id="LunarLanderOri-v2",
+    entry_point="envs.lunar_lander_strat_v2:LunarLanderStratV2",
+    kwargs={"stratified": False},
+    max_episode_steps=1000,
+    reward_threshold=200,
+)
+
+register(
+    id="LunarLanderContinuousStrat-v2",
+    entry_point="envs.lunar_lander_strat_v2:LunarLanderContinuousStratV2",
+    max_episode_steps=1000,
+    reward_threshold=200,
+)
+
+register(
+    id="LunarLanderContinuousOri-v2",
+    entry_point="envs.lunar_lander_strat_v2:LunarLanderContinuousStratV2",
+    kwargs={"stratified": False},
+    max_episode_steps=1000,
+    reward_threshold=200,
+)
+
+register(
     id="HalfCheetahStrat-v0",
     entry_point="envs.half_cheetah_strat:HalfCheetahStratEnv",
     max_episode_steps=1000,

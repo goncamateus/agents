@@ -284,7 +284,6 @@ class SACStrat(nn.Module):
 
             # Jπ = 𝔼st∼D,εt∼N[α * logπ(f(εt;st)|st) − Q(st,f(εt;st))]
             policy_loss = self.alpha * log_pi
-            import ipdb; ipdb.set_trace()
             policy_loss = policy_loss - min_qf_pi
             policy_loss = policy_loss.mean()
             self.actor_optim.zero_grad()
