@@ -26,13 +26,11 @@ class HumanoidStratEnv(HumanoidEnv):
                 # contact_cost_weight,
             ]
         )
-        self.scale = np.array([1/2500, 1/1000, 1/1500])
         self.num_rewards = 3
         self.cumulative_reward_info = {
             "reward_linvel": 0,
             "reward_quadctrl": 0,
             "reward_alive": 0,
-            "reward_impact": 0,
             "Original_reward": 0,
         }
         super().__init__(
@@ -53,7 +51,6 @@ class HumanoidStratEnv(HumanoidEnv):
             "reward_linvel": 0,
             "reward_quadctrl": 0,
             "reward_alive": 0,
-            "reward_impact": 0,
             "Original_reward": 0,
         }
         return super().reset()
@@ -67,18 +64,14 @@ class HumanoidStratEnv(HumanoidEnv):
         strat_reward[1] = info["reward_alive"]
         # Quadctrl reward
         strat_reward[2] = info["reward_quadctrl"]
-        # Impact reward
-        # strat_reward[3] = info["reward_impact"]
 
         strat_reward = strat_reward / self.ori_weights
 
         self.cumulative_reward_info["reward_linvel"] += strat_reward[0]
         self.cumulative_reward_info["reward_alive"] += strat_reward[1]
         self.cumulative_reward_info["reward_quadctrl"] += strat_reward[2]
-        # self.cumulative_reward_info["reward_impact"] += strat_reward[3]
         self.cumulative_reward_info["Original_reward"] += reward
         # Scaling the reward to [-1, 1] means random agent in this environment
-        strat_reward = strat_reward * self.scale
 
         info.update(self.cumulative_reward_info)
         return state, strat_reward, done, info

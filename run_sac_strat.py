@@ -78,6 +78,7 @@ def parse_args():
         help="automatic tuning of the entropy coefficient")
  
     # Arguments for DyLam
+    parser.add_argument("--reward-scaling", type=float, default=1., help="reward scaling factor")
     parser.add_argument("--episodes-rb", type=int, default=10, help="number of episodes to calculate rb")
     parser.add_argument("--num-rewards", type=int, default=10, help="number of rewards to lambdas")
     parser.add_argument("--rew-tau", type=float, default=0.995, help="number of rewards to lambdas")
@@ -186,9 +187,9 @@ def main(args):
         # ALGO LOGIC: training.
         if global_step > args.learning_starts:
             # DyLam
-            lambdas = torch.Tensor([0.5, 0.5]).to(agent.device)
-            r_max = torch.Tensor([12000, -0.75*4000]).to(agent.device)
-            r_min = torch.Tensor([0, -1]).to(agent.device)
+            lambdas = torch.Tensor([1/3, 1/3, 1/3]).to(agent.device)
+            r_max = torch.Tensor([2500, 1000, 0]).to(agent.device)
+            r_min = torch.Tensor([0, 0, -1500]).to(agent.device)
             rew_tau = args.rew_tau
             if agent.last_epi_rewards.can_do() and args.dylam:
                 rew_mean_t = torch.Tensor(agent.last_epi_rewards.mean()).to(agent.device)

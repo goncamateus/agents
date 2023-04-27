@@ -76,6 +76,7 @@ def parse_args():
             help="Epsilon to avoid zero denominator.")
     parser.add_argument("--autotune", type=lambda x:bool(strtobool(x)), default=True, nargs="?", const=True,
         help="automatic tuning of the entropy coefficient")
+    parser.add_argument("--reward-scaling", type=float, default=1., help="reward scaling factor")
  
     args = parser.parse_args()
 

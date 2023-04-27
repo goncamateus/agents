@@ -169,6 +169,7 @@ class SACStrat(nn.Module):
         self.num_inputs = np.array(observation_space.shape).prod()
         self.num_actions = np.array(action_space.shape).prod()
         self.num_rewards = args.num_rewards
+        self.reward_scaling = args.reward_scaling
         self.actor = GaussianPolicy(
             self.num_inputs,
             self.num_actions,
@@ -232,7 +233,7 @@ class SACStrat(nn.Module):
             done_batch,
         ) = self.replay_buffer.sample(batch_size)
         
-        # reward_batch = reward_batch*2000
+        reward_batch = reward_batch*self.reward_scaling
 
         with torch.no_grad():
             next_state_action, next_state_log_pi, _ = self.actor.sample(
