@@ -15,7 +15,6 @@ class HalfCheetahStratEnv(HalfCheetahEnv):
     ):
         self.stratified = stratified
         self.ori_weights = np.array([forward_reward_weight, ctrl_cost_weight])
-        self.scale = np.array([1/12000, 1/4000])
         self.num_rewards = 2
         self.cumulative_reward_info = {
             "reward_run": 0,
