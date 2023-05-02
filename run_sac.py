@@ -8,13 +8,13 @@ from distutils.util import strtobool
 import gym
 import numpy as np
 import torch
+from pyvirtualdisplay import Display
 from torch.utils.tensorboard import SummaryWriter
 
 import envs
 import wandb
 from methods.sac import SAC
 from utils.experiment import make_env
-
 
 
 def parse_args():
@@ -84,6 +84,8 @@ def parse_args():
 
 
 def main(args):
+    _display = Display(visible=0, size=(1400, 900))
+    _display.start()
     exp_name = f"SAC_{int(time.time())}_{args.gym_id}"
     # project = args.gym_id.split("-")[0]
     project = "Mujoco"

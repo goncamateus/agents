@@ -8,6 +8,7 @@ from distutils.util import strtobool
 import gym
 import numpy as np
 import torch
+from pyvirtualdisplay import Display
 from torch.utils.tensorboard import SummaryWriter
 
 import envs
@@ -86,6 +87,8 @@ def parse_args():
 
 
 def main(args):
+    _display = Display(visible=0, size=(1400, 900))
+    _display.start()
     exp_name = f"PPO_{int(time.time())}_{args.gym_id}"
     # project = args.gym_id.split("-")[0]
     project = "Mujoco"
