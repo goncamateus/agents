@@ -10,7 +10,7 @@ class RecordEpisodeStatistics(gym.Wrapper):
         super(RecordEpisodeStatistics, self).__init__(env)
         self.num_envs = getattr(env, "num_envs", 1)
         self.num_rewards = getattr(env, "num_rewards", 1)
-        self.weights = getattr(env, "ori_weights", None)
+        self.weights = getattr(env, "ori_weights", np.ones(1))
         self.stratified = getattr(env, "stratified", False)
         self.t0 = time.perf_counter()
         self.episode_count = 0
