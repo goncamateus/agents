@@ -13,5 +13,5 @@ source $HOME/.pyvenvs/rl3090/bin/activate
 
 # Run the script
 cd $HOME/doc/rl/agents
-python run_ppo.py --cuda --gym-id $1 --total-timesteps 1000000 \
-    --capture-video --num-envs 16 --track --video-freq 10  --dylam
+python run_ppo_strat.py --cuda --gym-id $1 --total-timesteps 1000000 \
+    --capture-video --num-envs 16 --track --video-freq 10  --dylam --num-rewards $2
