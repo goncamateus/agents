@@ -3,7 +3,7 @@ import os
 
 import gym
 import numpy as np
-# import rsoccer_gym
+import rsoccer_gym
 import torch
 
 from utils.wrappers import RecordEpisodeStatistics

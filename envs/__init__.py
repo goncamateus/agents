@@ -118,3 +118,17 @@ register(
     kwargs={"stratified": False},
     max_episode_steps=1000,
 )
+
+register(
+    id="SSLGoToOri-v0",
+    entry_point="envs.ssl_goto:SSLGoToStrat",
+    kwargs={"stratified": False},
+    max_episode_steps=1200,
+)
+
+register(
+    id="SSLGoToStrat-v0",
+    entry_point="envs.ssl_goto:SSLGoToStrat",
+    kwargs={"stratified": True},
+    max_episode_steps=1200,
+)

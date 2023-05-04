@@ -7,6 +7,7 @@ from distutils.util import strtobool
 
 import gym
 import numpy as np
+import rsoccer_gym
 import torch
 from pyvirtualdisplay import Display
 from torch.utils.tensorboard import SummaryWriter
