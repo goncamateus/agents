@@ -215,43 +215,7 @@ def main(args):
                             f"charts/{key.replace('reward_', '')}", item[key], update
                         )
                     break
-
-        # bootstrap value if not done
-        with torch.no_grad():
-            next_value = agent.get_value(next_obs)
-            gamma = args.gamma
-            if args.gae:
-                advantages = torch.zeros_like(rewards).to(device)
-                lastgaelam = torch.zeros_like(next_value).to(device)
-                for t in reversed(range(args.num_steps)):
-                    if t == args.num_steps - 1:
-                        nextnonterminal = 1.0 - next_done
-                        nextvalues = next_value
-                    else:
-                        nextnonterminal = 1.0 - dones[t + 1]
-                        nextvalues = values[t + 1]
-                    bootstrapped = torch.zeros_like(nextvalues).to(device)
-                    for i in range(len(nextnonterminal)):
-                        bootstrapped[i] = gamma * nextnonterminal[i] * nextvalues[i]
-                    delta = rewards[t] + bootstrapped - values[t]
-                    last_gae_lm_advantages = torch.zeros_like(next_value).to(device)
-                    for i in range(len(nextnonterminal)):
-                        last_gae_lm_advantages[i] = (
-                            gamma * args.gae_lambda * nextnonterminal[i] * lastgaelam[i]
-                        )
-                    advantages[t] = lastgaelam = delta + last_gae_lm_advantages
-                returns = advantages + values
-            else:
-                returns = torch.zeros_like(rewards).to(device)
-                for t in reversed(range(args.num_steps)):
-                    if t == args.num_steps - 1:
-                        nextnonterminal = 1.0 - next_done
-                        next_return = next_value
-                    else:
-                        nextnonterminal = 1.0 - dones[t + 1]
-                        next_return = returns[t + 1]
-                    returns[t] = rewards[t] + args.gamma * nextnonterminal * next_return
-                advantages = returns - values
+        returns, advantages = agent.value_bootstrap(next_obs, next_done, rewards, dones, values)
         # flatten the batch
         b_obs = obs.reshape((-1,) + envs.single_observation_space.shape)
         b_logprobs = logprobs.reshape(-1)
@@ -263,9 +227,9 @@ def main(args):
         # Optimizing the policy and value network
         b_inds = np.arange(args.batch_size)
         clipfracs = []
-        lambdas = torch.Tensor([0.5, 0.5]).to(agent.device)
-        r_max = torch.Tensor([12000, -0.75*4000]).to(agent.device)
-        r_min = torch.Tensor([0, -4000]).to(agent.device)
+        lambdas = torch.ones([0.25, 0.25, 0.25, 0.25]).to(agent.device)
+        r_max = torch.Tensor([0, -0.2, -0.2, 1]).to(agent.device)
+        r_min = torch.Tensor([-1, -1, -1, -1]).to(agent.device)
         # DyLam
         rew_tau = args.rew_tau
         if agent.last_epi_rewards.can_do() and args.dylam:

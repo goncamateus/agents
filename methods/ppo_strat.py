@@ -63,6 +63,52 @@ class PPOStrat(nn.Module):
             action = probs.sample()
         return action, probs.log_prob(action), probs.entropy(), self.critic(x)
 
+    def value_bootstrap(self, next_obs, next_done, rewards, dones, values):
+        # bootstrap value if not done
+        with torch.no_grad():
+            next_value = self.get_value(next_obs)
+            gamma = self.args.gamma
+            if self.args.gae:
+                advantages = torch.zeros_like(rewards).to(self.device)
+                lastgaelam = torch.zeros_like(next_value).to(self.device)
+                for t in reversed(range(self.args.num_steps)):
+                    if t == self.args.num_steps - 1:
+                        nextnonterminal = 1.0 - next_done
+                        nextvalues = next_value
+                    else:
+                        nextnonterminal = 1.0 - dones[t + 1]
+                        nextvalues = values[t + 1]
+                    bootstrapped = torch.zeros_like(nextvalues).to(self.device)
+                    for i in range(len(nextnonterminal)):
+                        bootstrapped[i] = gamma * nextnonterminal[i] * nextvalues[i]
+                    delta = rewards[t] + bootstrapped - values[t]
+                    last_gae_lm_advantages = torch.zeros_like(next_value).to(
+                        self.device
+                    )
+                    for i in range(len(nextnonterminal)):
+                        last_gae_lm_advantages[i] = (
+                            gamma
+                            * self.args.gae_lambda
+                            * nextnonterminal[i]
+                            * lastgaelam[i]
+                        )
+                    advantages[t] = lastgaelam = delta + last_gae_lm_advantages
+                returns = advantages + values
+            else:
+                returns = torch.zeros_like(rewards).to(self.device)
+                for t in reversed(range(self.args.num_steps)):
+                    if t == self.num_steps - 1:
+                        nextnonterminal = 1.0 - next_done
+                        next_return = next_value
+                    else:
+                        nextnonterminal = 1.0 - dones[t + 1]
+                        next_return = returns[t + 1]
+                    returns[t] = (
+                        rewards[t] + self.args.gamma * nextnonterminal * next_return
+                    )
+                advantages = returns - values
+        return returns, advantages
+
     def update(self, clipfracs, batch, lambdas):
         obs = batch[0]
         logprobs = batch[1]
@@ -103,9 +149,7 @@ class PPOStrat(nn.Module):
         if self.args.clip_vloss:
             v_loss_unclipped = (newvalue - returns) ** 2
             v_clipped = values + torch.clamp(
-                newvalue - values,
-                -self.args.clip_coef,
-                self.args.clip_coef,
+                newvalue - values, -self.args.clip_coef, self.args.clip_coef,
             )
             v_loss_clipped = (v_clipped - returns) ** 2
             v_loss_max = torch.max(v_loss_unclipped, v_loss_clipped)
@@ -191,9 +235,7 @@ class PPOStratContinuous(PPOStrat):
         if self.args.clip_vloss:
             v_loss_unclipped = (newvalue - returns) ** 2
             v_clipped = values + torch.clamp(
-                newvalue - values,
-                -self.args.clip_coef,
-                self.args.clip_coef,
+                newvalue - values, -self.args.clip_coef, self.args.clip_coef,
             )
             v_loss_clipped = (v_clipped - returns) ** 2
             v_loss_max = torch.max(v_loss_unclipped, v_loss_clipped)

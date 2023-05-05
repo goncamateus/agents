@@ -122,14 +122,7 @@ def main(args):
 
     # env setup
     envs = gym.vector.SyncVectorEnv(
-        [
-            make_env(
-                args,
-                i,
-                exp_name,
-            )
-            for i in range(args.num_envs)
-        ],
+        [make_env(args, i, exp_name,) for i in range(args.num_envs)],
     )
 
     algo = PPO if not args.continuous else PPOContinuous
@@ -185,11 +178,11 @@ def main(args):
             for item in info:
                 if "episode" in item.keys():
                     print(
-                        f'global_step={global_step}, episodic_return={item["Original_reward"]}'
+                        f'global_step={global_step}, episodic_return={item["episode"]["r"]}'
                     )
-                    log.update({f"ep_info/reward_total": item["Original_reward"]})
+                    log.update({f"ep_info/reward_total": item["episode"]["r"]})
                     writer.add_scalar(
-                        "charts/episodic_return", item["Original_reward"], update
+                        "charts/episodic_return", item["episode"]["r"], update
                     )
                     log.update({f"ep_info/episodic_length": item["episode"]["l"]})
                     writer.add_scalar(
@@ -202,40 +195,9 @@ def main(args):
                             f"charts/{key.replace('reward_', '')}", item[key], update
                         )
                     break
-        # bootstrap value if not done
-        with torch.no_grad():
-            next_value = agent.get_value(next_obs).reshape(1, -1)
-            if args.gae:
-                advantages = torch.zeros_like(rewards).to(device)
-                lastgaelam = 0
-                for t in reversed(range(args.num_steps)):
-                    if t == args.num_steps - 1:
-                        nextnonterminal = 1.0 - next_done
-                        nextvalues = next_value
-                    else:
-                        nextnonterminal = 1.0 - dones[t + 1]
-                        nextvalues = values[t + 1]
-                    delta = (
-                        rewards[t]
-                        + args.gamma * nextvalues * nextnonterminal
-                        - values[t]
-                    )
-                    advantages[t] = lastgaelam = (
-                        delta
-                        + args.gamma * args.gae_lambda * nextnonterminal * lastgaelam
-                    )
-                returns = advantages + values
-            else:
-                returns = torch.zeros_like(rewards).to(device)
-                for t in reversed(range(args.num_steps)):
-                    if t == args.num_steps - 1:
-                        nextnonterminal = 1.0 - next_done
-                        next_return = next_value
-                    else:
-                        nextnonterminal = 1.0 - dones[t + 1]
-                        next_return = returns[t + 1]
-                    returns[t] = rewards[t] + args.gamma * nextnonterminal * next_return
-                advantages = returns - values
+        returns, advantages = agent.value_bootstrap(
+            next_obs, next_done, rewards, dones, values
+        )
         # flatten the batch
         b_obs = obs.reshape((-1,) + envs.single_observation_space.shape)
         b_logprobs = logprobs.reshape(-1)

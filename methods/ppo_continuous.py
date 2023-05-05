@@ -45,6 +45,7 @@ class PPOContinuous(nn.Module):
             torch.ones(1, np.prod(envs.single_action_space.shape)) * args.log_std_init
         )
         self.optimizer = optim.Adam(self.parameters(), lr=args.learning_rate, eps=1e-5)
+        self.device = torch.device("cuda" if args.cuda else "cpu")
 
     def get_value(self, x):
         return self.critic(x)
@@ -62,6 +63,48 @@ class PPOContinuous(nn.Module):
             probs.entropy().sum(1),
             self.critic(x),
         )
+
+    def value_bootstrap(self, next_obs, next_done, rewards, dones, values):
+        # bootstrap value if not done
+        with torch.no_grad():
+            next_value = self.get_value(next_obs).reshape(1, -1)
+            if self.args.gae:
+                advantages = torch.zeros_like(rewards).to(self.device)
+                lastgaelam = 0
+                for t in reversed(range(self.args.num_steps)):
+                    if t == self.args.num_steps - 1:
+                        nextnonterminal = 1.0 - next_done
+                        nextvalues = next_value
+                    else:
+                        nextnonterminal = 1.0 - dones[t + 1]
+                        nextvalues = values[t + 1]
+                    delta = (
+                        rewards[t]
+                        + self.args.gamma * nextvalues * nextnonterminal
+                        - values[t]
+                    )
+                    advantages[t] = lastgaelam = (
+                        delta
+                        + self.args.gamma
+                        * self.args.gae_lambda
+                        * nextnonterminal
+                        * lastgaelam
+                    )
+                returns = advantages + values
+            else:
+                returns = torch.zeros_like(rewards).to(self.device)
+                for t in reversed(range(self.args.num_steps)):
+                    if t == self.args.num_steps - 1:
+                        nextnonterminal = 1.0 - next_done
+                        next_return = next_value
+                    else:
+                        nextnonterminal = 1.0 - dones[t + 1]
+                        next_return = returns[t + 1]
+                    returns[t] = (
+                        rewards[t] + self.args.gamma * nextnonterminal * next_return
+                    )
+                advantages = returns - values
+            return returns, advantages
 
     def update(self, clipfracs, batch):
         obs = batch[0]
@@ -101,9 +144,7 @@ class PPOContinuous(nn.Module):
         if self.args.clip_vloss:
             v_loss_unclipped = (newvalue - returns) ** 2
             v_clipped = values + torch.clamp(
-                newvalue - values,
-                -self.args.clip_coef,
-                self.args.clip_coef,
+                newvalue - values, -self.args.clip_coef, self.args.clip_coef,
             )
             v_loss_clipped = (v_clipped - returns) ** 2
             v_loss_max = torch.max(v_loss_unclipped, v_loss_clipped)
