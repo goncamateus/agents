@@ -25,7 +25,7 @@ class FrozenLakeMod(gym.Env):
 
     metadata = {
         "render.modes": ["human", "ansi", "rgb_array"],
-        "render.fps": 4,
+        "render_fps": 4,
     }
 
     desc = np.full((11, 11), "F", dtype="U1")
@@ -45,7 +45,7 @@ class FrozenLakeMod(gym.Env):
         )
         self.agent_pos = 60
 
-        self.objectives = np.array([55, 64])
+        self.objectives = np.array([56, 64])
         self.objective_count = 0
 
         self.obstacle_pos = 58
@@ -121,11 +121,11 @@ class FrozenLakeMod(gym.Env):
     def min_max_norm(self, val, min, max):
         return (val - min) / (max - min)
 
-    def _dist_reward(self):
+    def _dist_reward(self, obejctive_pos):
         agent_x = self.agent_pos % self.desc.shape[0]
         agent_y = self.agent_pos // self.desc.shape[1]
-        objective_x = self.objectives[self.objective_count] % self.desc.shape[0]
-        objective_y = self.objectives[self.objective_count] // self.desc.shape[1]
+        objective_x = obejctive_pos % self.desc.shape[0]
+        objective_y = obejctive_pos // self.desc.shape[1]
         dist = np.sqrt((agent_x - objective_x) ** 2 + (agent_y - objective_y) ** 2)
         dist_reward = self.last_dist_objective - dist
         self.last_dist_objective = dist
@@ -167,7 +167,9 @@ class FrozenLakeMod(gym.Env):
         self._do_action(action)
 
         reward = np.zeros(self.num_rewards)
-        reward[0] = self._dist_reward()
+        reward[0] = self._dist_reward(
+            obejctive_pos=self.objectives[self.objective_count]
+        )
         reward[1] = self._obstacle_reward()
         done = False
         if self.agent_pos == self.obstacle_pos:
@@ -321,66 +323,3 @@ class FrozenLakeMod(gym.Env):
 
             pygame.display.quit()
             pygame.quit()
-
-
-class HierarchicalFrozenLakeMod(FrozenLakeMod):
-    """
-    Grid environment for Hierarchical Reinforcement Learning
-    The environment is a 11x11 grid with 4 actions: up, down, left, right
-    The agent starts at the center of the grid and it has to reach two objectives.
-    The first objective is 4 steps on left of the center and the second objective is 4 steps on right of the center.
-    """
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.worker_action_space = Discrete(4)
-        self.worker_observation_space = Box(
-            low=0,
-            high=self.desc.shape[0] * self.desc.shape[1],
-            shape=(2,),
-            dtype=np.int32,
-        )
-        self.manager_action_space = Discrete(121)
-        self.manager_observation_space = Box(
-            low=0,
-            high=self.desc.shape[0] * self.desc.shape[1],
-            shape=(4,),
-            dtype=np.int32,
-        )
-        self.manager_last_action = 60
-        self.observation_space = Dict(
-            {
-                "worker": self.worker_observation_space,
-                "manager": self.manager_observation_space,
-            }
-        )
-        self.action_space = Dict(
-            {"worker": self.worker_action_space, "manager": self.manager_action_space}
-        )
-
-    def reset(self):
-        _ = super().reset()
-        self.agent_pos = 60
-        self.manager_last_action = 60
-
-        self.desc = np.full((self.desc.shape[0], self.desc.shape[1]), "F", dtype="U1")
-        self.desc[self.manager_last_action // self.desc.shape[0]][
-            self.manager_last_action % self.desc.shape[1]
-        ] = "S"
-        self.desc[self.objectives[0] // self.desc.shape[0]][
-            self.objectives[0] % self.desc.shape[1]
-        ] = "G"
-        self.desc[self.objectives[1] // self.desc.shape[0]][
-            self.objectives[1] % self.desc.shape[1]
-        ] = "G"
-        self.desc[self.obstacle_pos // self.desc.shape[0]][
-            self.obstacle_pos % self.desc.shape[1]
-        ] = "H"
-
-        self.cumulative_reward_info = {
-            "reward_dist": 0,
-            "reward_obstacle": 0,
-            "reward_objective": 0,
-            "Original_reward": 0,
-        }
-        return self._get_obs()
