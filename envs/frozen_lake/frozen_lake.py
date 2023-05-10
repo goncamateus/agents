@@ -7,7 +7,6 @@ import numpy as np
 import pygame
 from gym.spaces import Box, Discrete
 from gymnasium import utils
-from scipy.stats import multivariate_normal
 
 LEFT = 0
 DOWN = 1
@@ -37,19 +36,28 @@ class FrozenLakeMod(gym.Env):
         self.ori_weights = np.ones(self.num_rewards)
 
         self.action_space = Discrete(4)
-        self.observation_space = Box(low=0, high=121, shape=(4,), dtype=np.int32)
+        self.observation_space = Box(
+            low=0,
+            high=self.desc.shape[0] * self.desc.shape[1],
+            shape=(3,),
+            dtype=np.int32,
+        )
         self.agent_pos = 60
 
-        self.objectives = np.random.choice(121, 2)
+        self.objectives = np.array([56, 64])
         self.objective_count = 0
 
-        self.obstacle_pos = np.random.choice(121)
+        self.obstacle_pos = 58
         # gaussian for static obstacle reward calculation
         self.obstacle_max_punish = 20
         self.obstacle_gauss_xvar = 0.2
         self.obstacle_gauss_xycov = 0
         self.obstacle_gauss_yxcov = 0
         self.obstacle_gauss_yvar = 0.2
+
+        self.max_dist = np.sqrt(self.desc.shape[0] ** 2 + self.desc.shape[1] ** 2)
+        self.last_dist_objective = 4 / self.max_dist
+        self.last_dist_obstacle = 2 / self.max_dist
 
         self.cumulative_reward_info = {
             "reward_dist": 0,
@@ -60,10 +68,13 @@ class FrozenLakeMod(gym.Env):
 
         # pygame utils
         self.last_action = None
-        self.window_size = (min(64 * 11, 512), min(64 * 11, 512))
+        self.window_size = (
+            min(64 * self.desc.shape[0], 512),
+            min(64 * self.desc.shape[1], 512),
+        )
         self.cell_size = (
-            self.window_size[0] // 11,
-            self.window_size[1] // 11,
+            self.window_size[0] // self.desc.shape[0],
+            self.window_size[1] // self.desc.shape[1],
         )
         self.window_surface = None
         self.clock = None
@@ -76,26 +87,26 @@ class FrozenLakeMod(gym.Env):
 
     def reset(self):
         self.last_action = None
-        choices = np.arange(121, dtype=np.int32)
-        self.agent_pos = np.random.choice(choices)
-        self.objectives[0] = np.random.choice(choices[choices != self.agent_pos])
-        (choices != self.agent_pos) & (choices != self.objectives[0])
-        self.objectives[1] = np.random.choice(
-            choices[(choices != self.agent_pos) & (choices != self.objectives[0])]
-        )
         self.objective_count = 0
-        self.obstacle_pos = np.random.choice(
-            choices[
-                (choices != self.agent_pos)
-                & (choices != self.objectives[0])
-                & (choices != self.objectives[1])
-            ]
-        )
-        self.desc = np.full((11, 11), "F", dtype="U1")
-        self.desc[self.agent_pos // 11][self.agent_pos % 11] = "S"
-        self.desc[self.objectives[0] // 11][self.objectives[0] % 11] = "G"
-        self.desc[self.objectives[1] // 11][self.objectives[1] % 11] = "G"
-        self.desc[self.obstacle_pos // 11][self.obstacle_pos % 11] = "H"
+        self.agent_pos = 60
+        self.objectives = np.array([56, 64])
+        self.obstacle_pos = 58
+        self.last_dist_objective = 4
+        self.last_dist_obstacle = 2
+
+        self.desc = np.full((self.desc.shape[0], self.desc.shape[1]), "F", dtype="U1")
+        self.desc[self.agent_pos // self.desc.shape[0]][
+            self.agent_pos % self.desc.shape[1]
+        ] = "S"
+        self.desc[self.objectives[0] // self.desc.shape[0]][
+            self.objectives[0] % self.desc.shape[1]
+        ] = "G"
+        self.desc[self.objectives[1] // self.desc.shape[0]][
+            self.objectives[1] % self.desc.shape[1]
+        ] = "G"
+        self.desc[self.obstacle_pos // self.desc.shape[0]][
+            self.obstacle_pos % self.desc.shape[1]
+        ] = "H"
 
         self.cumulative_reward_info = {
             "reward_dist": 0,
@@ -105,81 +116,48 @@ class FrozenLakeMod(gym.Env):
         }
         return self._get_obs()
 
-    def gaussian_activation(
-        self, x, y, xmean, ymean, x_var=1, xy_cov=0, yx_cov=0, y_var=1
-    ):
-        """
-        Return the value for a 2d gaussian distribution with mean at [xmean, ymean] and the covariance matrix based on
-        [[x_var, xy_cov],[yx_cov, y_var]].
-        """
-        means = [xmean, ymean]
-        cov_mat = [[x_var, xy_cov], [yx_cov, y_var]]
-
-        rv = multivariate_normal(means, cov_mat)
-
-        return rv.pdf([x, y])
-
     def min_max_norm(self, val, min, max):
         return (val - min) / (max - min)
 
     def _dist_reward(self):
-        return -10 - np.linalg.norm(
-            self.agent_pos - self.objectives[self.objective_count]
-        )
+        agent_x = self.agent_pos % self.desc.shape[0]
+        agent_y = self.agent_pos // self.desc.shape[1]
+        objective_x = self.objectives[self.objective_count] % self.desc.shape[0]
+        objective_y = self.objectives[self.objective_count] // self.desc.shape[1]
+        dist = np.sqrt((agent_x - objective_x) ** 2 + (agent_y - objective_y) ** 2)
+        dist = self.min_max_norm(dist, 0, self.max_dist)
+        dist_reward = self.last_dist_objective - dist
+        self.last_dist_objective = dist
+        return dist_reward
 
     def _obstacle_reward(self):
-        agent_x = int(self.agent_pos / 11)
-        agent_y = self.agent_pos % 11
-
-        obstacle_x = int(self.obstacle_pos / 11)
-        obstacle_y = self.obstacle_pos % 11
-
-        activation = self.gaussian_activation(
-            x=agent_x,
-            y=agent_y,
-            xmean=obstacle_x,
-            ymean=obstacle_y,
-            x_var=self.obstacle_gauss_xvar,
-            xy_cov=self.obstacle_gauss_xycov,
-            yx_cov=self.obstacle_gauss_yxcov,
-            y_var=self.obstacle_gauss_yvar,
-        )
-
-        normed_act = self.min_max_norm(
-            activation,
-            min=0,
-            max=self.gaussian_activation(
-                x=0,
-                y=0,
-                xmean=0,
-                ymean=0,
-                x_var=self.obstacle_gauss_xvar,
-                xy_cov=self.obstacle_gauss_xycov,
-                yx_cov=self.obstacle_gauss_yxcov,
-                y_var=self.obstacle_gauss_yvar,
-            ),
-        )
-        obstacle_punishment = self.obstacle_max_punish * normed_act
-
-        return -1 * obstacle_punishment
+        agent_x = self.agent_pos % self.desc.shape[0]
+        agent_y = self.agent_pos // self.desc.shape[1]
+        obstacle_x = self.obstacle_pos % self.desc.shape[0]
+        obstacle_y = self.obstacle_pos // self.desc.shape[1]
+        dist = np.sqrt((agent_x - obstacle_x) ** 2 + (agent_y - obstacle_y) ** 2)
+        dist = self.min_max_norm(dist, 0, self.max_dist)
+        dist_obstacle = -(self.last_dist_obstacle - dist)
+        self.last_dist_obstacle = dist
+        return dist_obstacle
 
     def _do_action(self, action):
         if action == LEFT:
-            if self.agent_pos % 11 != 0:
+            if self.agent_pos % self.desc.shape[1] != 0:
                 self.agent_pos -= 1
         elif action == DOWN:
             if self.agent_pos > 10:
-                self.agent_pos -= 11
+                self.agent_pos -= self.desc.shape[0]
         elif action == RIGHT:
-            if self.agent_pos % 11 != 10:
+            if self.agent_pos % self.desc.shape[1] != 10:
                 self.agent_pos += 1
         elif action == UP:
             if self.agent_pos < 110:
-                self.agent_pos += 11
+                self.agent_pos += self.desc.shape[0]
 
     def _get_obs(self):
         return np.array(
-            [self.agent_pos, self.obstacle_pos, self.objectives[0], self.objectives[1]]
+            [self.agent_pos, self.obstacle_pos, self.objectives[self.objective_count]]
         )
 
     def step(self, action):
@@ -194,7 +172,7 @@ class FrozenLakeMod(gym.Env):
         if self.agent_pos == self.objectives[1]:
             done = True
             if self.objective_count == 0:
-                reward[2] += 20
+                reward[2] -= 20
             else:
                 reward[2] += 200
         elif self.agent_pos == self.objectives[0] and self.objective_count == 0:
@@ -209,7 +187,7 @@ class FrozenLakeMod(gym.Env):
         self.cumulative_reward_info["Original_reward"] += reward.sum()
 
         if not self.stratified:
-            reward = np.multiply(reward, self.ori_weights).sum()
+            reward = (reward * self.ori_weights).sum()
 
         return self._get_obs(), reward, done, self.cumulative_reward_info
 
@@ -218,7 +196,7 @@ class FrozenLakeMod(gym.Env):
             return self._render_text()
         else:
             return self._render_gui(render_mode)
-    
+
     def _render_gui(self, mode="human"):
         if self.window_surface is None:
             pygame.init()
