@@ -167,23 +167,15 @@ class FrozenLakeMod(gym.Env):
         if action == LEFT:
             if self.agent_pos % 11 != 0:
                 self.agent_pos -= 1
-                if self.agent_pos == self.obstacle_pos:
-                    self.agent_pos += 1
         elif action == DOWN:
             if self.agent_pos > 10:
                 self.agent_pos -= 11
-                if self.agent_pos == self.obstacle_pos:
-                    self.agent_pos += 11
         elif action == RIGHT:
             if self.agent_pos % 11 != 10:
                 self.agent_pos += 1
-                if self.agent_pos == self.obstacle_pos:
-                    self.agent_pos -= 1
         elif action == UP:
             if self.agent_pos < 110:
                 self.agent_pos += 11
-                if self.agent_pos == self.obstacle_pos:
-                    self.agent_pos -= 11
 
     def _get_obs(self):
         return np.array(
@@ -196,6 +188,9 @@ class FrozenLakeMod(gym.Env):
 
         reward = np.zeros(self.num_rewards)
         done = False
+        if self.agent_pos == self.obstacle_pos:
+            done = True
+            reward[2] += -1
         if self.agent_pos == self.objectives[1]:
             done = True
             if self.objective_count == 0:
@@ -285,11 +280,11 @@ class FrozenLakeMod(gym.Env):
                 rect = (*pos, *self.cell_size)
 
                 self.window_surface.blit(self.ice_img, pos)
-                if desc[y][x] == b"H":
+                if desc[y][x] == "H":
                     self.window_surface.blit(self.hole_img, pos)
-                elif desc[y][x] == b"G":
+                elif desc[y][x] == "G":
                     self.window_surface.blit(self.goal_img, pos)
-                elif desc[y][x] == b"S":
+                elif desc[y][x] == "S":
                     self.window_surface.blit(self.start_img, pos)
 
                 pygame.draw.rect(self.window_surface, (180, 200, 230), rect, 1)
@@ -303,7 +298,7 @@ class FrozenLakeMod(gym.Env):
         last_action = self.last_action if self.last_action is not None else 1
         elf_img = self.elf_images[last_action]
 
-        if desc[bot_row][bot_col] == b"H":
+        if desc[bot_row][bot_col] == "H":
             self.window_surface.blit(self.cracked_hole_img, cell_rect)
         else:
             self.window_surface.blit(elf_img, cell_rect)
