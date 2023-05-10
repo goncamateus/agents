@@ -5,6 +5,7 @@ from io import StringIO
 import gym
 import numpy as np
 import pygame
+from colorama import Fore, Style
 from gym.spaces import Box, Discrete
 from gymnasium import utils
 
@@ -19,7 +20,7 @@ class FrozenLakeMod(gym.Env):
     Grid environment for Reinforcement Learning
     The environment is a 11x11 grid with 4 actions: up, down, left, right
     The agent starts at the center of the grid and it has to reach two objectives.
-    The first objective is 4 steps on left of the center and the second objective is 4 steps on right of the center.
+    The first objective is 5 steps on left of the center and the second objective is 4 steps on right of the center.
     """
 
     metadata = {
@@ -33,7 +34,7 @@ class FrozenLakeMod(gym.Env):
         super().__init__()
         self.stratified = stratified
         self.num_rewards = 3
-        self.ori_weights = np.ones(self.num_rewards)
+        self.ori_weights = np.array([0.2, 0.05, 0.75])
 
         self.action_space = Discrete(4)
         self.observation_space = Box(
@@ -44,20 +45,20 @@ class FrozenLakeMod(gym.Env):
         )
         self.agent_pos = 60
 
-        self.objectives = np.array([56, 64])
+        self.objectives = np.array([55, 64])
         self.objective_count = 0
 
         self.obstacle_pos = 58
         # gaussian for static obstacle reward calculation
-        self.obstacle_max_punish = 20
+        self.obstacle_max_punish = 1
         self.obstacle_gauss_xvar = 0.2
         self.obstacle_gauss_xycov = 0
         self.obstacle_gauss_yxcov = 0
         self.obstacle_gauss_yvar = 0.2
 
         self.max_dist = np.sqrt(self.desc.shape[0] ** 2 + self.desc.shape[1] ** 2)
-        self.last_dist_objective = 4 / self.max_dist
-        self.last_dist_obstacle = 2 / self.max_dist
+        self.last_dist_objective = 4
+        self.last_dist_obstacle = 2
 
         self.cumulative_reward_info = {
             "reward_dist": 0,
@@ -114,6 +115,7 @@ class FrozenLakeMod(gym.Env):
             "reward_objective": 0,
             "Original_reward": 0,
         }
+        self.hit_wall = False
         return self._get_obs()
 
     def min_max_norm(self, val, min, max):
@@ -125,7 +127,6 @@ class FrozenLakeMod(gym.Env):
         objective_x = self.objectives[self.objective_count] % self.desc.shape[0]
         objective_y = self.objectives[self.objective_count] // self.desc.shape[1]
         dist = np.sqrt((agent_x - objective_x) ** 2 + (agent_y - objective_y) ** 2)
-        dist = self.min_max_norm(dist, 0, self.max_dist)
         dist_reward = self.last_dist_objective - dist
         self.last_dist_objective = dist
         return dist_reward
@@ -136,24 +137,25 @@ class FrozenLakeMod(gym.Env):
         obstacle_x = self.obstacle_pos % self.desc.shape[0]
         obstacle_y = self.obstacle_pos // self.desc.shape[1]
         dist = np.sqrt((agent_x - obstacle_x) ** 2 + (agent_y - obstacle_y) ** 2)
-        dist = self.min_max_norm(dist, 0, self.max_dist)
         dist_obstacle = -(self.last_dist_obstacle - dist)
         self.last_dist_obstacle = dist
+        if self.hit_wall:
+            dist_obstacle = -self.obstacle_max_punish
+            self.hit_wall = False
         return dist_obstacle
 
     def _do_action(self, action):
-        if action == LEFT:
-            if self.agent_pos % self.desc.shape[1] != 0:
-                self.agent_pos -= 1
-        elif action == DOWN:
-            if self.agent_pos > 10:
-                self.agent_pos -= self.desc.shape[0]
-        elif action == RIGHT:
-            if self.agent_pos % self.desc.shape[1] != 10:
-                self.agent_pos += 1
-        elif action == UP:
-            if self.agent_pos < 110:
-                self.agent_pos += self.desc.shape[0]
+        x, y = self.agent_pos % self.desc.shape[1], self.agent_pos // self.desc.shape[1]
+        if action == LEFT and x > 0:
+            self.agent_pos -= 1
+        elif action == DOWN and y < self.desc.shape[0] - 1:
+            self.agent_pos += self.desc.shape[1]
+        elif action == RIGHT and x < self.desc.shape[1] - 1:
+            self.agent_pos += 1
+        elif action == UP and y > 0:
+            self.agent_pos -= self.desc.shape[1]
+        else:
+            self.hit_wall = True
 
     def _get_obs(self):
         return np.array(
@@ -165,22 +167,26 @@ class FrozenLakeMod(gym.Env):
         self._do_action(action)
 
         reward = np.zeros(self.num_rewards)
+        reward[0] = self._dist_reward()
+        reward[1] = self._obstacle_reward()
         done = False
         if self.agent_pos == self.obstacle_pos:
+            print(Fore.RED + "Failure" + Style.RESET_ALL)
             done = True
-            reward[2] += -200
+            reward[2] += -1
         if self.agent_pos == self.objectives[1]:
             done = True
             if self.objective_count == 0:
-                reward[2] -= 20
+                reward[2] += -0.5
             else:
-                reward[2] += 200
+                print(Fore.CYAN + "objective 1 and 2 reached" + Style.RESET_ALL)
+                reward[2] += 1
         elif self.agent_pos == self.objectives[0] and self.objective_count == 0:
-            reward[2] += 50
+            print(Fore.GREEN + "objective 1 reached" + Style.RESET_ALL)
+            reward[2] += 0.5
             self.objective_count += 1
+            self.last_dist_objective = 8
 
-        reward[0] = self._dist_reward()
-        reward[1] = self._obstacle_reward()
         self.cumulative_reward_info["reward_dist"] += reward[0]
         self.cumulative_reward_info["reward_obstacle"] += reward[1]
         self.cumulative_reward_info["reward_objective"] += reward[2]
@@ -188,7 +194,7 @@ class FrozenLakeMod(gym.Env):
 
         if not self.stratified:
             reward = (reward * self.ori_weights).sum()
-
+            reward *= 10
         return self._get_obs(), reward, done, self.cumulative_reward_info
 
     def render(self, render_mode):
