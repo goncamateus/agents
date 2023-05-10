@@ -6,7 +6,7 @@ import gym
 import numpy as np
 import pygame
 from colorama import Fore, Style
-from gym.spaces import Box, Discrete
+from gym.spaces import Box, Discrete, Dict
 from gymnasium import utils
 
 LEFT = 0
@@ -323,20 +323,64 @@ class FrozenLakeMod(gym.Env):
             pygame.quit()
 
 
-# class HierarchicalFrozenLakeMod(FrozenLakeMod):
-#     """
-#     Grid environment for Hierarchical Reinforcement Learning
-#     The environment is a 11x11 grid with 4 actions: up, down, left, right
-#     The agent starts at the center of the grid and it has to reach two objectives.
-#     The first objective is 4 steps on left of the center and the second objective is 4 steps on right of the center.
-#     """
+class HierarchicalFrozenLakeMod(FrozenLakeMod):
+    """
+    Grid environment for Hierarchical Reinforcement Learning
+    The environment is a 11x11 grid with 4 actions: up, down, left, right
+    The agent starts at the center of the grid and it has to reach two objectives.
+    The first objective is 4 steps on left of the center and the second objective is 4 steps on right of the center.
+    """
 
-#     def __init__(self) -> None:
-#         super().__init__()
-#         self.worker_action_space = Discrete(4)
-#         self.worker_observation_space = Discrete(121)
-#         self.manager_action_space = Discrete(121)
-#         self.manager_observation_space = Discrete(121)
+    def __init__(self) -> None:
+        super().__init__()
+        self.worker_action_space = Discrete(4)
+        self.worker_observation_space = Box(
+            low=0,
+            high=self.desc.shape[0] * self.desc.shape[1],
+            shape=(2,),
+            dtype=np.int32,
+        )
+        self.manager_action_space = Discrete(121)
+        self.manager_observation_space = Box(
+            low=0,
+            high=self.desc.shape[0] * self.desc.shape[1],
+            shape=(4,),
+            dtype=np.int32,
+        )
+        self.manager_last_action = 60
+        self.observation_space = Dict(
+            {
+                "worker": self.worker_observation_space,
+                "manager": self.manager_observation_space,
+            }
+        )
+        self.action_space = Dict(
+            {"worker": self.worker_action_space, "manager": self.manager_action_space}
+        )
 
-#         self.worker_state = 60
-#         self.manager_last_action = 60
+    def reset(self):
+        _ = super().reset()
+        self.agent_pos = 60
+        self.manager_last_action = 60
+
+        self.desc = np.full((self.desc.shape[0], self.desc.shape[1]), "F", dtype="U1")
+        self.desc[self.manager_last_action // self.desc.shape[0]][
+            self.manager_last_action % self.desc.shape[1]
+        ] = "S"
+        self.desc[self.objectives[0] // self.desc.shape[0]][
+            self.objectives[0] % self.desc.shape[1]
+        ] = "G"
+        self.desc[self.objectives[1] // self.desc.shape[0]][
+            self.objectives[1] % self.desc.shape[1]
+        ] = "G"
+        self.desc[self.obstacle_pos // self.desc.shape[0]][
+            self.obstacle_pos % self.desc.shape[1]
+        ] = "H"
+
+        self.cumulative_reward_info = {
+            "reward_dist": 0,
+            "reward_obstacle": 0,
+            "reward_objective": 0,
+            "Original_reward": 0,
+        }
+        return self._get_obs()
