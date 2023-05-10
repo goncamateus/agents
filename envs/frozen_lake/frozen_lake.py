@@ -24,8 +24,8 @@ class FrozenLakeMod(gym.Env):
     """
 
     metadata = {
-        "render_modes": ["human", "ansi", "rgb_array"],
-        "render_fps": 4,
+        "render.modes": ["human", "ansi", "rgb_array"],
+        "render.fps": 4,
     }
 
     desc = np.full((11, 11), "F", dtype="U1")
@@ -190,15 +190,15 @@ class FrozenLakeMod(gym.Env):
         done = False
         if self.agent_pos == self.obstacle_pos:
             done = True
-            reward[2] += -1
+            reward[2] += -200
         if self.agent_pos == self.objectives[1]:
             done = True
             if self.objective_count == 0:
-                reward[2] += -1
+                reward[2] += 20
             else:
-                reward[2] += 1
+                reward[2] += 200
         elif self.agent_pos == self.objectives[0] and self.objective_count == 0:
-            reward[2] += 1
+            reward[2] += 50
             self.objective_count += 1
 
         reward[0] = self._dist_reward()
@@ -208,8 +208,8 @@ class FrozenLakeMod(gym.Env):
         self.cumulative_reward_info["reward_objective"] += reward[2]
         self.cumulative_reward_info["Original_reward"] += reward.sum()
 
-        if self.stratified:
-            reward = np.multiply(reward, self.ori_weights)
+        if not self.stratified:
+            reward = np.multiply(reward, self.ori_weights).sum()
 
         return self._get_obs(), reward, done, self.cumulative_reward_info
 
