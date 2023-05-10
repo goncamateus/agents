@@ -227,9 +227,9 @@ def main(args):
         # Optimizing the policy and value network
         b_inds = np.arange(args.batch_size)
         clipfracs = []
-        lambdas = torch.ones([0.25, 0.25, 0.25, 0.25]).to(agent.device)
-        r_max = torch.Tensor([0, -0.2, -0.2, 1]).to(agent.device)
-        r_min = torch.Tensor([-1, -1, -1, -1]).to(agent.device)
+        lambdas = torch.ones(args.num_rewards).to(agent.device)/args.num_rewards
+        r_max = torch.Tensor([12, 4, 1.5]).to(agent.device)
+        r_min = torch.Tensor([2, -10, -1]).to(agent.device)
         # DyLam
         rew_tau = args.rew_tau
         if agent.last_epi_rewards.can_do() and args.dylam:

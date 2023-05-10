@@ -139,3 +139,10 @@ register(
     kwargs={"stratified": False},
     max_episode_steps=100,
 )
+
+register(
+    id="FrozenLakeStrat-v0",
+    entry_point="envs.frozen_lake.frozen_lake:FrozenLakeMod",
+    kwargs={"stratified": True},
+    max_episode_steps=100,
+)
