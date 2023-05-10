@@ -53,19 +53,14 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
             "reward_manager": 0,
             "Original_reward": 0,
         }
+        self.sub_goal_img = None
+        
 
     def reset(self):
         _ = super().reset()
         self.steps_count = 0
         self.agent_pos = 60
         self.manager_last_action = 56
-
-        self.desc[self.agent_pos // self.desc.shape[0]][
-            self.agent_pos % self.desc.shape[1]
-        ] = "F"
-        self.desc[self.manager_last_action // self.desc.shape[0]][
-            self.manager_last_action % self.desc.shape[1]
-        ] = "S"
 
         self.cumulative_reward_info = {
             "reward_dist": 0,
@@ -86,13 +81,7 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
         return observation
 
     def _manager_act(self, action):
-        self.desc[self.manager_last_action // self.desc.shape[0]][
-            self.manager_last_action % self.desc.shape[1]
-        ] = "F"
         self.manager_last_action = action
-        self.desc[self.manager_last_action // self.desc.shape[0]][
-            self.manager_last_action % self.desc.shape[1]
-        ] = "S"
 
     def _worker_reward(self):
         reward = np.zeros(2)
@@ -157,6 +146,114 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
             )
 
         return self._get_obs(), reward, done, self.cumulative_reward_info
+
+    def _render_gui(self, mode="human"):
+        if self.window_surface is None:
+            pygame.init()
+
+            if mode == "human":
+                pygame.display.init()
+                pygame.display.set_caption("Grid Environment")
+                self.window_surface = pygame.display.set_mode(self.window_size)
+            elif mode == "rgb_array":
+                self.window_surface = pygame.Surface(self.window_size)
+
+        assert (
+            self.window_surface is not None
+        ), "Something went wrong with pygame. This should never happen."
+
+        if self.clock is None:
+            self.clock = pygame.time.Clock()
+        if self.hole_img is None:
+            file_name = os.path.join(os.path.dirname(__file__), "img/hole.png")
+            self.hole_img = pygame.transform.scale(
+                pygame.image.load(file_name), self.cell_size
+            )
+        if self.cracked_hole_img is None:
+            file_name = os.path.join(os.path.dirname(__file__), "img/cracked_hole.png")
+            self.cracked_hole_img = pygame.transform.scale(
+                pygame.image.load(file_name), self.cell_size
+            )
+        if self.ice_img is None:
+            file_name = os.path.join(os.path.dirname(__file__), "img/ice.png")
+            self.ice_img = pygame.transform.scale(
+                pygame.image.load(file_name), self.cell_size
+            )
+        if self.goal_img is None:
+            file_name = os.path.join(os.path.dirname(__file__), "img/goal.png")
+            self.goal_img = pygame.transform.scale(
+                pygame.image.load(file_name), self.cell_size
+            )
+        if self.start_img is None:
+            file_name = os.path.join(os.path.dirname(__file__), "img/stool.png")
+            self.start_img = pygame.transform.scale(
+                pygame.image.load(file_name), self.cell_size
+            )
+        if self.sub_goal_img is None:
+            file_name = os.path.join(os.path.dirname(__file__), "img/cookie.png")
+            self.sub_goal_img = pygame.transform.scale(
+                pygame.image.load(file_name), self.cell_size
+            )
+        if self.elf_images is None:
+            elfs = [
+                os.path.join(os.path.dirname(__file__), "img/elf_left.png"),
+                os.path.join(os.path.dirname(__file__), "img/elf_down.png"),
+                os.path.join(os.path.dirname(__file__), "img/elf_right.png"),
+                os.path.join(os.path.dirname(__file__), "img/elf_up.png"),
+            ]
+            self.elf_images = [
+                pygame.transform.scale(pygame.image.load(f_name), self.cell_size)
+                for f_name in elfs
+            ]
+        desc = self.desc.tolist()
+        assert isinstance(desc, list), f"desc should be a list or an array, got {desc}"
+        for y in range(self.desc.shape[0]):
+            for x in range(self.desc.shape[1]):
+                pos = (x * self.cell_size[0], y * self.cell_size[1])
+                rect = (*pos, *self.cell_size)
+
+                self.window_surface.blit(self.ice_img, pos)
+                if desc[y][x] == "H":
+                    self.window_surface.blit(self.hole_img, pos)
+                elif desc[y][x] == "G":
+                    self.window_surface.blit(self.goal_img, pos)
+                elif desc[y][x] == "S":
+                    self.window_surface.blit(self.start_img, pos)
+
+                pygame.draw.rect(self.window_surface, (180, 200, 230), rect, 1)
+
+        manager_row, manager_col = (
+            self.manager_last_action // self.desc.shape[0],
+            self.manager_last_action % self.desc.shape[1],
+        )
+        manager_cell_rect = (
+            manager_col * self.cell_size[0],
+            manager_row * self.cell_size[1],
+        )
+        self.window_surface.blit(self.sub_goal_img, manager_cell_rect)
+
+        # paint the elf
+        bot_row, bot_col = (
+            self.agent_pos // self.desc.shape[0],
+            self.agent_pos % self.desc.shape[1],
+        )
+        cell_rect = (bot_col * self.cell_size[0], bot_row * self.cell_size[1])
+        last_action = self.last_action if self.last_action is not None else 1
+        elf_img = self.elf_images[last_action]
+
+        if desc[bot_row][bot_col] == "H":
+            self.window_surface.blit(self.cracked_hole_img, cell_rect)
+        else:
+            self.window_surface.blit(elf_img, cell_rect)
+
+        if mode == "human":
+            pygame.event.pump()
+            pygame.display.update()
+            self.clock.tick(self.metadata["render_fps"])
+        elif mode == "rgb_array":
+            return np.transpose(
+                np.array(pygame.surfarray.pixels3d(self.window_surface)), axes=(1, 0, 2)
+            )
 
     def _render_text(self):
         desc = self.desc.tolist()
