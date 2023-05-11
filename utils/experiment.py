@@ -102,29 +102,29 @@ class StratSyncVectorEnv(gym.vector.SyncVectorEnv):
 
 
 def make_env(
-    args,
+    arguments,
     idx,
     run_name,
     extra_wrapper=None,
 ):
     def thunk():
-        env = gym.make(args.gym_id)
-        if args.capture_video:
+        env = gym.make(arguments.gym_id)
+        if arguments.capture_video:
             if idx == 0:
                 env = gym.wrappers.RecordVideo(
                     env,
                     f"monitor/{run_name}",
-                    episode_trigger=lambda x: x % args.video_freq == 0,
+                    episode_trigger=lambda x: x % arguments.video_freq == 0,
                 )
         # For PPO -------------------------------------------------------
-        if args.continuous:
+        if "continuous" in arguments and arguments.continuous:
             env = gym.wrappers.ClipAction(env)
             env = gym.wrappers.NormalizeObservation(env)
             env = gym.wrappers.TransformObservation(
                 env, lambda obs: np.clip(obs, -10, 10)
             )
-        if args.normalize:
-            env = gym.wrappers.NormalizeReward(env, gamma=args.gamma)
+        if "normalize" in arguments and arguments.normalize:
+            env = gym.wrappers.NormalizeReward(env, gamma=arguments.gamma)
             env = gym.wrappers.TransformReward(
                 env, lambda reward: np.clip(reward, -10, 10)
             )
@@ -132,9 +132,9 @@ def make_env(
         env = RecordEpisodeStatistics(env)
         if extra_wrapper is not None:
             env = extra_wrapper(env)
-        env.seed(args.seed)
-        env.action_space.seed(args.seed)
-        env.observation_space.seed(args.seed)
+        env.seed(arguments.seed)
+        env.action_space.seed(arguments.seed)
+        env.observation_space.seed(arguments.seed)
         return env
 
     return thunk

@@ -10,7 +10,7 @@ from collections import deque
 from typing import Deque, Dict, List, Tuple
 
 import numpy as np
-from segment_tree import MinSegmentTree, SumSegmentTree
+from utils.segment_tree import MinSegmentTree, SumSegmentTree
 
 
 class ReplayBuffer:
