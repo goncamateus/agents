@@ -3,7 +3,7 @@ import envs
 
 
 def main():
-    env = gym.make("HierarchicalFrozenLake-v1")
+    env = gym.make("FrozenLake13x13Strat-v0")
     env.reset()
     for _ in range(1000):
         state, reward, done, info = env.step(env.action_space.sample())

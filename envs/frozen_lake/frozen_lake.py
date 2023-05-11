@@ -30,14 +30,14 @@ class FrozenLakeMod(gym.Env):
         "render.fps": 4,
     }
 
-    desc = np.full((11, 11), "F", dtype="U1")
 
-    def __init__(self, stratified=False):
+    def __init__(self, stratified=False, **kwargs):
         super().__init__()
         self.stratified = stratified
         self.num_rewards = 3
         self.ori_weights = np.array([0.2, 0.05, 0.75])
 
+        self.desc = np.full(kwargs["desc_shape"], "F", dtype="U1")
         self.action_space = Discrete(4)
         self.observation_space = Box(
             low=0,
@@ -45,12 +45,13 @@ class FrozenLakeMod(gym.Env):
             shape=(3,),
             dtype=np.int32,
         )
-        self.agent_pos = 60
+        self.agent_pos = kwargs["agent_pos"]
+        self.ori_agent_pos = kwargs["agent_pos"]
 
-        self.objectives = np.array([56, 64])
+        self.objectives = np.array([kwargs["objective_0"], kwargs["objective_1"]])
         self.objective_count = 0
 
-        self.obstacle_pos = 58
+        self.obstacle_pos = kwargs["obstacle_pos"]
         # gaussian for static obstacle reward calculation
         self.obstacle_max_punish = 1
         self.obstacle_gauss_xvar = 0.2
@@ -91,9 +92,7 @@ class FrozenLakeMod(gym.Env):
     def reset(self):
         self.last_action = None
         self.objective_count = 0
-        self.agent_pos = 60
-        self.objectives = np.array([56, 64])
-        self.obstacle_pos = 58
+        self.agent_pos = self.ori_agent_pos
         self.last_dist_objective = 4
         self.last_dist_obstacle = 2
 

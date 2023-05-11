@@ -19,8 +19,8 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
     The first objective is 4 steps on left of the center and the second objective is 4 steps on right of the center.
     """
 
-    def __init__(self, worker_stratified=False) -> None:
-        super().__init__()
+    def __init__(self, worker_stratified=False, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.worker_action_space = Discrete(4)
         self.worker_observation_space = Box(
             low=0,

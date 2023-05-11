@@ -134,28 +134,112 @@ register(
 )
 
 register(
-    id="FrozenLake-v5",
+    id="FrozenLake11x11-v0",
     entry_point="envs.frozen_lake.frozen_lake:FrozenLakeMod",
-    kwargs={"stratified": False},
+    kwargs={
+        "stratified": False,
+        "desc_shape": (11, 11),
+        "agent_pos": 60,
+        "objective_0": 56,
+        "objective_1": 64,
+        "obstacle_pos": 58,
+    },
     max_episode_steps=100,
 )
 
 register(
-    id="FrozenLakeStrat-v0",
+    id="FrozenLake13x13-v0",
     entry_point="envs.frozen_lake.frozen_lake:FrozenLakeMod",
-    kwargs={"stratified": True},
+    kwargs={
+        "stratified": False,
+        "desc_shape": (13, 13),
+        "agent_pos": 84,
+        "objective_0": 90,
+        "objective_1": 78,
+        "obstacle_pos": 80,
+    },
+    max_episode_steps=100,
+)
+
+
+register(
+    id="FrozenLake11x11Strat-v0",
+    entry_point="envs.frozen_lake.frozen_lake:FrozenLakeMod",
+    kwargs={
+        "stratified": True,
+        "desc_shape": (11, 11),
+        "agent_pos": 60,
+        "objective_0": 56,
+        "objective_1": 64,
+        "obstacle_pos": 58,
+    },
     max_episode_steps=100,
 )
 
 register(
-    id="HierarchicalFrozenLake-v0",
+    id="FrozenLake13x13Strat-v0",
+    entry_point="envs.frozen_lake.frozen_lake:FrozenLakeMod",
+    kwargs={
+        "stratified": True,
+        "desc_shape": (13, 13),
+        "agent_pos": 84,
+        "objective_0": 90,
+        "objective_1": 78,
+        "obstacle_pos": 80,
+    },
+    max_episode_steps=100,
+)
+
+register(
+    id="HierarchicalFrozenLake11x11-v0",
     entry_point="envs.frozen_lake.hierarchical_frozen_lake:HierarchicalFrozenLakeMod",
     max_episode_steps=100,
+    kwargs={
+        "desc_shape": (11, 11),
+        "agent_pos": 60,
+        "objective_0": 56,
+        "objective_1": 64,
+        "obstacle_pos": 58,
+    },
 )
 
 register(
-    id="HierarchicalFrozenLake-v1",
+    id="HierarchicalFrozenLake13x13-v0",
     entry_point="envs.frozen_lake.hierarchical_frozen_lake:HierarchicalFrozenLakeMod",
-    kwargs={"worker_stratified": True},
     max_episode_steps=100,
+    kwargs={
+        "desc_shape": (13, 13),
+        "agent_pos": 84,
+        "objective_0": 90,
+        "objective_1": 78,
+        "obstacle_pos": 80,
+    },
+)
+
+register(
+    id="HierarchicalFrozenLake11x11Strat-v0",
+    entry_point="envs.frozen_lake.hierarchical_frozen_lake:HierarchicalFrozenLakeMod",
+    kwargs={
+        "worker_stratified": True,
+        "desc_shape": (11, 11),
+        "agent_pos": 60,
+        "objective_0": 56,
+        "objective_1": 64,
+        "obstacle_pos": 58,
+    },
+    max_episode_steps=100,
+)
+
+register(
+    id="HierarchicalFrozenLake13x13Strat-v0",
+    entry_point="envs.frozen_lake.hierarchical_frozen_lake:HierarchicalFrozenLakeMod",
+    max_episode_steps=100,
+    kwargs={
+        "worker_stratified": True,
+        "desc_shape": (13, 13),
+        "agent_pos": 84,
+        "objective_0": 90,
+        "objective_1": 78,
+        "obstacle_pos": 80,
+    },
 )
