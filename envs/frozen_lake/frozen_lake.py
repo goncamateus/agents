@@ -30,7 +30,6 @@ class FrozenLakeMod(gym.Env):
         "render.fps": 4,
     }
 
-
     def __init__(self, stratified=False, **kwargs):
         super().__init__()
         self.stratified = stratified
@@ -60,8 +59,8 @@ class FrozenLakeMod(gym.Env):
         self.obstacle_gauss_yvar = 0.2
 
         self.max_dist = np.sqrt(self.desc.shape[0] ** 2 + self.desc.shape[1] ** 2)
-        self.last_dist_objective = 4
-        self.last_dist_obstacle = 2
+        self.last_dist_objective = self.agent_pos - self.objectives[0]
+        self.last_dist_obstacle = self.agent_pos - self.obstacle_pos
 
         self.cumulative_reward_info = {
             "reward_dist": 0,
@@ -188,7 +187,7 @@ class FrozenLakeMod(gym.Env):
             print(Fore.GREEN + "objective 1 reached" + Style.RESET_ALL)
             reward[2] += 0.5
             self.objective_count += 1
-            self.last_dist_objective = 8
+            self.last_dist_objective = self.objectives[1] - self.objectives[0]
 
         self.cumulative_reward_info["reward_dist"] += reward[0]
         self.cumulative_reward_info["reward_obstacle"] += reward[1]

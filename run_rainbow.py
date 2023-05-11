@@ -41,6 +41,8 @@ def parse_args():
         help="Log on wandb")
 
     # Algorithm specific arguments
+    parser.add_argument("--learning-starts", type=int, default=64,
+        help="timestep to start learning")
     parser.add_argument("--batch-size", type=int, default=64,
         help="the number of batches")
     parser.add_argument("--update-epochs", type=int, default=4,
@@ -164,7 +166,7 @@ def main(args):
             obs = env.reset()
 
         # ALGO LOGIC: training.
-        if global_step > args.batch_size:
+        if global_step > args.learning_starts:
             loss = agent.update()
             update_cnt += 1
             # if hard update is needed
