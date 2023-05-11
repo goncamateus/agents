@@ -89,8 +89,8 @@ class HDDDQN:
                 self.worker._target_hard_update()
 
             # logging losses
-            log.update({"losses/loss": worker_loss})
-            writer.add_scalar("losses/loss", worker_loss, global_step)
+            log.update({"losses/worker": worker_loss})
+            writer.add_scalar("losses/worker", worker_loss, global_step)
 
         if len(self.manager.memory) > self.arguments.batch_size:
             manager_loss = self.worker.update()
@@ -100,7 +100,7 @@ class HDDDQN:
                 self.worker._target_hard_update()
 
             # logging losses
-            log.update({"losses/loss": manager_loss})
-            writer.add_scalar("losses/loss", manager_loss, global_step)
+            log.update({"losses/manager": manager_loss})
+            writer.add_scalar("losses/manager", manager_loss, global_step)
 
         return log
