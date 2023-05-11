@@ -24,8 +24,10 @@ class FrozenLakeMod(gym.Env):
     """
 
     metadata = {
+        "render_modes": ["human", "ansi", "rgb_array"],
         "render.modes": ["human", "ansi", "rgb_array"],
         "render_fps": 4,
+        "render.fps": 4,
     }
 
     desc = np.full((11, 11), "F", dtype="U1")

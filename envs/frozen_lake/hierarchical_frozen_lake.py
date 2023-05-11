@@ -19,7 +19,7 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
     The first objective is 4 steps on left of the center and the second objective is 4 steps on right of the center.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, worker_stratified=False) -> None:
         super().__init__()
         self.worker_action_space = Discrete(4)
         self.worker_observation_space = Box(
@@ -46,6 +46,8 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
             {"worker": self.worker_action_space, "manager": self.manager_action_space}
         )
         self.steps_count = 0
+        self.worker_stratifed = worker_stratified
+        self.worker_weights = np.array([0.8, 0.2])
         self.cumulative_reward_info = {
             "reward_dist": 0,
             "reward_obstacle": 0,
@@ -54,7 +56,6 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
             "Original_reward": 0,
         }
         self.sub_goal_img = None
-        
 
     def reset(self):
         _ = super().reset()
@@ -89,10 +90,12 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
         reward[1] = self._obstacle_reward()
         self.cumulative_reward_info["reward_dist"] += reward[0]
         self.cumulative_reward_info["reward_obstacle"] += reward[1]
+        if not self.worker_stratifed:
+            reward = (reward * self.worker_weights).sum()
         return reward
 
     def _manager_reward(self):
-        reward = np.zeros(1)
+        reward = 0
         objective_x = self.objectives[self.objective_count] % self.desc.shape[0]
         objective_y = self.objectives[self.objective_count] // self.desc.shape[1]
         action_x = self.manager_last_action % self.desc.shape[0]
@@ -100,16 +103,16 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
         dist = np.sqrt((action_x - objective_x) ** 2 + (action_y - objective_y) ** 2)
         manhattan_dist = abs(action_x - objective_x) + abs(action_y - objective_y)
         if dist > 2:
-            reward[0] = -1
+            reward = -1
         elif dist <= 2:
-            reward[0] = -0.4
+            reward = -0.4
         if action_x == objective_x or action_y == objective_y:
-            reward[0] = 0.2
+            reward = 0.2
         if dist == 0:
-            reward[0] = 1
+            reward = 1
         if manhattan_dist > 10:
-            reward[0] = -1
-        self.cumulative_reward_info["reward_manager"] += reward[0]
+            reward = -1
+        self.cumulative_reward_info["reward_manager"] += reward
         return reward
 
     def step(self, action):

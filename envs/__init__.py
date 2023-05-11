@@ -152,3 +152,10 @@ register(
     entry_point="envs.frozen_lake.hierarchical_frozen_lake:HierarchicalFrozenLakeMod",
     max_episode_steps=100,
 )
+
+register(
+    id="HierarchicalFrozenLake-v1",
+    entry_point="envs.frozen_lake.hierarchical_frozen_lake:HierarchicalFrozenLakeMod",
+    kwargs={"worker_stratified": True},
+    max_episode_steps=100,
+)

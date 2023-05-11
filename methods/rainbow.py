@@ -1,10 +1,12 @@
+"""
+    Rainbow DQN.
+    Author: Jinwoo Park
+    GitHub: https://github.com/Curt-Park/rainbow-is-all-you-need/blob/master
+"""
 import math
-import os
-import random
-from typing import Dict, Tuple
+from typing import Dict
 
 import gym
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
@@ -175,23 +177,6 @@ class RainbowDQNAgent:
         observation_space: gym.spaces,
         action_space: gym.spaces,
     ):
-        """Initialization.
-
-        Args:
-            env (gym.Env): openAI Gym environment
-            memory_size (int): length of memory
-            batch_size (int): batch size for sampling
-            target_update (int): period for target model's hard update
-            lr (float): learning rate
-            gamma (float): discount factor
-            alpha (float): determines how much prioritization is used
-            beta (float): determines how much importance sampling is used
-            prior_eps (float): guarantees every transition can be sampled
-            v_min (float): min value of support
-            v_max (float): max value of support
-            atom_size (int): the unit number of support
-            n_step (int): step number to calculate n-step td error
-        """
         obs_dim = observation_space.shape[0]
         action_dim = action_space.n
 

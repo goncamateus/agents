@@ -129,7 +129,8 @@ def make_env(
                 env, lambda reward: np.clip(reward, -10, 10)
             )
         # ---------------------------------------------------------------
-        env = RecordEpisodeStatistics(env)
+        if not("hierarchical" in arguments and arguments.hierarchical):
+            env = RecordEpisodeStatistics(env)
         if extra_wrapper is not None:
             env = extra_wrapper(env)
         env.seed(arguments.seed)
