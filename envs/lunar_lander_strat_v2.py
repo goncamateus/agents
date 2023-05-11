@@ -99,7 +99,7 @@ class LunarLanderStratV2(LunarLander):
         mo_strat_reward[3] = strat_reward[9]
 
         if not self.stratified:
-            mo_strat_reward = mo_strat_reward.sum()
+            mo_strat_reward = (mo_strat_reward*self.ori_weights).sum()
 
         if done:
             self.prev_rew = np.zeros(10)
