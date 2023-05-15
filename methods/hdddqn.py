@@ -24,7 +24,7 @@ class HDDDQN:
         self.env_steps = 0
         self.worker_updates = 0
         self.manager_updates = 0
-        self.pre_train_steps = 0
+        self.pre_train_steps = 100000
 
     def store_worker_transition(self, transition, global_step):
         self.worker.transition = transition["worker"]
@@ -62,14 +62,13 @@ class HDDDQN:
 
     def store_transition(self, transition, global_step):
         self.store_worker_transition(transition, global_step)
-        if self.env_steps % 10 == 0 and self.pre_train_steps < 100000:
+        if self.env_steps % 10 == 0 and self.worker_updates > self.pre_train_steps:
             self.store_manager_transition(transition, global_step)
 
     def get_action(self, state: np.ndarray) -> np.ndarray:
         """Select an action from the input state."""
         # NoisyNet: no epsilon greedy action selection
-        if self.pre_train_steps < 100000:
-            self.pre_train_steps += 1
+        if self.worker_updates < self.pre_train_steps:
             manager_action = np.random.randint(self.manager_action_dim.n)
         else:
             manager_action = self.manager.get_action(state["manager"])
@@ -81,7 +80,7 @@ class HDDDQN:
 
     def update(self, global_step, writer) -> torch.Tensor:
         log = {}
-        if global_step > self.arguments.batch_size:
+        if global_step > self.arguments.learning_starts:
             worker_loss = self.worker.update()
             self.worker_updates += 1
             # if hard update is needed
@@ -92,7 +91,7 @@ class HDDDQN:
             log.update({"losses/worker": worker_loss})
             writer.add_scalar("losses/worker", worker_loss, global_step)
 
-        if len(self.manager.memory) > self.arguments.batch_size:
+        if len(self.manager.memory) > self.arguments.learning_starts:
             manager_loss = self.worker.update()
             self.worker_updates += 1
             # if hard update is needed

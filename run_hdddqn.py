@@ -41,22 +41,22 @@ def parse_args():
         help="Log on wandb")
 
     # Algorithm specific arguments
-    parser.add_argument("--batch-size", type=int, default=64,
+    parser.add_argument("--learning-starts", type=int, default=80000,
+        help="timestep to start learning")
+    parser.add_argument("--batch-size", type=int, default=32,
         help="the number of batches")
-    parser.add_argument("--update-epochs", type=int, default=4,
-        help="the K epochs to update the policy")
     parser.add_argument("--buffer-size", type=int, default=int(1e6),
         help="the replay memory buffer size")
-    parser.add_argument("--q-lr", type=float, default=1e-3,
+    parser.add_argument("--q-lr", type=float, default=0.0000625,
         help="the learning rate of the Q network optimizer")
-    parser.add_argument("--target-network-frequency", type=int, default=1,
+    parser.add_argument("--target-network-frequency", type=int, default=32000,
         help="the frequency of updates for the target nerworks")
     parser.add_argument("--gamma", type=float, default=0.99,
         help="the discount factor gamma")
     # PER parameters
-    parser.add_argument("--alpha", type=float, default=0.2,
+    parser.add_argument("--alpha", type=float, default=0.5,
         help="determines how much prioritization is used")
-    parser.add_argument("--beta", type=float, default=0.6,
+    parser.add_argument("--beta", type=float, default=0.4,
         help="determines how much importance sampling is used")
     parser.add_argument("--prior-eps", type=float, default=1e-6,
             help="guarantees every transition can be sampled")

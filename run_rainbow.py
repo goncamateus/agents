@@ -121,7 +121,10 @@ def main(args):
     update_cnt = 0
     for global_step in range(args.total_timesteps):
         # ALGO LOGIC: put the logic for the algo here
-        action = agent.get_action(obs)
+        if global_step > args.learning_starts:
+            action = agent.get_action(obs)
+        else:
+            action = env.action_space.sample()
 
         # TRY NOT TO MODIFY: execute the action and collect the next obs
         next_obs, reward, done, info = env.step(action)
@@ -166,7 +169,7 @@ def main(args):
             obs = env.reset()
 
         # ALGO LOGIC: training.
-        if global_step > args.learning_starts:
+        if global_step > args.batch_size:
             loss = agent.update()
             update_cnt += 1
             # if hard update is needed

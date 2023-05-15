@@ -47,7 +47,7 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
         )
         self.steps_count = 0
         self.worker_stratifed = worker_stratified
-        self.worker_weights = np.array([0.8, 0.2])
+        self.worker_weights = np.array([0.9, 0.1])
         self.cumulative_reward_info = {
             "reward_dist": 0,
             "reward_obstacle": 0,
@@ -92,7 +92,7 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
         self.cumulative_reward_info["reward_obstacle"] += reward[1]
         if not self.worker_stratifed:
             reward = (reward * self.worker_weights).sum()
-        return reward
+        return reward*100
 
     def _manager_reward(self):
         reward = 0
@@ -113,7 +113,7 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
         if manhattan_dist > 10:
             reward = -1
         self.cumulative_reward_info["reward_manager"] += reward
-        return reward
+        return reward*100
 
     def step(self, action):
         reward = {"worker": 0, "manager": 0}

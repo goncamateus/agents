@@ -227,7 +227,9 @@ class RainbowDQNAgent:
         self.dqn_target.eval()
 
         # optimizer
-        self.optimizer = optim.Adam(self.dqn.parameters())
+        self.optimizer = optim.Adam(
+            self.dqn.parameters(), lr=arguments.q_lr, eps=1.5e-4
+        )
 
         # transition to store in memory
         self.transition = list()
