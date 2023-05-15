@@ -8,22 +8,14 @@ from torch.nn import functional as F
 
 
 class PPOContinuous(nn.Module):
-    def __init__(self, args, envs, obs_critic_size=None, obs_actor_size=None):
+    def __init__(self, args, obs_space, action_space):
         super(PPOContinuous, self).__init__()
-        self.obs_size = np.prod(envs.single_observation_space.shape)
-        if obs_critic_size is not None:
-            self.obs_critic_size = obs_critic_size
-        else:
-            self.obs_critic_size = self.obs_size
-        if obs_actor_size is not None:
-            self.obs_actor_size = obs_actor_size
-        else:
-            self.obs_actor_size = self.obs_size
-        self.action_size = np.prod(envs.single_action_space.shape)
+        self.obs_size = np.prod(obs_space.shape)
+        self.action_size = np.prod(action_space.shape)
         self.args = args
         self.critic = nn.Sequential(
             layer_init(
-                nn.Linear(np.array(envs.single_observation_space.shape).prod(), 256)
+                nn.Linear(self.obs_size, 256)
             ),
             nn.Tanh(),
             layer_init(nn.Linear(256, 256)),
@@ -32,17 +24,17 @@ class PPOContinuous(nn.Module):
         )
         self.actor_mean = nn.Sequential(
             layer_init(
-                nn.Linear(np.array(envs.single_observation_space.shape).prod(), 256)
+                nn.Linear(self.obs_size, 256)
             ),
             nn.Tanh(),
             layer_init(nn.Linear(256, 256)),
             nn.Tanh(),
             layer_init(
-                nn.Linear(256, np.prod(envs.single_action_space.shape)), std=0.01
+                nn.Linear(256, self.action_size), std=0.01
             ),
         )
         self.actor_logstd = nn.Parameter(
-            torch.ones(1, np.prod(envs.single_action_space.shape)) * args.log_std_init
+            torch.ones(1, self.action_size) * args.log_std_init
         )
         self.optimizer = optim.Adam(self.parameters(), lr=args.learning_rate, eps=1e-5)
         self.device = torch.device("cuda" if args.cuda else "cpu")

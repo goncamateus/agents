@@ -122,11 +122,20 @@ def main(args):
 
     # env setup
     envs = gym.vector.SyncVectorEnv(
-        [make_env(args, i, exp_name,) for i in range(args.num_envs)],
+        [
+            make_env(
+                args,
+                i,
+                exp_name,
+            )
+            for i in range(args.num_envs)
+        ],
     )
 
     algo = PPO if not args.continuous else PPOContinuous
-    agent = algo(args, envs).to(device)
+    agent = algo(args, envs.single_observation_space, envs.single_action_space).to(
+        device
+    )
 
     # ALGO Logic: Storage setup
     obs = torch.zeros(
@@ -211,7 +220,6 @@ def main(args):
         for epoch in range(args.update_epochs):
             b_inds = np.random.permutation(args.buffer_size)
             for start in range(0, args.buffer_size, args.batch_size):
-
                 end = start + args.batch_size
                 mb_inds = b_inds[start:end]
 
