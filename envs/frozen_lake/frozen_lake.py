@@ -92,8 +92,8 @@ class FrozenLakeMod(gym.Env):
         self.last_action = None
         self.objective_count = 0
         self.agent_pos = self.ori_agent_pos
-        self.last_dist_objective = 4
-        self.last_dist_obstacle = 2
+        self.last_dist_objective = self.agent_pos - self.objectives[0]
+        self.last_dist_obstacle = self.agent_pos - self.obstacle_pos
 
         self.desc = np.full((self.desc.shape[0], self.desc.shape[1]), "F", dtype="U1")
         self.desc[self.agent_pos // self.desc.shape[0]][
@@ -145,7 +145,10 @@ class FrozenLakeMod(gym.Env):
         return dist_obstacle
 
     def _do_action(self, action):
-        x, y = self.agent_pos % self.desc.shape[1], self.agent_pos // self.desc.shape[1]
+        pos_before = self.agent_pos
+        x = self.agent_pos % self.desc.shape[0]
+        y = self.agent_pos // self.desc.shape[1]
+
         if action == LEFT and x > 0:
             self.agent_pos -= 1
         elif action == DOWN and y < self.desc.shape[0] - 1:
@@ -155,6 +158,13 @@ class FrozenLakeMod(gym.Env):
         elif action == UP and y > 0:
             self.agent_pos -= self.desc.shape[1]
         else:
+            self.hit_wall = True
+            return
+
+        if self.agent_pos == self.obstacle_pos:
+            print(Fore.RED + "Hit Obstacle" + Style.RESET_ALL)
+            self.agent_pos = pos_before
+        elif pos_before == self.agent_pos:
             self.hit_wall = True
 
     def _get_obs(self):
@@ -172,10 +182,6 @@ class FrozenLakeMod(gym.Env):
         )
         reward[1] = self._obstacle_reward()
         done = False
-        if self.agent_pos == self.obstacle_pos:
-            print(Fore.RED + "Failure" + Style.RESET_ALL)
-            done = True
-            reward[2] += -1
         if self.agent_pos == self.objectives[1]:
             done = True
             if self.objective_count == 0:
