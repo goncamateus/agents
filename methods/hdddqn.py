@@ -19,9 +19,11 @@ class HDDDQN:
         worker_arguments = copy(arguments)
         worker_arguments.batch_size = arguments.worker_batch_size
         worker_arguments.gamma = arguments.worker_gamma
-        self.worker = RainbowDQNAgent(
-            worker_arguments, self.worker_obs_space, self.worker_action_space
-        )
+        self.workers = [
+            RainbowDQNAgent(
+                worker_arguments, self.worker_obs_space, self.worker_action_space
+            )
+        ] * 2
         manager_arguments = copy(arguments)
         manager_arguments.batch_size = arguments.manager_batch_size
         manager_arguments.gamma = arguments.manager_gamma
@@ -42,21 +44,28 @@ class HDDDQN:
         self.last_manager_action = None
 
     def store_worker_transition(self, transition, global_step):
-        self.worker.transition = transition["worker"]
-        # N-step transition
-        if self.worker.use_n_step:
-            one_step_transition = self.worker.memory_n.store(*self.worker.transition)
-        # 1-step transition
-        else:
-            one_step_transition = self.worker.transition
+        for i in range(2):
+            tran = copy(transition["worker"])
+            tran[2] = transition["worker"][2][i]
+            self.workers[i].transition = tran
+            # N-step transition
+            if self.workers[i].use_n_step:
+                one_step_transition = self.workers[i].memory_n.store(
+                    *self.workers[i].transition
+                )
+            # 1-step transition
+            else:
+                one_step_transition = self.workers[i].transition
 
-        # add a single step transition
-        if one_step_transition:
-            self.worker.memory.store(*one_step_transition)
+            # add a single step transition
+            if one_step_transition:
+                self.workers[i].memory.store(*one_step_transition)
 
-        # PER: increase beta
-        fraction = min(global_step / self.arguments.total_timesteps, 1.0)
-        self.worker.beta = self.worker.beta + fraction * (1.0 - self.worker.beta)
+            # PER: increase beta
+            fraction = min(global_step / self.arguments.total_timesteps, 1.0)
+            self.workers[i].beta = self.workers[i].beta + fraction * (
+                1.0 - self.workers[i].beta
+            )
 
     def store_manager_transition(self, transition, global_step):
         self.manager.transition = transition["manager"]
@@ -79,7 +88,7 @@ class HDDDQN:
 
     def store_transition(self, transition, global_step):
         self.store_worker_transition(transition, global_step)
-        if self.env_steps % 10 == 0 and self.worker_updates > self.pre_train_steps:
+        if self.env_steps % 5 == 0 and self.worker_updates > self.pre_train_steps:
             self.store_manager_transition(transition, global_step)
 
     def get_action(self, state: np.ndarray, global_step: int) -> np.ndarray:
@@ -103,7 +112,16 @@ class HDDDQN:
         if np.random.uniform() < self.worker_epsilon:
             worker_action = self.worker_action_space.sample()
         else:
-            worker_action = self.worker.get_action(state["worker"])
+            values = 0
+            for i in range(2):
+                values += (
+                    self.workers[i]
+                    .dqn(torch.FloatTensor(state["worker"]).to(self.workers[i].device))
+                    .detach()
+                    .cpu()
+                    .numpy()
+                )
+            worker_action = values.argmax()
         action = {
             "manager": manager_action,
             "worker": worker_action,
@@ -112,16 +130,17 @@ class HDDDQN:
 
     def update(self, global_step, writer) -> torch.Tensor:
         log = {}
-        if len(self.worker.memory) > self.arguments.worker_batch_size:
-            worker_loss = self.worker.update()
+        if len(self.workers[0].memory) > self.arguments.worker_batch_size:
             self.worker_updates += 1
-            # if hard update is needed
-            if self.worker_updates % self.worker.target_update == 0:
-                self.worker._target_hard_update()
+            for i in range(2):
+                worker_loss = self.workers[i].update()
+                # if hard update is needed
+                if self.worker_updates % self.workers[i].target_update == 0:
+                    self.workers[i]._target_hard_update()
 
-            # logging losses
-            log.update({"losses/worker": worker_loss})
-            writer.add_scalar("losses/worker", worker_loss, global_step)
+                # logging losses
+                log.update({f"losses/worker_{i}": worker_loss})
+                writer.add_scalar(f"losses/worker_{i}", worker_loss, global_step)
 
         if (
             len(self.manager.memory) > self.arguments.manager_batch_size
@@ -131,7 +150,7 @@ class HDDDQN:
             self.manager_updates += 1
             # if hard update is needed
             if self.manager_updates % self.manager.target_update == 0:
-                self.worker._target_hard_update()
+                self.manager._target_hard_update()
             # logging losses
             log.update({"losses/manager": manager_loss})
             writer.add_scalar("losses/manager", manager_loss, global_step)
