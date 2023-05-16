@@ -71,7 +71,7 @@ class VSSStratEnv(VSSBaseEnv):
         self.max_energy = 120000
         self.max_grad = 1.63
         self.max_move = 1.98
-        self.weights = np.array([0.018, 0.068, 0.002, 0.911])
+        self.ori_weights = np.array([0.018, 0.068, 0.002, 0.911])
 
         self.ou_actions = []
         for i in range(self.n_robots_blue + self.n_robots_yellow):
@@ -156,6 +156,7 @@ class VSSStratEnv(VSSBaseEnv):
                 "reward_energy": 0,
                 "reward_goals_blue": 0,
                 "reward_goals_yellow": 0,
+                "Original_reward": 0,
             }
 
         # Check if goal ocurred
@@ -185,9 +186,11 @@ class VSSStratEnv(VSSBaseEnv):
                 self.reward_shaping_total["reward_move"] += move_reward
                 self.reward_shaping_total["reward_ball_grad"] += grad_ball_potential
                 self.reward_shaping_total["reward_energy"] += energy_penalty
+                self.reward_shaping_total["Original_reward"] += np.sum(reward * self.ori_weights)
+                
 
         if not self.stratified:
-            reward = np.sum(reward * self.weights)
+            reward = np.sum(reward * self.ori_weights)
         return reward, goal
 
     def _get_initial_positions_frame(self):
