@@ -137,12 +137,14 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
             done = True
             if self.objective_count != 0:
                 reward["manager"] += 1
+                self.cumulative_reward_info["reward_manager"] += 1
                 self.cumulative_reward_info["reward_objective"] += 1
                 print(Fore.CYAN + "objective 1 and 2 reached" + Style.RESET_ALL)
         elif self.agent_pos == self.objectives[0] and self.objective_count == 0:
             print(Fore.GREEN + "objective 1 reached" + Style.RESET_ALL)
             self.objective_count += 1
             reward["manager"] += 0.5
+            self.cumulative_reward_info["reward_manager"] += 0.5
             self.cumulative_reward_info["reward_objective"] += 0.5
             agent_x = self.agent_pos % self.desc.shape[0]
             agent_y = self.agent_pos // self.desc.shape[1]
