@@ -125,6 +125,7 @@ def main(args):
     log = {}
 
     for global_step in range(args.total_timesteps):
+        agent.env_steps = env.steps_count
         # ALGO LOGIC: put the logic for the algo here
         action = agent.get_action(obs, global_step)
 

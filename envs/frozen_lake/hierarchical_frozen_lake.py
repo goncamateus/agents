@@ -110,7 +110,7 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
         dist = np.sqrt((action_x - objective_x) ** 2 + (action_y - objective_y) ** 2)
         reward = self.last_man_dist_objective - dist
         manhattan_dist = abs(action_x - objective_x) + abs(action_y - objective_y)
-        if manhattan_dist > 5:
+        if manhattan_dist > 10:
             reward = -1
         if self.manager_last_action == self.obstacle_pos:
             reward -= 1
