@@ -42,6 +42,8 @@ class HDDDQN:
         self.worker_epsilon = 1
         self.manager_epsilon = 1
         self.last_manager_action = None
+        self.randomness_rate_worker = 0
+        self.randomness_rate_manager = 0
 
     def store_worker_transition(self, transition, global_step):
         for i in range(2):
@@ -104,6 +106,7 @@ class HDDDQN:
             self.manager_epsilon = max(self.manager_epsilon, self.epsilon_min)
             if np.random.uniform() < self.manager_epsilon:
                 manager_action = self.manager_action_space.sample()
+                self.randomness_rate_manager += 1
             else:
                 manager_action = self.manager.get_action(state["manager"])
 
@@ -111,6 +114,7 @@ class HDDDQN:
         self.worker_epsilon = max(self.worker_epsilon, self.epsilon_min)
         if np.random.uniform() < self.worker_epsilon:
             worker_action = self.worker_action_space.sample()
+            self.randomness_rate_worker += 1
         else:
             values = 0
             for i in range(2):

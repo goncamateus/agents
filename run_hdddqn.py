@@ -175,8 +175,32 @@ def main(args):
                 writer.add_scalar(
                     f"charts/{key.replace('reward_', '')}", info[key], global_step
                 )
+            log.update(
+                {
+                    "charts/randomness_rate_worker": agent.randomness_rate_worker
+                    / env.steps_count
+                }
+            )
+            log.update(
+                {
+                    "charts/randomness_rate_manager": agent.randomness_rate_manager
+                    / env.steps_count
+                }
+            )
+            writer.add_scalar(
+                "charts/randomness_rate_worker",
+                agent.randomness_rate_worker / env.steps_count,
+                global_step,
+            )
+            writer.add_scalar(
+                "charts/randomness_rate_manager",
+                agent.randomness_rate_manager / env.steps_count,
+                global_step,
+            )
             done = False
             agent.last_manager_action = None
+            agent.randomness_rate_manager = 0
+            agent.randomness_rate_worker = 0
             obs = env.reset()
 
         # ALGO LOGIC: training.
