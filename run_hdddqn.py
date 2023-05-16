@@ -41,20 +41,26 @@ def parse_args():
         help="Log on wandb")
 
     # Algorithm specific arguments
-    parser.add_argument("--learning-starts", type=int, default=80000,
-        help="timestep to start learning")
-    parser.add_argument("--batch-size", type=int, default=32,
+    parser.add_argument("--worker-batch-size", type=int, default=1024,
+        help="the number of batches")
+    parser.add_argument("--manager-batch-size", type=int, default=256,
         help="the number of batches")
     parser.add_argument("--buffer-size", type=int, default=int(1e6),
         help="the replay memory buffer size")
-    parser.add_argument("--q-lr", type=float, default=0.0000625,
+    parser.add_argument("--q-lr", type=float, default=0.0005,
         help="the learning rate of the Q network optimizer")
-    parser.add_argument("--target-network-frequency", type=int, default=32000,
+    parser.add_argument("--target-network-frequency", type=int, default=250000,
         help="the frequency of updates for the target nerworks")
-    parser.add_argument("--gamma", type=float, default=0.99,
+    parser.add_argument("--manager-update-freq", type=int, default=3,
+        help="the frequency of updates for the manager")
+    parser.add_argument("--manager-target-update-freq", type=int, default=1000,
+        help="the frequency of updates for the manager target")
+    parser.add_argument("--worker-gamma", type=float, default=0.9,
+        help="the discount factor gamma")
+    parser.add_argument("--manager-gamma", type=float, default=0.99999,
         help="the discount factor gamma")
     # PER parameters
-    parser.add_argument("--alpha", type=float, default=0.5,
+    parser.add_argument("--alpha", type=float, default=0.6,
         help="determines how much prioritization is used")
     parser.add_argument("--beta", type=float, default=0.4,
         help="determines how much importance sampling is used")
@@ -117,11 +123,10 @@ def main(args):
     # TRY NOT TO MODIFY: training loop
     obs = env.reset()
     log = {}
-    update_cnt_worker = 0
-    update_cnt_manager = 0
+
     for global_step in range(args.total_timesteps):
         # ALGO LOGIC: put the logic for the algo here
-        action = agent.get_action(obs)
+        action = agent.get_action(obs, global_step)
 
         # TRY NOT TO MODIFY: execute the action and collect the next obs
         next_obs, reward, done, info = env.step(action)
@@ -148,6 +153,7 @@ def main(args):
         obs = next_obs
 
         if done:
+            print(f'global_step={global_step}, Objective: {info["reward_objective"]}')
             log.update({f"ep_info/episodic_length": env.steps_count})
             writer.add_scalar("charts/episodic_length", env.steps_count, global_step)
             strat_rewards = [x for x in info.keys() if x.startswith("reward_")]
