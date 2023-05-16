@@ -202,17 +202,17 @@ def main(args):
                     )
                     log.update({f"ep_info/reward_total": item["Original_reward"]})
                     writer.add_scalar(
-                        "charts/episodic_return", item["Original_reward"], update
+                        "charts/episodic_return", item["Original_reward"], global_step
                     )
                     log.update({f"ep_info/episodic_length": item["episode"]["l"]})
                     writer.add_scalar(
-                        "charts/episodic_length", item["episode"]["l"], update
+                        "charts/episodic_length", item["episode"]["l"], global_step
                     )
                     strat_rewards = [x for x in item.keys() if x.startswith("reward_")]
                     for key in strat_rewards:
                         log.update({f"ep_info/{key.replace('reward_', '')}": item[key]})
                         writer.add_scalar(
-                            f"charts/{key.replace('reward_', '')}", item[key], update
+                            f"charts/{key.replace('reward_', '')}", item[key], global_step
                         )
                     break
         returns, advantages = agent.value_bootstrap(next_obs, next_done, rewards, dones, values)
@@ -266,11 +266,11 @@ def main(args):
         # TRY NOT TO MODIFY: record rewards for plotting purposes
         log.update({"train/learning_rate": agent.optimizer.param_groups[0]["lr"]})
         writer.add_scalar(
-            "train/learning_rate", agent.optimizer.param_groups[0]["lr"], update
+            "train/learning_rate", agent.optimizer.param_groups[0]["lr"], global_step
         )
         for i in range(len(lambdas)):
             log.update({"lambdas/component_" + str(i): lambdas[i].item()})
-            writer.add_scalar("lambdas/component_" + str(i), lambdas[i].item(), update)
+            writer.add_scalar("lambdas/component_" + str(i), lambdas[i].item(), global_step)
         log.update(
             {
                 "losses/value_loss": agent.optimizer.param_groups[0]["lr"],
@@ -282,17 +282,17 @@ def main(args):
                 "ep_info/SPS": int(global_step / (time.time() - start_time)),
             }
         )
-        writer.add_scalar("losses/value_loss", v_loss.item(), update)
-        writer.add_scalar("losses/policy_loss", pg_loss.item(), update)
-        writer.add_scalar("losses/entropy", entropy_loss.item(), update)
-        writer.add_scalar("losses/old_approx_kl", old_approx_kl.item(), update)
-        writer.add_scalar("losses/approx_kl", approx_kl.item(), update)
-        writer.add_scalar("losses/clipfrac", np.mean(clipfracs), update)
+        writer.add_scalar("losses/value_loss", v_loss.item(), global_step)
+        writer.add_scalar("losses/policy_loss", pg_loss.item(), global_step)
+        writer.add_scalar("losses/entropy", entropy_loss.item(), global_step)
+        writer.add_scalar("losses/old_approx_kl", old_approx_kl.item(), global_step)
+        writer.add_scalar("losses/approx_kl", approx_kl.item(), global_step)
+        writer.add_scalar("losses/clipfrac", np.mean(clipfracs), global_step)
         # print("SPS:", int(global_step / (time.time() - start_time)))
         writer.add_scalar(
-            "ep_info/SPS", int(global_step / (time.time() - start_time)), update
+            "ep_info/SPS", int(global_step / (time.time() - start_time)), global_step
         )
-        wandb.log(log, step=update)
+        wandb.log(log, step=global_step)
     envs.close()
     writer.close()
 

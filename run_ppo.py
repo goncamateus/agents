@@ -191,17 +191,17 @@ def main(args):
                     )
                     log.update({f"ep_info/reward_total": item["episode"]["r"]})
                     writer.add_scalar(
-                        "charts/episodic_return", item["episode"]["r"], update
+                        "charts/episodic_return", item["episode"]["r"], global_step
                     )
                     log.update({f"ep_info/episodic_length": item["episode"]["l"]})
                     writer.add_scalar(
-                        "charts/episodic_length", item["episode"]["l"], update
+                        "charts/episodic_length", item["episode"]["l"], global_step
                     )
                     strat_rewards = [x for x in item.keys() if x.startswith("reward_")]
                     for key in strat_rewards:
                         log.update({f"ep_info/{key.replace('reward_', '')}": item[key]})
                         writer.add_scalar(
-                            f"charts/{key.replace('reward_', '')}", item[key], update
+                            f"charts/{key.replace('reward_', '')}", item[key], global_step
                         )
                     break
         returns, advantages = agent.value_bootstrap(
@@ -259,18 +259,18 @@ def main(args):
         writer.add_scalar(
             "charts/learning_rate", agent.optimizer.param_groups[0]["lr"], global_step
         )
-        writer.add_scalar("losses/value_loss", v_loss.item(), update)
-        writer.add_scalar("losses/policy_loss", pg_loss.item(), update)
-        writer.add_scalar("losses/entropy", entropy_loss.item(), update)
-        writer.add_scalar("losses/old_approx_kl", old_approx_kl.item(), update)
-        writer.add_scalar("losses/approx_kl", approx_kl.item(), update)
-        writer.add_scalar("losses/clipfrac", np.mean(clipfracs), update)
-        writer.add_scalar("losses/explained_variance", explained_var, update)
+        writer.add_scalar("losses/value_loss", v_loss.item(), global_step)
+        writer.add_scalar("losses/policy_loss", pg_loss.item(), global_step)
+        writer.add_scalar("losses/entropy", entropy_loss.item(), global_step)
+        writer.add_scalar("losses/old_approx_kl", old_approx_kl.item(), global_step)
+        writer.add_scalar("losses/approx_kl", approx_kl.item(), global_step)
+        writer.add_scalar("losses/clipfrac", np.mean(clipfracs), global_step)
+        writer.add_scalar("losses/explained_variance", explained_var, global_step)
         # print("SPS:", int(global_step / (time.time() - start_time)))
         writer.add_scalar(
-            "charts/SPS", int(global_step / (time.time() - start_time)), update
+            "charts/SPS", int(global_step / (time.time() - start_time)), global_step
         )
-        wandb.log(log, step=update)
+        wandb.log(log, step=global_step)
 
     envs.close()
     writer.close()
