@@ -59,6 +59,8 @@ def parse_args():
         help="the discount factor gamma")
     parser.add_argument("--manager-gamma", type=float, default=0.99999,
         help="the discount factor gamma")
+    parser.add_argument("--eps-greedy-decay", type=float, default=0.9978,
+        help="the decay rate of epsilon greedy (0.1 at 100000 steps)")
     # PER parameters
     parser.add_argument("--alpha", type=float, default=0.6,
         help="determines how much prioritization is used")

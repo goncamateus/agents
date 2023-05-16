@@ -35,7 +35,7 @@ class HDDDQN:
         self.worker_updates = 0
         self.manager_updates = 0
         self.pre_train_steps = 150000
-        self.epsilon_decay = 0.9995
+        self.epsilon_decay = self.arguments.eps_greedy_decay
         self.epsilon_min = 0.1
         self.worker_epsilon = 1
         self.manager_epsilon = 1
