@@ -80,7 +80,7 @@ class HDDDQN:
     def get_action(self, state: np.ndarray, global_step: int) -> np.ndarray:
         """Select an action from the input state."""
         if self.worker_updates < self.pre_train_steps:
-            manager_action = np.random.randint(self.manager_action_space.n)
+            manager_action = self.manager_action_space.sample()
         else:
             if np.random.uniform() < self.manager_epsilon:
                 manager_action = self.manager_action_space.sample()
