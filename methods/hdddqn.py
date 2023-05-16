@@ -25,7 +25,9 @@ class HDDDQN:
         manager_arguments = copy(arguments)
         manager_arguments.batch_size = arguments.manager_batch_size
         manager_arguments.gamma = arguments.manager_gamma
-        manager_arguments.target_network_frequency = arguments.manager_target_update_freq
+        manager_arguments.target_network_frequency = (
+            arguments.manager_target_update_freq
+        )
         self.manager = RainbowDQNAgent(
             manager_arguments, self.manager_obs_space, self.manager_action_space
         )
@@ -33,7 +35,7 @@ class HDDDQN:
         self.worker_updates = 0
         self.manager_updates = 0
         self.pre_train_steps = 150000
-        self.epsilon_decay = 0.4
+        self.epsilon_decay = 0.9995
         self.epsilon_min = 0.1
         self.worker_epsilon = 1
         self.manager_epsilon = 1
@@ -69,7 +71,9 @@ class HDDDQN:
             self.manager.memory.store(*one_step_transition)
 
         # PER: increase beta
-        fraction = min(global_step / self.arguments.total_timesteps, 1.0)
+        fraction = min(
+            (global_step - self.pre_train_steps) / self.arguments.total_timesteps, 1.0
+        )
         self.manager.beta = self.manager.beta + fraction * (1.0 - self.manager.beta)
 
     def store_transition(self, transition, global_step):
@@ -82,22 +86,18 @@ class HDDDQN:
         if self.worker_updates < self.pre_train_steps:
             manager_action = self.manager_action_space.sample()
         else:
+            eps_step = global_step - self.pre_train_steps
+            self.manager_epsilon = self.epsilon_decay ** (eps_step / 100)
+            self.manager_epsilon = max(self.manager_epsilon, self.epsilon_min)
             if np.random.uniform() < self.manager_epsilon:
                 manager_action = self.manager_action_space.sample()
-                eps_step = global_step - self.pre_train_steps
-                self.manager_epsilon = (
-                    self.manager_epsilon * self.epsilon_decay**eps_step
-                )
-                self.manager_epsilon = max(self.manager_epsilon, self.epsilon_min)
             else:
                 manager_action = self.manager.get_action(state["manager"])
 
+        self.worker_epsilon = self.epsilon_decay ** (global_step / 100)
+        self.worker_epsilon = max(self.worker_epsilon, self.epsilon_min)
         if np.random.uniform() < self.worker_epsilon:
             worker_action = self.worker_action_space.sample()
-            self.worker_epsilon = (
-                self.worker_epsilon * self.epsilon_decay**global_step
-            )
-            self.worker_epsilon = max(self.worker_epsilon, self.epsilon_min)
         else:
             worker_action = self.worker.get_action(state["worker"])
         action = {
@@ -131,6 +131,5 @@ class HDDDQN:
             # logging losses
             log.update({"losses/manager": manager_loss})
             writer.add_scalar("losses/manager", manager_loss, global_step)
-
 
         return log
