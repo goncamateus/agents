@@ -36,6 +36,7 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
             dtype=np.int32,
         )
         self.manager_last_action = 56
+        self.last_man_dist_objective = self.agent_pos - self.objectives[0]
         self.observation_space = Dict(
             {
                 "worker": self.worker_observation_space,
@@ -63,6 +64,7 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
         self.steps_count = 0
         self.agent_pos = 60
         self.manager_last_action = 56
+        self.last_man_dist_objective = self.agent_pos - self.objectives[0]
 
         self.cumulative_reward_info = {
             "reward_dist": 0,
@@ -106,17 +108,12 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
         action_x = self.manager_last_action % self.desc.shape[0]
         action_y = self.manager_last_action // self.desc.shape[1]
         dist = np.sqrt((action_x - objective_x) ** 2 + (action_y - objective_y) ** 2)
+        reward = self.last_man_dist_objective - dist
         manhattan_dist = abs(action_x - objective_x) + abs(action_y - objective_y)
-        if dist > 2:
+        if manhattan_dist > 5:
             reward = -1
-        elif dist <= 2:
-            reward = -0.4
-        if action_x == objective_x or action_y == objective_y:
-            reward = 0.2
-        if dist == 0:
-            reward = 1
-        if manhattan_dist > 10:
-            reward = -1
+        if self.manager_last_action == self.obstacle_pos:
+            reward -= 1
         self.cumulative_reward_info["reward_manager"] += reward
         return reward * 100
 
@@ -139,11 +136,13 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
         if self.agent_pos == self.objectives[1]:
             done = True
             if self.objective_count != 0:
+                reward["manager"] += 1
                 self.cumulative_reward_info["reward_objective"] += 1
                 print(Fore.CYAN + "objective 1 and 2 reached" + Style.RESET_ALL)
         elif self.agent_pos == self.objectives[0] and self.objective_count == 0:
             print(Fore.GREEN + "objective 1 reached" + Style.RESET_ALL)
             self.objective_count += 1
+            reward["manager"] += 0.5
             self.cumulative_reward_info["reward_objective"] += 0.5
             agent_x = self.agent_pos % self.desc.shape[0]
             agent_y = self.agent_pos // self.desc.shape[1]
@@ -152,6 +151,7 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
             self.last_dist_objective = np.sqrt(
                 (action_x - agent_x) ** 2 + (action_y - agent_y) ** 2
             )
+            self.last_man_dist_objective = self.objectives[1] - self.objectives[0]
 
         return self._get_obs(), reward, done, self.cumulative_reward_info
 
