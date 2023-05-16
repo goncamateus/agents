@@ -120,6 +120,20 @@ register(
 )
 
 register(
+    id="VSS-v1",
+    entry_point="envs.vss:VSSStratEnv",
+    kwargs={"stratified": False},
+    max_episode_steps=1200,
+)
+
+register(
+    id="VSSStrat-v0",
+    entry_point="envs.vss:VSSStratEnv",
+    kwargs={"stratified": True},
+    max_episode_steps=1200,
+)
+
+register(
     id="SSLGoToOri-v0",
     entry_point="envs.ssl_goto:SSLGoToStrat",
     kwargs={"stratified": False},
