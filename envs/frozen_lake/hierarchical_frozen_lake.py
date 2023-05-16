@@ -35,7 +35,7 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
             shape=(4,),
             dtype=np.int32,
         )
-        self.manager_last_action = 56
+        self.manager_last_action = self.agent_pos
         self.last_man_dist_objective = self.agent_pos - self.objectives[0]
         self.observation_space = Dict(
             {
@@ -62,8 +62,8 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
     def reset(self):
         _ = super().reset()
         self.steps_count = 0
-        self.agent_pos = 60
-        self.manager_last_action = 56
+        self.agent_pos = self.ori_agent_pos
+        self.manager_last_action = self.agent_pos
         self.last_man_dist_objective = self.agent_pos - self.objectives[0]
 
         self.cumulative_reward_info = {
@@ -122,12 +122,12 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
         self.last_action = action["worker"]
         self._do_action(action["worker"])
         reward["worker"] = self._worker_reward()
-        self.steps_count += 1
 
         if self.steps_count % 10 == 0:
             self._manager_act(action["manager"])
             reward["manager"] = self._manager_reward()
 
+        self.steps_count += 1
         done = False
         if self.agent_pos == self.obstacle_pos:
             print(Fore.RED + "Failure" + Style.RESET_ALL)

@@ -39,6 +39,7 @@ class HDDDQN:
         self.epsilon_min = 0.1
         self.worker_epsilon = 1
         self.manager_epsilon = 1
+        self.last_manager_action = None
 
     def store_worker_transition(self, transition, global_step):
         self.worker.transition = transition["worker"]
@@ -84,7 +85,10 @@ class HDDDQN:
     def get_action(self, state: np.ndarray, global_step: int) -> np.ndarray:
         """Select an action from the input state."""
         if self.worker_updates < self.pre_train_steps:
-            manager_action = self.manager_action_space.sample()
+            manager_action = self.last_manager_action
+            if self.last_manager_action is None:
+                self.last_manager_action = self.manager_action_space.sample()
+                manager_action = self.last_manager_action
         else:
             eps_step = global_step - self.pre_train_steps
             self.manager_epsilon = self.epsilon_decay ** (eps_step / 100)
