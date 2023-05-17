@@ -87,7 +87,7 @@ class HDDDQN:
 
     def store_transition(self, transition, global_step):
         self.store_worker_transition(transition, global_step)
-        if self.env_steps % 5 == 0 and self.worker_updates > self.pre_train_steps:
+        if self.env_steps % 5 == 0:
             self.store_manager_transition(transition, global_step)
 
     def get_action(self, state: np.ndarray, global_step: int) -> np.ndarray:
