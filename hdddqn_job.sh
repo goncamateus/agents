@@ -2,7 +2,7 @@
 #SBATCH --job-name=hddqn_agent
 #SBATCH --ntasks=1
 #SBATCH --mem 24G
-#SBATCH -c 12
+#SBATCH -c 32
 #SBATCH -o hddqn_agent.log
 #SBATCH --gpus=1
 

@@ -2,7 +2,7 @@
 #SBATCH --job-name=ppo_strat_agent
 #SBATCH --ntasks=1
 #SBATCH --mem 24G
-#SBATCH -c 12
+#SBATCH -c 32
 #SBATCH -o ppo_strat.log
 #SBATCH --gpus=1
 
