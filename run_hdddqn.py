@@ -49,7 +49,7 @@ def parse_args():
         help="the replay memory buffer size")
     parser.add_argument("--q-lr", type=float, default=0.0005,
         help="the learning rate of the Q network optimizer")
-    parser.add_argument("--target-network-frequency", type=int, default=2000,
+    parser.add_argument("--target-network-frequency", type=int, default=10000,
         help="the frequency of updates for the target nerworks")
     parser.add_argument("--manager-update-freq", type=int, default=3,
         help="the frequency of updates for the manager")
