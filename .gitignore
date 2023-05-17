@@ -4,3 +4,4 @@ saves/
 *.pyc
 wandb/
 runs/
+*log*

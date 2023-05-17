@@ -49,7 +49,7 @@ def parse_args():
         help="the replay memory buffer size")
     parser.add_argument("--q-lr", type=float, default=0.0005,
         help="the learning rate of the Q network optimizer")
-    parser.add_argument("--target-network-frequency", type=int, default=250000,
+    parser.add_argument("--target-network-frequency", type=int, default=2000,
         help="the frequency of updates for the target nerworks")
     parser.add_argument("--manager-update-freq", type=int, default=3,
         help="the frequency of updates for the manager")
@@ -57,7 +57,7 @@ def parse_args():
         help="the frequency of updates for the manager target")
     parser.add_argument("--worker-gamma", type=float, default=0.9,
         help="the discount factor gamma")
-    parser.add_argument("--manager-gamma", type=float, default=0.99999,
+    parser.add_argument("--manager-gamma", type=float, default=0.99,
         help="the discount factor gamma")
     parser.add_argument("--eps-greedy-decay", type=float, default=0.9978,
         help="the decay rate of epsilon greedy (0.1 at 100000 steps)")
@@ -181,25 +181,13 @@ def main(args):
                     / env.steps_count
                 }
             )
-            log.update(
-                {
-                    "charts/randomness_rate_manager": agent.randomness_rate_manager
-                    / env.steps_count
-                }
-            )
             writer.add_scalar(
                 "charts/randomness_rate_worker",
                 agent.randomness_rate_worker / env.steps_count,
                 global_step,
             )
-            writer.add_scalar(
-                "charts/randomness_rate_manager",
-                agent.randomness_rate_manager / env.steps_count,
-                global_step,
-            )
             done = False
             agent.last_manager_action = None
-            agent.randomness_rate_manager = 0
             agent.randomness_rate_worker = 0
             obs = env.reset()
 

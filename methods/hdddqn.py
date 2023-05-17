@@ -38,12 +38,11 @@ class HDDDQN:
         self.manager_updates = 0
         self.pre_train_steps = 150000
         self.epsilon_decay = self.arguments.eps_greedy_decay
-        self.epsilon_min = 0.1
+        self.epsilon_min = 0.03
         self.worker_epsilon = 1
         self.manager_epsilon = 1
         self.last_manager_action = None
         self.randomness_rate_worker = 0
-        self.randomness_rate_manager = 0
 
     def store_worker_transition(self, transition, global_step):
         for i in range(2):
@@ -83,9 +82,7 @@ class HDDDQN:
             self.manager.memory.store(*one_step_transition)
 
         # PER: increase beta
-        fraction = min(
-            (global_step - self.pre_train_steps) / self.arguments.total_timesteps, 1.0
-        )
+        fraction = min(global_step / self.arguments.total_timesteps, 1.0)
         self.manager.beta = self.manager.beta + fraction * (1.0 - self.manager.beta)
 
     def store_transition(self, transition, global_step):
@@ -101,15 +98,8 @@ class HDDDQN:
                 self.last_manager_action = self.manager_action_space.sample()
                 manager_action = self.last_manager_action
         else:
-            eps_step = global_step - self.pre_train_steps
-            self.manager_epsilon = self.epsilon_decay ** (eps_step / 100)
-            self.manager_epsilon = max(self.manager_epsilon, self.epsilon_min)
-            if np.random.uniform() < self.manager_epsilon:
-                manager_action = self.manager_action_space.sample()
-                self.randomness_rate_manager += 1
-            else:
-                manager_action = self.manager.get_action(state["manager"])
-
+            manager_action = self.manager.get_action(state["manager"])
+            
         self.worker_epsilon = self.epsilon_decay ** (global_step / 100)
         self.worker_epsilon = max(self.worker_epsilon, self.epsilon_min)
         if np.random.uniform() < self.worker_epsilon:
