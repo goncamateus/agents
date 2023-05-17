@@ -24,15 +24,15 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
         self.worker_action_space = Discrete(4)
         self.worker_observation_space = Box(
             low=0,
-            high=self.desc.shape[0] * self.desc.shape[1],
-            shape=(3,),
+            high=self.desc.shape[0],
+            shape=(11,),
             dtype=np.int32,
         )
         self.manager_action_space = Discrete(121)
         self.manager_observation_space = Box(
             low=0,
-            high=self.desc.shape[0] * self.desc.shape[1],
-            shape=(4,),
+            high=self.desc.shape[0],
+            shape=(9,),
             dtype=np.int32,
         )
         self.manager_last_action = self.agent_pos
@@ -76,12 +76,12 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
         return self._get_obs()
 
     def _get_obs(self):
-        manager_obs = np.array(
-            [self.agent_pos, self.obstacle_pos, self.objectives[0], self.objectives[1]]
+        manager_obs = super()._get_obs()
+        manager_target_x, manager_target_y = (
+            self.manager_last_action % self.desc.shape[0],
+            self.manager_last_action // self.desc.shape[1],
         )
-        worker_obs = np.array(
-            [self.agent_pos, self.obstacle_pos, self.manager_last_action]
-        )
+        worker_obs = np.concatenate([manager_obs, (manager_target_x, manager_target_y)])
         observation = {"worker": worker_obs, "manager": manager_obs}
         return observation
 
@@ -90,8 +90,8 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
 
     def _worker_reward(self):
         reward = np.zeros(2)
-        reward[0] = self._dist_reward(obejctive_pos=self.manager_last_action)*100
-        reward[1] = self._obstacle_reward()*100
+        reward[0] = self._dist_reward(obejctive_pos=self.manager_last_action) * 100
+        reward[1] = self._obstacle_reward() * 100
         if self.last_dist_objective == 0:
             reward[0] = 100
             reward[1] = 100
@@ -101,7 +101,7 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
         if not self.worker_stratifed:
             reward = (reward * self.worker_weights).sum()
         else:
-            reward = reward*self.worker_weights
+            reward = reward * self.worker_weights
         return reward
 
     def _manager_reward(self):

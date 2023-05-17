@@ -40,8 +40,8 @@ class FrozenLakeMod(gym.Env):
         self.action_space = Discrete(4)
         self.observation_space = Box(
             low=0,
-            high=self.desc.shape[0] * self.desc.shape[1],
-            shape=(3,),
+            high=self.desc.shape[0],
+            shape=(9,),
             dtype=np.int32,
         )
         self.agent_pos = kwargs["agent_pos"]
@@ -168,8 +168,37 @@ class FrozenLakeMod(gym.Env):
             self.hit_wall = True
 
     def _get_obs(self):
+        agent_x, agent_y = (
+            self.agent_pos % self.desc.shape[0],
+            self.agent_pos // self.desc.shape[1],
+        )
+
+        obstacle_x, obstacle_y = (
+            self.obstacle_pos % self.desc.shape[0],
+            self.obstacle_pos // self.desc.shape[1],
+        )
+
+        objective1_x, objective1_y = (
+            self.objectives[0] % self.desc.shape[0],
+            self.objectives[0] // self.desc.shape[1],
+        )
+
+        objective2_x, objective2_y = (
+            self.objectives[1] % self.desc.shape[0],
+            self.objectives[1] // self.desc.shape[1],
+        )
         return np.array(
-            [self.agent_pos, self.obstacle_pos, self.objectives[self.objective_count]]
+            [
+                self.objective_count,
+                agent_x,
+                agent_y,
+                obstacle_x,
+                obstacle_y,
+                objective1_x,
+                objective1_y,
+                objective2_x,
+                objective2_y,
+            ]
         )
 
     def step(self, action):
