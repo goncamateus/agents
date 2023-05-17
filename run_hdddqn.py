@@ -162,12 +162,8 @@ def main(args):
             log.update({f"ep_info/episodic_length": env.steps_count})
             writer.add_scalar("charts/episodic_length", env.steps_count, global_step)
             log.update({"charts/epsilon_worker": agent.worker_epsilon})
-            log.update({"charts/epsilon_manager": agent.manager_epsilon})
             writer.add_scalar(
                 "charts/epsilon_worker", agent.worker_epsilon, global_step
-            )
-            writer.add_scalar(
-                "charts/epsilon_manager", agent.manager_epsilon, global_step
             )
             strat_rewards = [x for x in info.keys() if x.startswith("reward_")]
             for key in strat_rewards:

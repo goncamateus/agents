@@ -40,7 +40,6 @@ class HDDDQN:
         self.epsilon_decay = self.arguments.eps_greedy_decay
         self.epsilon_min = 0.03
         self.worker_epsilon = 1
-        self.manager_epsilon = 1
         self.last_manager_action = None
         self.randomness_rate_worker = 0
 
