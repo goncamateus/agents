@@ -41,6 +41,8 @@ def parse_args():
         help="Log on wandb")
 
     # Algorithm specific arguments
+    parser.add_argument("--update-freq", type=int, default=1,
+        help="the frequency of updates per step")
     parser.add_argument("--worker-batch-size", type=int, default=1024,
         help="the number of batches")
     parser.add_argument("--manager-batch-size", type=int, default=256,
@@ -61,6 +63,8 @@ def parse_args():
         help="the discount factor gamma")
     parser.add_argument("--eps-greedy-decay", type=float, default=0.9978,
         help="the decay rate of epsilon greedy (0.1 at 100000 steps)")
+    parser.add_argument("--pre-train-steps", type=int, default=150000,
+        help="the number of pre-training steps before training manager")
     # PER parameters
     parser.add_argument("--alpha", type=float, default=0.6,
         help="determines how much prioritization is used")
@@ -133,14 +137,13 @@ def main(args):
 
         # TRY NOT TO MODIFY: execute the action and collect the next obs
         next_obs, reward, done, info = env.step(action)
-
         transition = {
             "worker": [
                 obs["worker"],
                 action["worker"],
                 reward["worker"],
                 next_obs["worker"],
-                done,
+                info["worker_done"],
             ],
             "manager": [
                 obs["manager"],
@@ -182,19 +185,21 @@ def main(args):
                 agent.randomness_rate_worker / env.steps_count,
                 global_step,
             )
+
             done = False
             agent.last_manager_action = None
             agent.randomness_rate_worker = 0
             obs = env.reset()
 
-        # ALGO LOGIC: training.
-        model_logs = agent.update(global_step, writer)
-        log.update(model_logs)
-        writer.add_scalar(
-            "charts/SPS", int(global_step / (time.time() - start_time)), global_step
-        )
-        log.update({"charts/SPS": int(global_step / (time.time() - start_time))})
-        wandb.log(log, global_step)
+        if global_step % args.update_freq == 0:
+            # ALGO LOGIC: training.
+            model_logs = agent.update(global_step, writer)
+            log.update(model_logs)
+            writer.add_scalar(
+                "charts/SPS", int(global_step / (time.time() - start_time)), global_step
+            )
+            log.update({"charts/SPS": int(global_step / (time.time() - start_time))})
+            wandb.log(log, global_step)
 
     env.close()
     writer.close()
