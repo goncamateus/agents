@@ -36,7 +36,7 @@ class HDDDQN:
         self.env_steps = 0
         self.worker_updates = 0
         self.manager_updates = 0
-        self.pre_train_steps = 150000
+        self.pre_train_steps = self.arguments.pre_train_steps
         self.epsilon_decay = self.arguments.eps_greedy_decay
         self.epsilon_min = 0.03
         self.worker_epsilon = 1
@@ -86,19 +86,44 @@ class HDDDQN:
 
     def store_transition(self, transition, global_step):
         self.store_worker_transition(transition, global_step)
-        if self.env_steps % 5 == 0:
-            self.store_manager_transition(transition, global_step)
+        self.store_manager_transition(transition, global_step)
 
     def get_action(self, state: np.ndarray, global_step: int) -> np.ndarray:
         """Select an action from the input state."""
-        if self.worker_updates < self.pre_train_steps:
-            manager_action = self.last_manager_action
+        if self.pre_train_steps > 0:
+            rows = np.sqrt(self.manager_action_space.n)
             if self.last_manager_action is None:
-                self.last_manager_action = self.manager_action_space.sample()
+                manager_action = self.manager_action_space.sample()
+                self.last_manager_action = manager_action
+            else:
                 manager_action = self.last_manager_action
+                if self.env_steps % 5 == 0:
+                    manager_x, manager_y = manager_action // rows, manager_action % rows
+                    random_num = np.random.choice([-1, 0, 1])
+                    if manager_x + random_num < 0:
+                        manager_x = manager_x - random_num
+                    elif manager_x + random_num > rows:
+                        manager_x = manager_x - random_num
+                    else:
+                        manager_x = manager_x + random_num
+                    manager_x = np.clip(manager_x, 0, rows - 1)
+                    random_num = np.random.choice([-1, 0, 1])
+                    if manager_y + random_num < 0:
+                        manager_y = manager_y - random_num
+                    elif manager_y + random_num > rows:
+                        manager_y = manager_y - random_num
+                    else:
+                        manager_y = manager_y + random_num
+                    manager_y = np.clip(manager_y, 0, rows - 1)
+                    manager_action = manager_x * rows + manager_y
+                    self.last_manager_action = manager_action
         else:
-            manager_action = self.manager.get_action(state["manager"])
-            
+            if self.env_steps % 5 == 0:
+                manager_action = self.manager.get_action(state["manager"])
+                self.last_manager_action = manager_action
+            else:
+                manager_action = self.last_manager_action
+
         self.worker_epsilon = self.epsilon_decay ** (global_step / 100)
         self.worker_epsilon = max(self.worker_epsilon, self.epsilon_min)
         if np.random.uniform() < self.worker_epsilon:
@@ -115,6 +140,7 @@ class HDDDQN:
                     .numpy()
                 )
             worker_action = values.argmax()
+        self.pre_train_steps -= 1
         action = {
             "manager": manager_action,
             "worker": worker_action,

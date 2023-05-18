@@ -56,6 +56,7 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
             "reward_subobjective": 0,
             "reward_manager": 0,
             "Original_reward": 0,
+            "worker_done": False,
         }
         self.sub_goal_img = None
 
@@ -72,6 +73,7 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
             "reward_objective": 0,
             "reward_subobjective": 0,
             "reward_manager": 0,
+            "worker_done": False,
         }
         return self._get_obs()
 
@@ -95,6 +97,7 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
         if self.last_dist_objective == 0:
             reward[0] = 100
             reward[1] = 100
+            self.cumulative_reward_info["worker_done"] = True
             self.cumulative_reward_info["reward_subobjective"] += 1
         self.cumulative_reward_info["reward_dist"] += reward[0]
         self.cumulative_reward_info["reward_obstacle"] += reward[1]
@@ -123,13 +126,20 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
 
     def step(self, action):
         reward = {"worker": 0, "manager": 0}
+        done = False
         self.last_action = action["worker"]
         self._do_action(action["worker"])
         reward["worker"] = self._worker_reward()
 
-        if self.steps_count % 5 == 0:
-            self._manager_act(action["manager"])
-            reward["manager"] = self._manager_reward()
+        self._manager_act(action["manager"])
+        agent_x = self.agent_pos % self.desc.shape[0]
+        agent_y = self.agent_pos // self.desc.shape[1]
+        action_x = self.manager_last_action % self.desc.shape[0]
+        action_y = self.manager_last_action // self.desc.shape[1]
+        self.last_dist_objective = np.sqrt(
+            (action_x - agent_x) ** 2 + (action_y - agent_y) ** 2
+        )
+        reward["manager"] = self._manager_reward()
 
         self.steps_count += 1
         done = False
