@@ -25,14 +25,14 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
         self.worker_observation_space = Box(
             low=0,
             high=self.desc.shape[0],
-            shape=(11,),
+            shape=(12,),
             dtype=np.int32,
         )
         self.manager_action_space = Discrete(self.desc.shape[0] * self.desc.shape[1])
         self.manager_observation_space = Box(
             low=0,
             high=self.desc.shape[0],
-            shape=(9,),
+            shape=(10,),
             dtype=np.int32,
         )
         self.manager_last_action = self.agent_pos
