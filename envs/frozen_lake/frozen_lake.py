@@ -125,16 +125,13 @@ class FrozenLakeMod(gym.Env):
     def min_max_norm(self, val, min, max):
         return (val - min) / (max - min)
 
-    def _dist_reward(self, obejctive_pos):
+    def _dist_reward(self, objective_pos):
         agent_x = self.agent_pos % self.desc.shape[0]
         agent_y = self.agent_pos // self.desc.shape[1]
-        objective_x = obejctive_pos % self.desc.shape[0]
-        objective_y = obejctive_pos // self.desc.shape[1]
+        objective_x = objective_pos % self.desc.shape[0]
+        objective_y = objective_pos // self.desc.shape[1]
         dist = abs(agent_x - objective_x) + abs(agent_y - objective_y)
-        dist_reward = -10 - dist
-        if self.hit_wall:
-            dist_reward -= 200
-        return dist_reward
+        return dist
 
     def _obstacle_reward(self):
         agent_x = self.agent_pos % self.desc.shape[0]
@@ -186,7 +183,6 @@ class FrozenLakeMod(gym.Env):
             return
 
         if self.agent_pos == self.obstacle_pos:
-            print(Fore.RED + "Hit Obstacle" + Style.RESET_ALL)
             self.agent_pos = pos_before
 
     def _get_obs(self):
@@ -229,24 +225,30 @@ class FrozenLakeMod(gym.Env):
         self._do_action(action)
 
         reward = np.zeros(self.num_rewards)
-        reward[0] = self._dist_reward(
-            obejctive_pos=self.objectives[self.objective_count]
+        reward[0] = -10
+        reward[0] -= (1 - int(self.reached_objectives[0])) * self._dist_reward(
+            objective_pos=self.objectives[0]
         )
+        reward[0] -= (1 - int(self.reached_objectives[1])) * self._dist_reward(
+            objective_pos=self.objectives[1]
+        )
+        if self.hit_wall:
+            reward[0] -= 200
+            done = True
         reward[1] = self._obstacle_reward()
         done = False
-        if self.agent_pos == self.objectives[1]:
-            if self.objective_count == 0:
-                self.reached_objectives[1] = True
-            else:
-                done = True
-                print(Fore.CYAN + "objective 1 and 2 reached" + Style.RESET_ALL)
-                self.objective_count += 1
-        elif self.agent_pos == self.objectives[0] and self.objective_count == 0:
+        if self.agent_pos == self.objectives[0] and not self.reached_objectives[0]:
             print(Fore.GREEN + "objective 1 reached" + Style.RESET_ALL)
             self.objective_count += 1
             self.reached_objectives[0] = True
-        elif self.hit_wall:
+        elif self.agent_pos == self.objectives[1] and not self.reached_objectives[1]:
+            self.reached_objectives[1] = True
+            print(Fore.GREEN + "objective 2 reached" + Style.RESET_ALL)
+            self.objective_count += 1
+        if self.reached_objectives[0] and self.reached_objectives[1]:
             done = True
+            print(Fore.CYAN + "objective 1 and 2 reached" + Style.RESET_ALL)
+        
 
         self.cumulative_reward_info["reward_dist"] += reward[0]
         self.cumulative_reward_info["reward_obstacle"] += reward[1]
