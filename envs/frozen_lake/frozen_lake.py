@@ -309,10 +309,10 @@ class FrozenLakeMod(gym.Env):
             )
         if self.elf_images is None:
             elfs = [
-                os.path.join(os.path.dirname(__file__), "img/elf_left.png"),
+                os.path.join(os.path.dirname(__file__), "img/elf_up.png"),
                 os.path.join(os.path.dirname(__file__), "img/elf_down.png"),
                 os.path.join(os.path.dirname(__file__), "img/elf_right.png"),
-                os.path.join(os.path.dirname(__file__), "img/elf_up.png"),
+                os.path.join(os.path.dirname(__file__), "img/elf_left.png"),
             ]
             self.elf_images = [
                 pygame.transform.scale(pygame.image.load(f_name), self.cell_size)
