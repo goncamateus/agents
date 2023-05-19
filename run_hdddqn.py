@@ -57,7 +57,7 @@ def parse_args():
         help="the frequency of updates for the manager")
     parser.add_argument("--manager-target-update-freq", type=int, default=1000,
         help="the frequency of updates for the manager target")
-    parser.add_argument("--worker-gamma", type=float, default=0.9,
+    parser.add_argument("--worker-gamma", type=float, default=0.95,
         help="the discount factor gamma")
     parser.add_argument("--manager-gamma", type=float, default=0.99,
         help="the discount factor gamma")

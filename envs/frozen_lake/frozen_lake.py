@@ -6,8 +6,9 @@ import gym
 import numpy as np
 import pygame
 from colorama import Fore, Style
-from gym.spaces import Box, Discrete, Dict
+from gym.spaces import Box, Discrete
 from gymnasium import utils
+from scipy.stats import multivariate_normal
 
 LEFT = 0
 DOWN = 1
@@ -33,15 +34,15 @@ class FrozenLakeMod(gym.Env):
     def __init__(self, stratified=False, **kwargs):
         super().__init__()
         self.stratified = stratified
-        self.num_rewards = 3
-        self.ori_weights = np.array([0.2, 0.05, 0.75])
+        self.num_rewards = 2
+        self.ori_weights = np.array([1, 1])
 
         self.desc = np.full(kwargs["desc_shape"], "F", dtype="U1")
         self.action_space = Discrete(4)
         self.observation_space = Box(
             low=0,
             high=self.desc.shape[0],
-            shape=(9,),
+            shape=(10,),
             dtype=np.int32,
         )
         self.agent_pos = kwargs["agent_pos"]
@@ -52,7 +53,7 @@ class FrozenLakeMod(gym.Env):
 
         self.obstacle_pos = kwargs["obstacle_pos"]
         # gaussian for static obstacle reward calculation
-        self.obstacle_max_punish = 1
+        self.obstacle_max_punish = 20
         self.obstacle_gauss_xvar = 0.2
         self.obstacle_gauss_xycov = 0
         self.obstacle_gauss_yxcov = 0
@@ -61,6 +62,8 @@ class FrozenLakeMod(gym.Env):
         self.max_dist = np.sqrt(self.desc.shape[0] ** 2 + self.desc.shape[1] ** 2)
         self.last_dist_objective = self.agent_pos - self.objectives[0]
         self.last_dist_obstacle = self.agent_pos - self.obstacle_pos
+
+        self.reached_objectives = [False, False]
 
         self.cumulative_reward_info = {
             "reward_dist": 0,
@@ -89,6 +92,7 @@ class FrozenLakeMod(gym.Env):
         self.start_img = None
 
     def reset(self):
+        self.reached_objectives = [False, False]
         self.last_action = None
         self.objective_count = 0
         self.agent_pos = self.ori_agent_pos
@@ -126,9 +130,10 @@ class FrozenLakeMod(gym.Env):
         agent_y = self.agent_pos // self.desc.shape[1]
         objective_x = obejctive_pos % self.desc.shape[0]
         objective_y = obejctive_pos // self.desc.shape[1]
-        dist = np.sqrt((agent_x - objective_x) ** 2 + (agent_y - objective_y) ** 2)
-        dist_reward = self.last_dist_objective - dist
-        self.last_dist_objective = dist
+        dist = abs(agent_x - objective_x) + abs(agent_y - objective_y)
+        dist_reward = -10 - dist
+        if self.hit_wall:
+            dist_reward -= 200
         return dist_reward
 
     def _obstacle_reward(self):
@@ -136,13 +141,32 @@ class FrozenLakeMod(gym.Env):
         agent_y = self.agent_pos // self.desc.shape[1]
         obstacle_x = self.obstacle_pos % self.desc.shape[0]
         obstacle_y = self.obstacle_pos // self.desc.shape[1]
-        dist = np.sqrt((agent_x - obstacle_x) ** 2 + (agent_y - obstacle_y) ** 2)
-        dist_obstacle = -(self.last_dist_obstacle - dist)
-        self.last_dist_obstacle = dist
-        if self.hit_wall:
-            dist_obstacle = -self.obstacle_max_punish
-            self.hit_wall = False
-        return dist_obstacle
+        activation = self.gaussian_activation(
+            x=agent_x,
+            y=agent_y,
+            xmean=obstacle_x,
+            ymean=obstacle_y,
+            x_var=self.obstacle_gauss_xvar,
+            xy_cov=self.obstacle_gauss_xycov,
+            yx_cov=self.obstacle_gauss_yxcov,
+            y_var=self.obstacle_gauss_yvar,
+        )
+        normed_act = self.min_max_norm(
+            activation,
+            min=0,
+            max=self.gaussian_activation(
+                x=0,
+                y=0,
+                xmean=0,
+                ymean=0,
+                x_var=self.obstacle_gauss_xvar,
+                xy_cov=self.obstacle_gauss_xycov,
+                yx_cov=self.obstacle_gauss_yxcov,
+                y_var=self.obstacle_gauss_yvar,
+            ),
+        )
+        obstacle_punishment = self.obstacle_max_punish * normed_act
+        return -obstacle_punishment
 
     def _do_action(self, action):
         pos_before = self.agent_pos
@@ -164,8 +188,6 @@ class FrozenLakeMod(gym.Env):
         if self.agent_pos == self.obstacle_pos:
             print(Fore.RED + "Hit Obstacle" + Style.RESET_ALL)
             self.agent_pos = pos_before
-        elif pos_before == self.agent_pos:
-            self.hit_wall = True
 
     def _get_obs(self):
         agent_x, agent_y = (
@@ -189,7 +211,8 @@ class FrozenLakeMod(gym.Env):
         )
         return np.array(
             [
-                self.objective_count,
+                int(self.reached_objectives[0]),
+                int(self.reached_objectives[1]),
                 agent_x,
                 agent_y,
                 obstacle_x,
@@ -212,26 +235,26 @@ class FrozenLakeMod(gym.Env):
         reward[1] = self._obstacle_reward()
         done = False
         if self.agent_pos == self.objectives[1]:
-            done = True
             if self.objective_count == 0:
-                reward[2] += -0.5
+                self.reached_objectives[1] = True
             else:
+                done = True
                 print(Fore.CYAN + "objective 1 and 2 reached" + Style.RESET_ALL)
-                reward[2] += 1
+                self.objective_count += 1
         elif self.agent_pos == self.objectives[0] and self.objective_count == 0:
             print(Fore.GREEN + "objective 1 reached" + Style.RESET_ALL)
-            reward[2] += 0.5
             self.objective_count += 1
-            self.last_dist_objective = self.objectives[1] - self.objectives[0]
+            self.reached_objectives[0] = True
+        elif self.hit_wall:
+            done = True
 
         self.cumulative_reward_info["reward_dist"] += reward[0]
         self.cumulative_reward_info["reward_obstacle"] += reward[1]
-        self.cumulative_reward_info["reward_objective"] += reward[2]
+        self.cumulative_reward_info["reward_objective"] = self.objective_count
         self.cumulative_reward_info["Original_reward"] += reward.sum()
 
         if not self.stratified:
             reward = (reward * self.ori_weights).sum()
-            reward *= 10
         return self._get_obs(), reward, done, self.cumulative_reward_info
 
     def render(self, render_mode):
@@ -351,6 +374,23 @@ class FrozenLakeMod(gym.Env):
 
         with closing(outfile):
             return outfile.getvalue()
+
+    def gaussian_activation(
+        self, x, y, xmean, ymean, x_var=1, xy_cov=0, yx_cov=0, y_var=1
+    ):
+        """
+        Return the value for a 2d gaussian distribution with mean at [xmean, ymean] and the covariance matrix based on
+        [[x_var, xy_cov],[yx_cov, y_var]].
+        """
+        means = [xmean, ymean]
+        cov_mat = [[x_var, xy_cov], [yx_cov, y_var]]
+
+        rv = multivariate_normal(means, cov_mat)
+
+        return rv.pdf([x, y])
+
+    def min_max_norm(self, val, min, max):
+        return (val - min) / (max - min)
 
     def close(self):
         if self.window_surface is not None:

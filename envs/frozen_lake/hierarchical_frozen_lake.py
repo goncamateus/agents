@@ -46,9 +46,8 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
         self.action_space = Dict(
             {"worker": self.worker_action_space, "manager": self.manager_action_space}
         )
-        self.steps_count = 0
         self.worker_stratifed = worker_stratified
-        self.worker_weights = np.array([0.9, 0.1])
+        self.worker_weights = np.array([1, 1])
         self.cumulative_reward_info = {
             "reward_dist": 0,
             "reward_obstacle": 0,
@@ -59,10 +58,13 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
             "worker_done": False,
         }
         self.sub_goal_img = None
+        self.steps_count = 0
+        self.worker_last_count = 0
 
     def reset(self):
         _ = super().reset()
         self.steps_count = 0
+        self.worker_last_count = 0
         self.agent_pos = self.ori_agent_pos
         self.manager_last_action = self.agent_pos
         self.last_man_dist_objective = self.agent_pos - self.objectives[0]
@@ -92,11 +94,11 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
 
     def _worker_reward(self):
         reward = np.zeros(2)
-        reward[0] = self._dist_reward(obejctive_pos=self.manager_last_action) * 100
-        reward[1] = self._obstacle_reward() * 100
-        if self.last_dist_objective == 0:
-            reward[0] = 100
-            reward[1] = 100
+        reward[0] = self._dist_reward(obejctive_pos=self.manager_last_action)
+        reward[1] = self._obstacle_reward()
+        if self.hit_wall:
+            self.cumulative_reward_info["worker_done"] = True
+        elif self.last_dist_objective == 0:
             self.cumulative_reward_info["worker_done"] = True
             self.cumulative_reward_info["reward_subobjective"] += 1
         self.cumulative_reward_info["reward_dist"] += reward[0]
@@ -109,18 +111,29 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
 
     def _manager_reward(self):
         reward = 0
-        objective_x = self.objectives[self.objective_count] % self.desc.shape[0]
-        objective_y = self.objectives[self.objective_count] // self.desc.shape[1]
+        objective1_x = self.objectives[0] % self.desc.shape[0]
+        objective1_y = self.objectives[0] // self.desc.shape[1]
+        objective2_x = self.objectives[1] % self.desc.shape[0]
+        objective2_y = self.objectives[1] // self.desc.shape[1]
+        agent_x = self.agent_pos % self.desc.shape[0]
+        agent_y = self.agent_pos // self.desc.shape[1]
         action_x = self.manager_last_action % self.desc.shape[0]
         action_y = self.manager_last_action // self.desc.shape[1]
-        dist = np.sqrt((action_x - objective_x) ** 2 + (action_y - objective_y) ** 2)
-        reward = self.last_man_dist_objective - dist
-        reward *= 100
-        manhattan_dist = abs(action_x - objective_x) + abs(action_y - objective_y)
-        if manhattan_dist > 5:
-            reward = -100
-        if self.manager_last_action == self.obstacle_pos:
-            reward -= 100
+        dist_objective1 = abs(agent_x - objective1_x) + abs(agent_y - objective1_y)
+        dist_objective2 = abs(agent_x - objective2_x) + abs(agent_y - objective2_y)
+        dist_agent = abs(action_x - agent_x) + abs(action_y - agent_y)
+        if dist_agent > 2:
+            reward = -10
+        elif dist_agent > 0:
+            reward = -4
+        else:
+            self.worker_last_count = self.steps_count + 1
+        if dist_objective1 == 0 and not self.reached_objectives[0]:
+            reward = 2
+        if dist_objective2 == 0 and not self.reached_objectives[0]:
+            reward = 2
+        if dist_objective2 == 0 and self.objective_count == 1:
+            reward = 10
         self.cumulative_reward_info["reward_manager"] += reward
         return reward
 
@@ -140,34 +153,24 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
             (action_x - agent_x) ** 2 + (action_y - agent_y) ** 2
         )
         reward["manager"] = self._manager_reward()
-
         self.steps_count += 1
+
         done = False
-        if self.agent_pos == self.obstacle_pos:
-            print(Fore.RED + "Failure" + Style.RESET_ALL)
-            done = True
-            self.cumulative_reward_info["reward_objective"] += -1
+        if self.steps_count - self.worker_last_count > 10:
+            print(Fore.RED + "Worker Failure" + Style.RESET_ALL)
+            self.cumulative_reward_info["worker_done"] = True
         if self.agent_pos == self.objectives[1]:
-            done = True
+            self.reached_objectives[1] = True
             if self.objective_count != 0:
-                reward["manager"] += 100
-                self.cumulative_reward_info["reward_manager"] += 100
+                done = True
                 self.cumulative_reward_info["reward_objective"] += 1
                 print(Fore.CYAN + "objective 1 and 2 reached" + Style.RESET_ALL)
-        elif self.agent_pos == self.objectives[0] and self.objective_count == 0:
-            print(Fore.GREEN + "objective 1 reached" + Style.RESET_ALL)
-            self.objective_count += 1
-            reward["manager"] += 50
-            self.cumulative_reward_info["reward_manager"] += 50
-            self.cumulative_reward_info["reward_objective"] += 1
-            agent_x = self.agent_pos % self.desc.shape[0]
-            agent_y = self.agent_pos // self.desc.shape[1]
-            action_x = self.manager_last_action % self.desc.shape[0]
-            action_y = self.manager_last_action // self.desc.shape[1]
-            self.last_dist_objective = np.sqrt(
-                (action_x - agent_x) ** 2 + (action_y - agent_y) ** 2
-            )
-            self.last_man_dist_objective = self.objectives[1] - self.objectives[0]
+        elif self.agent_pos == self.objectives[0]:
+            self.reached_objectives[0] = True
+            if self.objective_count == 0:
+                print(Fore.GREEN + "objective 1 reached" + Style.RESET_ALL)
+                self.objective_count += 1
+                self.cumulative_reward_info["reward_objective"] += 1
 
         return self._get_obs(), reward, done, self.cumulative_reward_info
 
