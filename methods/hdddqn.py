@@ -118,7 +118,7 @@ class HDDDQN:
                     manager_action = manager_x * rows + manager_y
                     self.last_manager_action = manager_action
         else:
-            if self.env_steps % 5 == 0:
+            if self.env_steps % self.arguments.manager_act_freq == 0:
                 manager_action = self.manager.get_action(state["manager"])
                 self.last_manager_action = manager_action
             else:

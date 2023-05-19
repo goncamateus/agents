@@ -54,7 +54,7 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
             "reward_objective": 0,
             "reward_subobjective": 0,
             "reward_manager": 0,
-            "Original_reward": 0,
+            "reward_worker_sum": 0,
             "worker_done": False,
         }
         self.sub_goal_img = None
@@ -75,6 +75,7 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
             "reward_objective": 0,
             "reward_subobjective": 0,
             "reward_manager": 0,
+            "reward_worker_sum": 0,
             "worker_done": False,
         }
         return self._get_obs()
@@ -94,47 +95,38 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
 
     def _worker_reward(self):
         reward = np.zeros(2)
-        reward[0] = self._dist_reward(obejctive_pos=self.manager_last_action)
+        dist = self._dist_reward(objective_pos=self.manager_last_action)
+        reward[0] = -10 - dist
         reward[1] = self._obstacle_reward()
         if self.hit_wall:
+            reward[0] = -200
             self.cumulative_reward_info["worker_done"] = True
-        elif self.last_dist_objective == 0:
+            self.hit_wall = False
+        elif dist == 0:
             self.cumulative_reward_info["worker_done"] = True
             self.cumulative_reward_info["reward_subobjective"] += 1
         self.cumulative_reward_info["reward_dist"] += reward[0]
         self.cumulative_reward_info["reward_obstacle"] += reward[1]
+        self.cumulative_reward_info["reward_worker_sum"] += reward.sum()
         if not self.worker_stratifed:
-            reward = (reward * self.worker_weights).sum()
-        else:
-            reward = reward * self.worker_weights
+            reward = reward.sum()
         return reward
 
     def _manager_reward(self):
         reward = 0
-        objective1_x = self.objectives[0] % self.desc.shape[0]
-        objective1_y = self.objectives[0] // self.desc.shape[1]
-        objective2_x = self.objectives[1] % self.desc.shape[0]
-        objective2_y = self.objectives[1] // self.desc.shape[1]
-        agent_x = self.agent_pos % self.desc.shape[0]
-        agent_y = self.agent_pos // self.desc.shape[1]
-        action_x = self.manager_last_action % self.desc.shape[0]
-        action_y = self.manager_last_action // self.desc.shape[1]
-        dist_objective1 = abs(agent_x - objective1_x) + abs(agent_y - objective1_y)
-        dist_objective2 = abs(agent_x - objective2_x) + abs(agent_y - objective2_y)
-        dist_agent = abs(action_x - agent_x) + abs(action_y - agent_y)
-        if dist_agent > 2:
+        dist_objective1 = self._dist_reward(objective_pos=self.objectives[0])
+        dist_objective2 = self._dist_reward(objective_pos=self.objectives[1])
+        dist_agent = self._dist_reward(objective_pos=self.manager_last_action)
+        if dist_agent > 1:
             reward = -10
-        elif dist_agent > 0:
-            reward = -4
         else:
+            reward = -4
+        if dist_agent == 0:
             self.worker_last_count = self.steps_count + 1
         if dist_objective1 == 0 and not self.reached_objectives[0]:
             reward = 2
-        if dist_objective2 == 0 and not self.reached_objectives[0]:
+        if dist_objective2 == 0 and not self.reached_objectives[1]:
             reward = 2
-        if dist_objective2 == 0 and self.objective_count == 1:
-            reward = 10
-        self.cumulative_reward_info["reward_manager"] += reward
         return reward
 
     def step(self, action):
@@ -145,32 +137,28 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
         reward["worker"] = self._worker_reward()
 
         self._manager_act(action["manager"])
-        agent_x = self.agent_pos % self.desc.shape[0]
-        agent_y = self.agent_pos // self.desc.shape[1]
-        action_x = self.manager_last_action % self.desc.shape[0]
-        action_y = self.manager_last_action // self.desc.shape[1]
-        self.last_dist_objective = np.sqrt(
-            (action_x - agent_x) ** 2 + (action_y - agent_y) ** 2
-        )
         reward["manager"] = self._manager_reward()
         self.steps_count += 1
 
         done = False
-        if self.steps_count - self.worker_last_count > 10:
+        if self.steps_count - self.worker_last_count > 20:
             print(Fore.RED + "Worker Failure" + Style.RESET_ALL)
             self.cumulative_reward_info["worker_done"] = True
-        if self.agent_pos == self.objectives[1]:
-            self.reached_objectives[1] = True
-            if self.objective_count != 0:
-                done = True
-                self.cumulative_reward_info["reward_objective"] += 1
-                print(Fore.CYAN + "objective 1 and 2 reached" + Style.RESET_ALL)
-        elif self.agent_pos == self.objectives[0]:
+        if self.agent_pos == self.objectives[0] and not self.reached_objectives[0]:
+            print(Fore.GREEN + "objective 1 reached" + Style.RESET_ALL)
+            self.objective_count += 1
             self.reached_objectives[0] = True
-            if self.objective_count == 0:
-                print(Fore.GREEN + "objective 1 reached" + Style.RESET_ALL)
-                self.objective_count += 1
-                self.cumulative_reward_info["reward_objective"] += 1
+        elif self.agent_pos == self.objectives[1] and not self.reached_objectives[1]:
+            self.reached_objectives[1] = True
+            print(Fore.GREEN + "objective 2 reached" + Style.RESET_ALL)
+            self.objective_count += 1
+        if self.reached_objectives[0] and self.reached_objectives[1]:
+            done = True
+            reward["manager"] = 10
+            print(Fore.CYAN + "objective 1 and 2 reached" + Style.RESET_ALL)
+
+        self.cumulative_reward_info["reward_objective"] = self.objective_count
+        self.cumulative_reward_info["reward_manager"] += reward["manager"]
 
         return self._get_obs(), reward, done, self.cumulative_reward_info
 
@@ -223,10 +211,10 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
             )
         if self.elf_images is None:
             elfs = [
-                os.path.join(os.path.dirname(__file__), "img/elf_left.png"),
+                os.path.join(os.path.dirname(__file__), "img/elf_up.png"),
                 os.path.join(os.path.dirname(__file__), "img/elf_down.png"),
                 os.path.join(os.path.dirname(__file__), "img/elf_right.png"),
-                os.path.join(os.path.dirname(__file__), "img/elf_up.png"),
+                os.path.join(os.path.dirname(__file__), "img/elf_left.png"),
             ]
             self.elf_images = [
                 pygame.transform.scale(pygame.image.load(f_name), self.cell_size)
