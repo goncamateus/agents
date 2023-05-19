@@ -10,10 +10,10 @@ from gym.spaces import Box, Discrete
 from gymnasium import utils
 from scipy.stats import multivariate_normal
 
-LEFT = 0
+UP = 0
 DOWN = 1
 RIGHT = 2
-UP = 3
+LEFT = 3
 
 
 class FrozenLakeMod(gym.Env):
