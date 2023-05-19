@@ -228,8 +228,8 @@ def main(args):
         b_inds = np.arange(args.batch_size)
         clipfracs = []
         lambdas = torch.ones(args.num_rewards).to(agent.device)/args.num_rewards
-        r_max = torch.Tensor([12, 4, 1.5]).to(agent.device)
-        r_min = torch.Tensor([2, -10, -1]).to(agent.device)
+        r_max = torch.Tensor([-263, -4]).to(agent.device)
+        r_min = torch.Tensor([-20962, -164]).to(agent.device)
         # DyLam
         rew_tau = args.rew_tau
         if agent.last_epi_rewards.can_do() and args.dylam:
