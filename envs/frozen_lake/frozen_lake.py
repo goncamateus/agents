@@ -60,8 +60,6 @@ class FrozenLakeMod(gym.Env):
         self.obstacle_gauss_yvar = 0.2
 
         self.max_dist = np.sqrt(self.desc.shape[0] ** 2 + self.desc.shape[1] ** 2)
-        self.last_dist_objective = self.agent_pos - self.objectives[0]
-        self.last_dist_obstacle = self.agent_pos - self.obstacle_pos
 
         self.reached_objectives = [False, False]
 
@@ -96,8 +94,6 @@ class FrozenLakeMod(gym.Env):
         self.last_action = None
         self.objective_count = 0
         self.agent_pos = self.ori_agent_pos
-        self.last_dist_objective = self.agent_pos - self.objectives[0]
-        self.last_dist_obstacle = self.agent_pos - self.obstacle_pos
 
         self.desc = np.full((self.desc.shape[0], self.desc.shape[1]), "F", dtype="U1")
         self.desc[self.agent_pos // self.desc.shape[0]][

@@ -5,9 +5,9 @@ import envs
 
 
 def main():
-    env = gym.make("FrozenLake11x11Strat-v0")
+    env = gym.make("SimpleNav-v1")
     env.reset()
-    for step in range(100):
+    for step in range(10000):
         # env.render()
         # action = input("UP = 0; DOWN = 1; RIGHT = 2; LEFT = 3\n")
         # action = int(action)
@@ -15,16 +15,18 @@ def main():
         #     action = 0
         # else:
         #     action = 2
-        state, reward, done, info = env.step(3)
-        # print("Reward")
-        # print(reward)
+        state, reward, done, info = env.step(env.action_space.sample())
+        print("Reward")
+        print(reward)
 
+        print("State")
+        print(state)
 
         if done:
             print("Info")
             print(info)
-            print("Done")
             env.reset()
+    env.close()
 
 
 if __name__ == "__main__":
