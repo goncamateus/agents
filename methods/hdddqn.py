@@ -42,6 +42,7 @@ class HDDDQN:
         self.worker_epsilon = 1
         self.last_manager_action = None
         self.randomness_rate_worker = 0
+        self.manager_action_count = 0
 
     def store_worker_transition(self, transition, global_step):
         for i in range(2):
@@ -86,36 +87,19 @@ class HDDDQN:
 
     def store_transition(self, transition, global_step):
         self.store_worker_transition(transition, global_step)
-        self.store_manager_transition(transition, global_step)
+        if self.pre_train_steps <= 0:
+            self.store_manager_transition(transition, global_step)
 
     def get_action(self, state: np.ndarray, global_step: int) -> np.ndarray:
         """Select an action from the input state."""
         if self.pre_train_steps > 0:
-            rows = np.sqrt(self.manager_action_space.n)
             if self.last_manager_action is None:
                 manager_action = self.manager_action_space.sample()
                 self.last_manager_action = manager_action
             else:
                 manager_action = self.last_manager_action
-                if self.env_steps % 5 == 0:
-                    manager_x, manager_y = manager_action // rows, manager_action % rows
-                    random_num = np.random.choice([-1, 0, 1])
-                    if manager_x + random_num < 0:
-                        manager_x = manager_x - random_num
-                    elif manager_x + random_num > rows:
-                        manager_x = manager_x - random_num
-                    else:
-                        manager_x = manager_x + random_num
-                    manager_x = np.clip(manager_x, 0, rows - 1)
-                    random_num = np.random.choice([-1, 0, 1])
-                    if manager_y + random_num < 0:
-                        manager_y = manager_y - random_num
-                    elif manager_y + random_num > rows:
-                        manager_y = manager_y - random_num
-                    else:
-                        manager_y = manager_y + random_num
-                    manager_y = np.clip(manager_y, 0, rows - 1)
-                    manager_action = manager_x * rows + manager_y
+                if self.env_steps % self.arguments.manager_act_freq == 0:
+                    
                     self.last_manager_action = manager_action
         else:
             if self.env_steps % self.arguments.manager_act_freq == 0:
