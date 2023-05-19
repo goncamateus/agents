@@ -13,4 +13,4 @@ source $HOME/.pyvenvs/rl3090/bin/activate
 
 
 # Run the script
-python run_hdddqn.py --cuda --gym-id $1 --total-timesteps 1000000 --capture-video --track
+python run_hdddqn.py --cuda --gym-id $1 --total-timesteps 1000000 --capture-video --track --update-freq 5 --pre-train-steps 50000
