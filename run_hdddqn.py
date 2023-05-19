@@ -65,6 +65,8 @@ def parse_args():
         help="the decay rate of epsilon greedy (0.1 at 100000 steps)")
     parser.add_argument("--pre-train-steps", type=int, default=150000,
         help="the number of pre-training steps before training manager")
+    parser.add_argument("--manager-act-freq", type=int, default=5,
+        help="the frequency of manager action")
     # PER parameters
     parser.add_argument("--alpha", type=float, default=0.6,
         help="determines how much prioritization is used")
