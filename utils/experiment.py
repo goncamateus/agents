@@ -6,6 +6,7 @@ import numpy as np
 # import rsoccer_gym
 import torch
 
+from utils.async_vec import AsyncVectorEnv
 from utils.wrappers import RecordEpisodeStatistics
 
 
@@ -101,6 +102,24 @@ class StratSyncVectorEnv(gym.vector.SyncVectorEnv):
         self._rewards = np.zeros((self.num_envs, num_rewards), dtype=np.float64)
 
 
+class StratAsyncVectorEnv(AsyncVectorEnv):
+    def __init__(
+        self,
+        env_fns,
+        num_rewards,
+        observation_space=None,
+        action_space=None,
+        metadata=None,
+    ):
+        super().__init__(
+            env_fns,
+            observation_space=observation_space,
+            action_space=action_space,
+            metadata=metadata,
+        )
+        self._rewards = np.zeros((self.num_envs, num_rewards), dtype=np.float64)
+
+
 def make_env(
     arguments,
     idx,
@@ -129,7 +148,7 @@ def make_env(
                 env, lambda reward: np.clip(reward, -10, 10)
             )
         # ---------------------------------------------------------------
-        if not("hierarchical" in arguments and arguments.hierarchical):
+        if not ("hierarchical" in arguments and arguments.hierarchical):
             env = RecordEpisodeStatistics(env)
         if extra_wrapper is not None:
             env = extra_wrapper(env)

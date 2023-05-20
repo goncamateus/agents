@@ -269,6 +269,16 @@ register(
 )
 
 register(
+    id="SimpleNavStrat-v0",
+    entry_point="envs.simple_nav.simple_nav:SimpleNav",
+    kwargs={
+        "stratified": True,
+        "headless": True,
+    },
+    max_episode_steps=100,
+)
+
+register(
     id="SimpleNav-v1",
     entry_point="envs.simple_nav.simple_nav:SimpleNav",
     kwargs={
@@ -282,7 +292,7 @@ register(
     id="SimpleNavStrat-v1",
     entry_point="envs.simple_nav.simple_nav:SimpleNav",
     kwargs={
-        "stratified": False,
+        "stratified": True,
         "headless": False,
     },
     max_episode_steps=100,
