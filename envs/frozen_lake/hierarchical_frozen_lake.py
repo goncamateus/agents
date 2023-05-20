@@ -140,7 +140,6 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
         reward["manager"] = self._manager_reward()
         self.steps_count += 1
 
-        done = False
         if self.steps_count - self.worker_last_count > 20:
             print(Fore.RED + "Worker Failure" + Style.RESET_ALL)
             self.cumulative_reward_info["worker_done"] = True

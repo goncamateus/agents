@@ -65,21 +65,17 @@ class SimpleNav(gym.Env):
         self.ori_agent_pos = self.staring_pos[:2]
 
         self.obstacle_pos = self.obstacle.get_position()[:2]
-        self.objectives = np.array(
-            [
-                self.left_goal.get_position()[:2],
-                self.right_goal.get_position()[:2],
-            ]
-        )
+        self.objectives = np.array([self.left_goal, self.right_goal])
         self.objective_count = 0
 
+        self.coordinates = np.arange(-5, 6, 1)
         # gaussian for static obstacle reward calculation
         self.obstacle_max_punish = 20
         self.obstacle_gauss_xvar = 0.2
         self.obstacle_gauss_xycov = 0
         self.obstacle_gauss_yxcov = 0
         self.obstacle_gauss_yvar = 0.2
-        
+
         self.done_thresh = 0.1
 
         self.reached_objectives = [False, False]
@@ -106,12 +102,7 @@ class SimpleNav(gym.Env):
         self.objective_count = 0
         self.agent_pos = self.agent.get_position()[:2]
         self.obstacle_pos = self.obstacle.get_position()[:2]
-        self.objectives = np.array(
-            [
-                self.left_goal.get_position()[:2],
-                self.right_goal.get_position()[:2],
-            ]
-        )
+        self.objectives = np.array([self.left_goal, self.right_goal])
 
         self.cumulative_reward_info = {
             "reward_dist": 0,
@@ -148,8 +139,8 @@ class SimpleNav(gym.Env):
     def _get_obs(self):
         agent_x, agent_y = self.agent_pos
         obstacle_x, obstacle_y = self.obstacle_pos
-        objective1_x, objective1_y = self.objectives[0]
-        objective2_x, objective2_y = self.objectives[1]
+        objective1_x, objective1_y = self.objectives[0].get_position()[:2]
+        objective2_x, objective2_y = self.objectives[1].get_position()[:2]
         return np.array(
             [
                 int(self.reached_objectives[0]),

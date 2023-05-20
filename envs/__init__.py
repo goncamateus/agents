@@ -297,3 +297,12 @@ register(
     },
     max_episode_steps=100,
 )
+
+register(
+    id="HierarchicalSimpleNav-v0",
+    entry_point="envs.simple_nav.hierarchical_simple_nav:HierarchicalSimpleNav",
+    kwargs={
+        "stratified": False,
+        "headless": True,
+    },
+)
