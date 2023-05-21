@@ -38,11 +38,38 @@ class HDDDQN:
         self.manager_updates = 0
         self.pre_train_steps = self.arguments.pre_train_steps
         self.epsilon_decay = self.arguments.eps_greedy_decay
-        self.epsilon_min = 0.03
-        self.worker_epsilon = 1
-        self.last_manager_action = None
+        self.epsilon_min = 0.1
+        self.epsilon_max = 1
         self.randomness_rate_worker = 0
         self.manager_action_count = 0
+        self.max_steps = 20
+        self.num_episodes = {
+            "worker": 0,
+            "manager": 0,
+        }
+        self.worker_epsilons = self.epsilon_vals(
+            self.arguments.worker_max_episodes + self.arguments.pre_train_steps
+        )
+        self.worker_epsilon = self.worker_epsilons[0]
+        self.manager_epsilons = self.epsilon_vals(self.arguments.manager_max_steps)
+        self.manager_epsilon = self.manager_epsilons[0]
+
+    def epsilon_vals(self, total_steps):
+        epsilon_decay_steps = int(total_steps * self.epsilon_decay)
+        epsilon_decay_vals = np.linspace(
+            start=self.epsilon_max,
+            stop=self.epsilon_min,
+            num=epsilon_decay_steps,
+        )
+        all_vals = np.append(
+            epsilon_decay_vals,
+            np.array(
+                [self.epsilon_min]
+                * int(total_steps * (1 - self.epsilon_decay) + self.max_steps)
+            ),
+        )
+
+        return all_vals
 
     def store_worker_transition(self, transition, global_step):
         for i in range(2):
@@ -62,55 +89,58 @@ class HDDDQN:
             if one_step_transition:
                 self.workers[i].memory.store(*one_step_transition)
 
-            # PER: increase beta
-            fraction = min(global_step / self.arguments.total_timesteps, 1.0)
-            self.workers[i].beta = self.workers[i].beta + fraction * (
-                1.0 - self.workers[i].beta
-            )
+            # # PER: increase beta
+            # fraction = min(global_step / self.arguments.total_timesteps, 1.0)
+            # self.workers[i].beta = self.workers[i].beta + fraction * (
+            #     1.0 - self.workers[i].beta
+            # )
+            self.workers[i].beta = 0.4
 
     def store_manager_transition(self, transition, global_step):
-        self.manager.transition = transition["manager"]
-        # N-step transition
-        if self.manager.use_n_step:
-            one_step_transition = self.manager.memory_n.store(*self.manager.transition)
-        # 1-step transition
-        else:
-            one_step_transition = self.manager.transition
+        if transition["manager"][1] is not None:
+            self.manager.transition = transition["manager"]
+            # N-step transition
+            if self.manager.use_n_step:
+                one_step_transition = self.manager.memory_n.store(
+                    *self.manager.transition
+                )
+            # 1-step transition
+            else:
+                one_step_transition = self.manager.transition
 
-        # add a single step transition
-        if one_step_transition:
-            self.manager.memory.store(*one_step_transition)
+            # add a single step transition
+            if one_step_transition:
+                self.manager.memory.store(*one_step_transition)
 
-        # PER: increase beta
-        fraction = min(global_step / self.arguments.total_timesteps, 1.0)
-        self.manager.beta = self.manager.beta + fraction * (1.0 - self.manager.beta)
+            # PER: increase beta
+            # fraction = min(global_step / self.arguments.total_timesteps, 1.0)
+            # self.manager.beta = self.manager.beta + fraction * (1.0 - self.manager.beta)
+            self.manager.beta = 0.4
 
     def store_transition(self, transition, global_step):
         self.store_worker_transition(transition, global_step)
         if self.pre_train_steps <= 0:
             self.store_manager_transition(transition, global_step)
 
-    def get_action(self, state: np.ndarray, global_step: int) -> np.ndarray:
+    def get_action(
+        self, state: np.ndarray, global_step: int, resample_manager=False
+    ) -> np.ndarray:
         """Select an action from the input state."""
-        if self.pre_train_steps > 0:
-            if self.last_manager_action is None:
-                manager_action = self.manager_action_space.sample()
-                self.last_manager_action = manager_action
-            else:
-                manager_action = self.last_manager_action
-                if self.env_steps % self.arguments.manager_act_freq == 0:
-                    
-                    self.last_manager_action = manager_action
-        else:
-            if self.env_steps % self.arguments.manager_act_freq == 0:
+        manager_action = None
+        if self.pre_train_steps > 0 and resample_manager:
+            manager_action = self.manager_action_space.sample()
+        elif resample_manager:
+            manager_action = self.manager_action_space.sample()
+            self.manager_epsilon = self.manager_epsilons[self.manager_action_count]
+            if np.random.uniform() > self.manager_epsilon:
                 manager_action = self.manager.get_action(state["manager"])
-                self.last_manager_action = manager_action
-            else:
-                manager_action = self.last_manager_action
+            self.manager_action_count += 1
 
-        self.worker_epsilon = self.epsilon_decay ** (global_step / 100)
-        self.worker_epsilon = max(self.worker_epsilon, self.epsilon_min)
-        if np.random.uniform() < self.worker_epsilon:
+        if global_step > self.worker_epsilons.shape[0]:
+            self.worker_epsilon = self.worker_epsilons[-1]
+        else:
+            self.worker_epsilon = self.worker_epsilons[global_step]
+        if np.random.uniform() > self.worker_epsilon:
             worker_action = self.worker_action_space.sample()
             self.randomness_rate_worker += 1
         else:
@@ -131,7 +161,7 @@ class HDDDQN:
         }
         return action
 
-    def update(self, global_step, writer) -> torch.Tensor:
+    def update(self, global_step, writer, update_manager=False) -> torch.Tensor:
         log = {}
         if len(self.workers[0].memory) > self.arguments.worker_batch_size:
             self.worker_updates += 1
@@ -147,13 +177,14 @@ class HDDDQN:
 
         if (
             len(self.manager.memory) > self.arguments.manager_batch_size
-            and self.worker_updates % self.arguments.manager_update_freq == 0
+            and update_manager
         ):
-            manager_loss = self.manager.update()
-            self.manager_updates += 1
-            # if hard update is needed
-            if self.manager_updates % self.manager.target_update == 0:
-                self.manager._target_hard_update()
+            for _ in range(self.arguments.manager_updates):
+                manager_loss = self.manager.update()
+                self.manager_updates += 1
+                # if hard update is needed
+                if self.manager_updates % self.manager.target_update == 0:
+                    self.manager._target_hard_update()
             # logging losses
             log.update({"losses/manager": manager_loss})
             writer.add_scalar("losses/manager", manager_loss, global_step)

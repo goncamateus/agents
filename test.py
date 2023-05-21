@@ -5,7 +5,7 @@ import envs
 
 
 def main():
-    env = gym.make("SimpleNav-v1")
+    env = gym.make("HierarchicalSimpleNav-v0")
     env.reset()
     for step in range(10000):
         # env.render()

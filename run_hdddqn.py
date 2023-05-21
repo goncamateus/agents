@@ -21,14 +21,12 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--exp-name", type=str, default=os.path.basename(__file__).rstrip(".py"),
         help="the name of this experiment")
-    parser.add_argument("--gym-id", type=str, default="HierarchicalFrozenLake-v0",
+    parser.add_argument("--gym-id", type=str, default="HierarchicalSimpleNav-v0",
         help="the id of the gym environment")
     parser.add_argument("--learning-rate", type=float, default=2.5e-4,
         help="the learning rate of the optimizer")
     parser.add_argument("--seed", type=int, default=0,
         help="seed of the experiment")
-    parser.add_argument("--total-timesteps", type=int, default=25000,
-        help="total timesteps of the experiments")
     parser.add_argument("--torch-deterministic", type=lambda x: bool(strtobool(x)), default=True, nargs="?", const=True,
         help="if toggled, `torch.backends.cudnn.deterministic=False`")
     parser.add_argument("--cuda", type=lambda x: bool(strtobool(x)), default=True, nargs="?", const=True,
@@ -41,8 +39,10 @@ def parse_args():
         help="Log on wandb")
 
     # Algorithm specific arguments
-    parser.add_argument("--update-freq", type=int, default=1,
-        help="the frequency of updates per step")
+    parser.add_argument("--worker-max-episodes", type=int, default=100000,
+        help="the number of episodes the worker runs")
+    parser.add_argument("--manager-max-steps", type=int, default=50000,
+        help="the number of steps the manager runs")
     parser.add_argument("--worker-batch-size", type=int, default=1024,
         help="the number of batches")
     parser.add_argument("--manager-batch-size", type=int, default=256,
@@ -51,22 +51,21 @@ def parse_args():
         help="the replay memory buffer size")
     parser.add_argument("--q-lr", type=float, default=0.0005,
         help="the learning rate of the Q network optimizer")
-    parser.add_argument("--target-network-frequency", type=int, default=10000,
+    parser.add_argument("--target-network-frequency", type=int, default=250000,
         help="the frequency of updates for the target nerworks")
-    parser.add_argument("--manager-update-freq", type=int, default=3,
-        help="the frequency of updates for the manager")
+    parser.add_argument("--manager-updates", type=int, default=3,
+        help="the number of updates for each time the manager acts")
     parser.add_argument("--manager-target-update-freq", type=int, default=1000,
         help="the frequency of updates for the manager target")
-    parser.add_argument("--worker-gamma", type=float, default=0.95,
+    parser.add_argument("--worker-gamma", type=float, default=0.9,
         help="the discount factor gamma")
-    parser.add_argument("--manager-gamma", type=float, default=0.99,
+    parser.add_argument("--manager-gamma", type=float, default=1,
         help="the discount factor gamma")
-    parser.add_argument("--eps-greedy-decay", type=float, default=0.9978,
+    parser.add_argument("--eps-greedy-decay", type=float, default=0.4,
         help="the decay rate of epsilon greedy (0.1 at 100000 steps)")
     parser.add_argument("--pre-train-steps", type=int, default=150000,
         help="the number of pre-training steps before training manager")
-    parser.add_argument("--manager-act-freq", type=int, default=5,
-        help="the frequency of manager action")
+
     # PER parameters
     parser.add_argument("--alpha", type=float, default=0.6,
         help="determines how much prioritization is used")
@@ -129,13 +128,23 @@ def main(args):
     start_time = time.time()
 
     # TRY NOT TO MODIFY: training loop
+    global_step = 0
     obs = env.reset()
     log = {}
+    info = {"worker": {"worker_done": False}}
+    successes = {
+        "worker": [],
+        "manager": [],
+    }
+    resample_goal = False
 
-    for global_step in range(args.total_timesteps):
+    while agent.manager_action_count < args.manager_max_steps:
         agent.env_steps = env.steps_count
         # ALGO LOGIC: put the logic for the algo here
-        action = agent.get_action(obs, global_step)
+        if info["worker"]["worker_done"]:
+            resample_goal = True
+        action = agent.get_action(obs, global_step, resample_manager=resample_goal)
+        resample_goal = False
 
         # TRY NOT TO MODIFY: execute the action and collect the next obs
         next_obs, reward, done, info = env.step(action)
@@ -145,7 +154,7 @@ def main(args):
                 action["worker"],
                 reward["worker"],
                 next_obs["worker"],
-                info["worker_done"],
+                info["worker"]["worker_done"],
             ],
             "manager": [
                 obs["manager"],
@@ -160,22 +169,11 @@ def main(args):
         # TRY NOT TO MODIFY: CRUCIAL step easy to overlook
         obs = next_obs
 
-        if done:
-            print(
-                f'global_step={global_step}, Objective: {info["reward_objective"]}, Sub-Objective: {info["reward_subobjective"]}'
-            )
-            log.update({f"ep_info/episodic_length": env.steps_count})
-            writer.add_scalar("charts/episodic_length", env.steps_count, global_step)
+        if info["worker"]["worker_done"]:
             log.update({"charts/epsilon_worker": agent.worker_epsilon})
             writer.add_scalar(
                 "charts/epsilon_worker", agent.worker_epsilon, global_step
             )
-            strat_rewards = [x for x in info.keys() if x.startswith("reward_")]
-            for key in strat_rewards:
-                log.update({f"ep_info/{key.replace('reward_', '')}": info[key]})
-                writer.add_scalar(
-                    f"charts/{key.replace('reward_', '')}", info[key], global_step
-                )
             log.update(
                 {
                     "charts/randomness_rate_worker": agent.randomness_rate_worker
@@ -187,21 +185,67 @@ def main(args):
                 agent.randomness_rate_worker / env.steps_count,
                 global_step,
             )
-
-            done = False
-            agent.last_manager_action = None
+            strat_rewards = [
+                x for x in info["worker"].keys() if x.startswith("reward_")
+            ]
+            for key in strat_rewards:
+                log.update({f"ep_info/{key.replace('reward_', '')}": info["worker"][key]})
+                writer.add_scalar(
+                    f"charts/{key.replace('reward_', '')}", info["worker"][key], global_step
+                )
+            successes["worker"].append(info["worker"]["reward_subobjective"])
+            log.update(
+                {"ep_info/worker_success_rate": np.mean(successes["worker"][-50:])}
+            )
+            writer.add_scalar(
+                "charts/worker_success_rate",
+                np.mean(successes["worker"][-50:]),
+                global_step,
+            )
             agent.randomness_rate_worker = 0
+            agent.num_episodes["worker"] += 1
+
+        if done:
+            print(
+                f'global_step={global_step}, Objective: {info["manager"]["reward_objective"]}'
+            )
+            log.update({f"ep_info/episodic_length": env.steps_count})
+            writer.add_scalar("charts/episodic_length", env.steps_count, global_step)
+            log.update({"charts/epsilon_manager": agent.manager_epsilon})
+            writer.add_scalar(
+                "charts/epsilon_manager", agent.manager_epsilon, global_step
+            )
+            strat_rewards = [
+                x for x in info["manager"].keys() if x.startswith("reward_")
+            ]
+            for key in strat_rewards:
+                log.update({f"ep_info/{key.replace('reward_', '')}": info["manager"][key]})
+                writer.add_scalar(
+                    f"charts/{key.replace('reward_', '')}", info["manager"][key], global_step
+                )
+            successes["manager"].append(info["manager"]["reward_objective"])
+            log.update(
+                {"ep_info/manager_success_rate": np.mean(successes["manager"][-50:])}
+            )
+            writer.add_scalar(
+                "charts/manager_success_rate",
+                np.mean(successes["manager"][-50:]),
+                global_step,
+            )
+
+            agent.num_episodes["manager"] += 1
+            done = False
             obs = env.reset()
 
-        if global_step % args.update_freq == 0:
-            # ALGO LOGIC: training.
-            model_logs = agent.update(global_step, writer)
-            log.update(model_logs)
-            writer.add_scalar(
-                "charts/SPS", int(global_step / (time.time() - start_time)), global_step
-            )
-            log.update({"charts/SPS": int(global_step / (time.time() - start_time))})
-            wandb.log(log, global_step)
+        # ALGO LOGIC: training.
+        model_logs = agent.update(global_step, writer, update_manager=resample_goal)
+        log.update(model_logs)
+        writer.add_scalar(
+            "charts/SPS", int(global_step / (time.time() - start_time)), global_step
+        )
+        log.update({"charts/SPS": int(global_step / (time.time() - start_time))})
+        wandb.log(log, global_step)
+        global_step += 1
 
     env.close()
     writer.close()

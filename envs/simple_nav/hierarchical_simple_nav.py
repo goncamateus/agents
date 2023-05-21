@@ -15,7 +15,7 @@ class HierarchicalSimpleNav(SimpleNav):
 
     metadata = {"render.modes": ["human"]}
 
-    def __init__(self, worker_stratified=False, **kwargs) -> None:
+    def __init__(self, worker_stratified=True, **kwargs) -> None:
         super().__init__(**kwargs)
         self.worker_action_space = Discrete(4)
         self.worker_observation_space = Box(
@@ -49,14 +49,19 @@ class HierarchicalSimpleNav(SimpleNav):
         self.reached_before = [False, False]
         self.episode_step_limit = {"worker": 20, "manager": 20}
         self.hcumulative_reward_info = {
-            "reward_manager": 0,
-            "reward_objective": 0,
-            "reward_dist": 0,
-            "reward_obstacle": 0,
-            "reward_subobjective": 0,
-            "reward_worker_sum": 0,
-            "worker_done": False,
+            "manager": {
+                "reward_manager": 0,
+                "reward_objective": 0,
+            },
+            "worker": {
+                "reward_dist": 0,
+                "reward_obstacle": 0,
+                "reward_worker_sum": 0,
+                "reward_subobjective": 0,
+                "worker_done": False,
+            },
         }
+        self.worker_success = False
         self.sub_goal_img = None
         self.steps_count = 0
         self.worker_steps_count = 0
@@ -68,7 +73,7 @@ class HierarchicalSimpleNav(SimpleNav):
         self.steps_count = 0
         self.manager_steps_count = 0
 
-        self.hcumulative_reward_info.update(
+        self.hcumulative_reward_info["manager"].update(
             {
                 "reward_objective": 0,
                 "reward_manager": 0,
@@ -80,12 +85,13 @@ class HierarchicalSimpleNav(SimpleNav):
     def _worker_reset(self):
         self.hit_wall = False
         self.worker_steps_count = 0
-        self.hcumulative_reward_info.update(
+        self.worker_success = False
+        self.hcumulative_reward_info["worker"].update(
             {
                 "reward_dist": 0,
                 "reward_obstacle": 0,
-                "reward_subobjective": 0,
                 "reward_worker_sum": 0,
+                "reward_subobjective": 0,
                 "worker_done": False,
             }
         )
@@ -120,8 +126,9 @@ class HierarchicalSimpleNav(SimpleNav):
         vec_dist = np.linalg.norm(vec)
 
         if vec_dist < 0.4:
-            self.hcumulative_reward_info["worker_done"] = True
-            self.hcumulative_reward_info["reward_subobjective"] += 1
+            self.hcumulative_reward_info["worker"]["worker_done"] = True
+            self.hcumulative_reward_info["worker"]["reward_subobjective"] += 1
+            self.worker_success = True
             for idx, goal in enumerate(self.objectives):
                 dist = self.agent.check_distance(goal)
                 if dist < self.done_thresh:
@@ -133,19 +140,19 @@ class HierarchicalSimpleNav(SimpleNav):
                         print(Fore.GREEN + "objective 2 reached" + Style.RESET_ALL)
         elif self.hit_wall:
             reward[0] = -200
-            self.hcumulative_reward_info["worker_done"] = True
+            self.hcumulative_reward_info["worker"]["worker_done"] = True
         elif self.worker_steps_count > self.episode_step_limit["worker"]:
-            self.hcumulative_reward_info["worker_done"] = True
-        self.hcumulative_reward_info["reward_dist"] += reward[0]
-        self.hcumulative_reward_info["reward_obstacle"] += reward[1]
-        self.hcumulative_reward_info["reward_worker_sum"] += reward.sum()
+            self.hcumulative_reward_info["worker"]["worker_done"] = True
+        self.hcumulative_reward_info["worker"]["reward_dist"] += reward[0]
+        self.hcumulative_reward_info["worker"]["reward_obstacle"] += reward[1]
+        self.hcumulative_reward_info["worker"]["reward_worker_sum"] += reward.sum()
         if not self.worker_stratified:
             reward = reward.sum()
         return reward
 
     def _manager_reward(self):
         reward = -10
-        if self.hcumulative_reward_info["reward_subobjective"] > 0:
+        if self.worker_success:
             reward = -4
         if self.reached_objectives[0] and not self.reached_before[0]:
             reward = 2
@@ -162,6 +169,9 @@ class HierarchicalSimpleNav(SimpleNav):
         return reward
 
     def step(self, action):
+        if self.hcumulative_reward_info["worker"]["worker_done"]:
+            self._worker_reset()
+
         reward = {"worker": 0, "manager": 0}
         done = False
         self.last_action = action["worker"]
@@ -173,17 +183,15 @@ class HierarchicalSimpleNav(SimpleNav):
         reward["manager"] = self._manager_reward()
         self.steps_count += 1
 
-        if self.hcumulative_reward_info["worker_done"]:
-            self._worker_reset()
-
         if self.reached_objectives[0] and self.reached_objectives[1]:
             done = True
             reward["manager"] = 10
             print(Fore.CYAN + "objective 1 and 2 reached" + Style.RESET_ALL)
-
-        self.hcumulative_reward_info["reward_objective"] = int(
+        self.hcumulative_reward_info["manager"]["reward_objective"] = int(
             self.objective_count == 2
         )
-        self.hcumulative_reward_info["reward_manager"] += reward["manager"]
+        self.hcumulative_reward_info["manager"]["reward_manager"] += reward["manager"]
+        if self.manager_steps_count > self.episode_step_limit["manager"]:
+            done = True
 
         return self._get_obs(), reward, done, self.hcumulative_reward_info

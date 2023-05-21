@@ -306,3 +306,12 @@ register(
         "headless": True,
     },
 )
+
+register(
+    id="HierarchicalSimpleNav-v1",
+    entry_point="envs.simple_nav.hierarchical_simple_nav:HierarchicalSimpleNav",
+    kwargs={
+        "stratified": False,
+        "headless": False,
+    },
+)
