@@ -136,10 +136,10 @@ class HDDDQN:
                 manager_action = self.manager.get_action(state["manager"])
             self.manager_action_count += 1
 
-        if global_step > self.worker_epsilons.shape[0]:
-            self.worker_epsilon = self.worker_epsilons[-1]
-        else:
+        try:
             self.worker_epsilon = self.worker_epsilons[global_step]
+        except IndexError:
+            self.worker_epsilon = self.worker_epsilons[-1]
         if np.random.uniform() > self.worker_epsilon:
             worker_action = self.worker_action_space.sample()
             self.randomness_rate_worker += 1
