@@ -144,7 +144,6 @@ def main(args):
         if info["worker"]["worker_done"]:
             resample_goal = True
         action = agent.get_action(obs, global_step, resample_manager=resample_goal)
-        resample_goal = False
 
         # TRY NOT TO MODIFY: execute the action and collect the next obs
         next_obs, reward, done, info = env.step(action)
@@ -189,9 +188,13 @@ def main(args):
                 x for x in info["worker"].keys() if x.startswith("reward_")
             ]
             for key in strat_rewards:
-                log.update({f"ep_info/{key.replace('reward_', '')}": info["worker"][key]})
+                log.update(
+                    {f"ep_info/{key.replace('reward_', '')}": info["worker"][key]}
+                )
                 writer.add_scalar(
-                    f"charts/{key.replace('reward_', '')}", info["worker"][key], global_step
+                    f"charts/{key.replace('reward_', '')}",
+                    info["worker"][key],
+                    global_step,
                 )
             successes["worker"].append(info["worker"]["reward_subobjective"])
             log.update(
@@ -219,9 +222,13 @@ def main(args):
                 x for x in info["manager"].keys() if x.startswith("reward_")
             ]
             for key in strat_rewards:
-                log.update({f"ep_info/{key.replace('reward_', '')}": info["manager"][key]})
+                log.update(
+                    {f"ep_info/{key.replace('reward_', '')}": info["manager"][key]}
+                )
                 writer.add_scalar(
-                    f"charts/{key.replace('reward_', '')}", info["manager"][key], global_step
+                    f"charts/{key.replace('reward_', '')}",
+                    info["manager"][key],
+                    global_step,
                 )
             successes["manager"].append(info["manager"]["reward_objective"])
             log.update(
@@ -246,6 +253,7 @@ def main(args):
         log.update({"charts/SPS": int(global_step / (time.time() - start_time))})
         wandb.log(log, global_step)
         global_step += 1
+        resample_goal = False
 
     env.close()
     writer.close()
