@@ -19,6 +19,7 @@ class SSLGoToStrat(SSLPathPlanningEnv):
         )
 
         self.ori_weights = np.array([0.5, 0.5, 0.5])
+        self.num_rewards = 3
         self.stratified = stratified
         self.cumulative_reward_info = {
             "reward_dist": 0,
