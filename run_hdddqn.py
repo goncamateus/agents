@@ -71,17 +71,10 @@ def parse_args():
         help="determines how much prioritization is used")
     parser.add_argument("--beta", type=float, default=0.4,
         help="determines how much importance sampling is used")
-    parser.add_argument("--prior-eps", type=float, default=1e-6,
+    parser.add_argument("--prior-eps", type=float, default=1e-5,
             help="guarantees every transition can be sampled")
-    # Categorical DQN parameters
-    parser.add_argument("--v-min", type=float, default=0.0,
-        help="min value of support")
-    parser.add_argument("--v-max", type=float, default=200,
-        help="max value of support")
-    parser.add_argument("--atom-size", type=float, default=51,
-        help="the unit number of support")
     # N-step Learning
-    parser.add_argument("--num-steps", type=int, default=3,
+    parser.add_argument("--num-steps", type=int, default=1,
         help="the step number to calculate n-step td error")
     args = parser.parse_args()
     args.hierarchical = True
@@ -163,7 +156,7 @@ def main(args):
                 done,
             ],
         }
-        agent.store_transition(transition, global_step=global_step)
+        agent.store_transition(transition, manager_store=resample_goal)
 
         # TRY NOT TO MODIFY: CRUCIAL step easy to overlook
         obs = next_obs

@@ -1,8 +1,8 @@
 {
     "HalfCheetahStrat-v0":{
         "lambdas": [1.0, 0.1],
-        "r_max": [12000, 0],
-        "r_min": [0, -4000],
+        "r_max": [12000,-4000],
+        "r_min": [0, -5000],
         "reward_scaling": 20000,
         "num_rewards": 2
     },
@@ -34,6 +34,13 @@
         "lambdas": [0.5, 0.5],
         "r_max": [-300, -0],
         "r_min": [-5000, -50],
+        "num_rewards": 2
+    },
+
+    "FrozenLake11x11Strat-v0":{
+        "lambdas": [0.5, 0.5],
+        "r_max": [-263, -4],
+        "r_min": [-20962, -164],
         "num_rewards": 2
     }
 }

@@ -1,6 +1,7 @@
 import numpy as np
 from colorama import Fore, Style
 from gym.spaces import Box, Dict, Discrete
+from pyrep.const import JointMode
 
 from envs.simple_nav.simple_nav import SimpleNav
 
@@ -48,6 +49,7 @@ class HierarchicalSimpleNav(SimpleNav):
         self.worker_weights = np.array([1, 1])
         self.reached_before = [False, False]
         self.episode_step_limit = {"worker": 20, "manager": 20}
+        self.msg = "ME MMEE MS: MMSS AE: AAEE AS: AASS"
         self.hcumulative_reward_info = {
             "manager": {
                 "reward_manager": 0,
@@ -66,8 +68,11 @@ class HierarchicalSimpleNav(SimpleNav):
         self.steps_count = 0
         self.worker_steps_count = 0
         self.manager_steps_count = 0
+        self.worker_epi_count = 0
+        self.manager_epi_count = 0
 
     def reset(self):
+        self.manager_epi_count += 1
         _ = super().reset()
         self.reached_before = [False, False]
         self.steps_count = 0
@@ -83,6 +88,7 @@ class HierarchicalSimpleNav(SimpleNav):
         return self._get_obs()
 
     def _worker_reset(self):
+        self.worker_epi_count += 1
         self.hit_wall = False
         self.worker_steps_count = 0
         self.worker_success = False
@@ -134,10 +140,12 @@ class HierarchicalSimpleNav(SimpleNav):
                 if dist < self.done_thresh:
                     if idx == 0 and not self.reached_objectives[0]:
                         self.reached_objectives[0] = True
-                        print(Fore.GREEN + "objective 1 reached" + Style.RESET_ALL)
+                        self.msg = f"ME: {self.manager_epi_count}; ME: {self.manager_steps_count}; WE: {self.worker_epi_count}; WS: {self.worker_steps_count} | Reached first goal!"
+                        print(Fore.GREEN + self.msg + Style.RESET_ALL)
                     elif idx == 1 and not self.reached_objectives[1]:
                         self.reached_objectives[1] = True
-                        print(Fore.GREEN + "objective 2 reached" + Style.RESET_ALL)
+                        self.msg = f"ME: {self.manager_epi_count}; ME: {self.manager_steps_count}; WE: {self.worker_epi_count}; WS: {self.worker_steps_count} | Reached second goal!"
+                        print(Fore.GREEN + self.msg + Style.RESET_ALL)
         elif self.hit_wall:
             reward[0] = -200
             self.hcumulative_reward_info["worker"]["worker_done"] = True
@@ -170,6 +178,24 @@ class HierarchicalSimpleNav(SimpleNav):
 
     def step(self, action):
         if self.hcumulative_reward_info["worker"]["worker_done"]:
+            color = Fore.RED
+            self.msg = f"ME: {self.manager_epi_count}; ME: {self.manager_steps_count}; WE: {self.worker_epi_count}; WS: {self.worker_steps_count} | "
+            if self.worker_success:
+                color = Fore.GREEN
+                self.msg += "Worker success, reached goal indicator"
+            elif self.hit_wall:
+                self.pr.stop()
+                self.pr.start()
+                self.agent.set_joint_mode(JointMode.FORCE)
+                self.agent.set_motor_locked_at_zero_velocity(True)
+                self.agent.set_orientation(self.starting_ori)
+                random_x, random_y = np.random.uniform(-3.5, 3.5, 2)
+                self.agent.set_position([random_x, random_y, self.staring_pos[-1]])
+                self.pr.step()
+                self.msg += "Worker fail, crashed into border"
+            elif self.worker_steps_count > self.episode_step_limit["worker"]:
+                self.msg += "Worker fail, reached episode step limit"
+            print(color + self.msg + Style.RESET_ALL)
             self._worker_reset()
 
         reward = {"worker": 0, "manager": 0}
@@ -186,12 +212,14 @@ class HierarchicalSimpleNav(SimpleNav):
         if self.reached_objectives[0] and self.reached_objectives[1]:
             done = True
             reward["manager"] = 10
-            print(Fore.CYAN + "objective 1 and 2 reached" + Style.RESET_ALL)
+            self.msg = f"ME {self.manager_epi_count}; ME: {self.manager_steps_count}; WE: {self.worker_epi_count}; WS: {self.worker_steps_count} | Manager Success, both goals reached"
+            print(Fore.CYAN + self.msg + Style.RESET_ALL)
         self.hcumulative_reward_info["manager"]["reward_objective"] = int(
             self.objective_count == 2
         )
         self.hcumulative_reward_info["manager"]["reward_manager"] += reward["manager"]
         if self.manager_steps_count > self.episode_step_limit["manager"]:
             done = True
+            self.msg = f"ME {self.manager_epi_count}; ME: {self.manager_steps_count}; WE: {self.worker_epi_count}; WS: {self.worker_steps_count} | Manager fail, reached episode step limit"
 
         return self._get_obs(), reward, done, self.hcumulative_reward_info

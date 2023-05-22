@@ -88,7 +88,6 @@ def parse_args():
     args = parser.parse_args()
     args.buffer_size = int(args.num_envs * args.num_steps)
     args.n_batches = int(args.buffer_size // args.batch_size)
-    args = parser.parse_args()
     with open("dylam_hyperparameters.json", "r") as config_file:
         configs = json.load(config_file)
     configs = configs[args.gym_id]

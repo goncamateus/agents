@@ -50,6 +50,7 @@ class FrozenLakeMod(gym.Env):
 
         self.objectives = np.array([kwargs["objective_0"], kwargs["objective_1"]])
         self.objective_count = 0
+        self.last_fifty_objective_count = []
 
         self.obstacle_pos = kwargs["obstacle_pos"]
         # gaussian for static obstacle reward calculation
@@ -67,6 +68,7 @@ class FrozenLakeMod(gym.Env):
             "reward_dist": 0,
             "reward_obstacle": 0,
             "reward_objective": 0,
+            "reward_success_rate": 0,
             "Original_reward": 0,
         }
 
@@ -93,7 +95,7 @@ class FrozenLakeMod(gym.Env):
         self.reached_objectives = [False, False]
         self.last_action = None
         self.objective_count = 0
-        self.agent_pos = self.ori_agent_pos
+        self.agent_pos = np.random.choice(self.desc.shape[0] * self.desc.shape[1])
 
         self.desc = np.full((self.desc.shape[0], self.desc.shape[1]), "F", dtype="U1")
         self.desc[self.agent_pos // self.desc.shape[0]][
@@ -113,6 +115,7 @@ class FrozenLakeMod(gym.Env):
             "reward_dist": 0,
             "reward_obstacle": 0,
             "reward_objective": 0,
+            "reward_success_rate": 0,
             "Original_reward": 0,
         }
         self.hit_wall = False
@@ -231,6 +234,8 @@ class FrozenLakeMod(gym.Env):
         if self.hit_wall:
             reward[0] -= 200
             done = True
+            self.last_fifty_objective_count.append(0)
+            self.last_fifty_objective_count = self.last_fifty_objective_count[-50:]
         reward[1] = self._obstacle_reward()
         done = False
         if self.agent_pos == self.objectives[0] and not self.reached_objectives[0]:
@@ -243,12 +248,14 @@ class FrozenLakeMod(gym.Env):
             self.objective_count += 1
         if self.reached_objectives[0] and self.reached_objectives[1]:
             done = True
+            self.cumulative_reward_info["reward_objective" ] += 1
+            self.last_fifty_objective_count.append(1)
+            self.last_fifty_objective_count = self.last_fifty_objective_count[-50:]
             print(Fore.CYAN + "objective 1 and 2 reached" + Style.RESET_ALL)
-        
 
         self.cumulative_reward_info["reward_dist"] += reward[0]
         self.cumulative_reward_info["reward_obstacle"] += reward[1]
-        self.cumulative_reward_info["reward_objective"] = self.objective_count
+        self.cumulative_reward_info["reward_success_rate"] = np.mean(self.last_fifty_objective_count)
         self.cumulative_reward_info["Original_reward"] += reward.sum()
 
         if not self.stratified:

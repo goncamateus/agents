@@ -1,6 +1,9 @@
+import random
 from copy import copy
+
 import numpy as np
 import torch
+
 from methods.rainbow import RainbowDQNAgent
 
 
@@ -71,56 +74,24 @@ class HDDDQN:
 
         return all_vals
 
-    def store_worker_transition(self, transition, global_step):
+    def store_worker_transition(self, transition):
         for i in range(2):
             tran = copy(transition["worker"])
             tran[2] = transition["worker"][2][i]
             self.workers[i].transition = tran
-            # N-step transition
-            if self.workers[i].use_n_step:
-                one_step_transition = self.workers[i].memory_n.store(
-                    *self.workers[i].transition
-                )
-            # 1-step transition
-            else:
-                one_step_transition = self.workers[i].transition
-
-            # add a single step transition
-            if one_step_transition:
-                self.workers[i].memory.store(*one_step_transition)
-
-            # # PER: increase beta
-            # fraction = min(global_step / self.arguments.total_timesteps, 1.0)
-            # self.workers[i].beta = self.workers[i].beta + fraction * (
-            #     1.0 - self.workers[i].beta
-            # )
+            self.workers[i].memory.store(*self.workers[i].transition)
             self.workers[i].beta = 0.4
 
-    def store_manager_transition(self, transition, global_step):
+    def store_manager_transition(self, transition):
         if transition["manager"][1] is not None:
             self.manager.transition = transition["manager"]
-            # N-step transition
-            if self.manager.use_n_step:
-                one_step_transition = self.manager.memory_n.store(
-                    *self.manager.transition
-                )
-            # 1-step transition
-            else:
-                one_step_transition = self.manager.transition
-
-            # add a single step transition
-            if one_step_transition:
-                self.manager.memory.store(*one_step_transition)
-
-            # PER: increase beta
-            # fraction = min(global_step / self.arguments.total_timesteps, 1.0)
-            # self.manager.beta = self.manager.beta + fraction * (1.0 - self.manager.beta)
+            self.manager.memory.store(*self.manager.transition)
             self.manager.beta = 0.4
 
-    def store_transition(self, transition, global_step):
-        self.store_worker_transition(transition, global_step)
-        if self.pre_train_steps <= 0:
-            self.store_manager_transition(transition, global_step)
+    def store_transition(self, transition, manager_store=False):
+        self.store_worker_transition(transition)
+        if self.pre_train_steps <= 0 and manager_store:
+            self.store_manager_transition(transition)
 
     def get_action(
         self, state: np.ndarray, global_step: int, resample_manager=False
@@ -128,11 +99,11 @@ class HDDDQN:
         """Select an action from the input state."""
         manager_action = None
         if self.pre_train_steps > 0 and resample_manager:
-            manager_action = self.manager_action_space.sample()
+            manager_action = random.randrange(self.manager_action_space.n)
         elif resample_manager:
-            manager_action = self.manager_action_space.sample()
+            manager_action = random.randrange(self.manager_action_space.n)
             self.manager_epsilon = self.manager_epsilons[self.manager_action_count]
-            if np.random.uniform() > self.manager_epsilon:
+            if random.random() > self.manager_epsilon:
                 manager_action = self.manager.get_action(state["manager"])
             self.manager_action_count += 1
 
@@ -140,20 +111,20 @@ class HDDDQN:
             self.worker_epsilon = self.worker_epsilons[global_step]
         except IndexError:
             self.worker_epsilon = self.worker_epsilons[-1]
-        if np.random.uniform() > self.worker_epsilon:
-            worker_action = self.worker_action_space.sample()
+        if random.random() > self.worker_epsilon:
+            worker_action = random.randrange(self.worker_action_space.n)
             self.randomness_rate_worker += 1
         else:
-            values = 0
-            for i in range(2):
-                values += (
-                    self.workers[i]
-                    .dqn(torch.FloatTensor(state["worker"]).to(self.workers[i].device))
-                    .detach()
-                    .cpu()
-                    .numpy()
-                )
-            worker_action = values.argmax()
+            stacked_pred = None
+            for worker in self.workers:
+                worker.dqn.eval()
+                pred = worker.get_action(state["worker"])
+                if stacked_pred is None:
+                    stacked_pred = pred
+                else:
+                    stacked_pred = np.vstack((stacked_pred, pred))
+                worker.dqn.train()
+            worker_action = stacked_pred.argmax()  
         self.pre_train_steps -= 1
         action = {
             "manager": manager_action,
