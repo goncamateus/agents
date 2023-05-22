@@ -95,12 +95,12 @@ def parse_args():
 def main(args):
     _display = Display(visible=0, size=(1400, 900))
     _display.start()
-    exp_name = f"SAC_DyLam_{int(time.time())}_{args.gym_id}"
-    # project = args.gym_id.split("-")[0]
+    strat_name = "DyLam" if args.dylam else "drQ"
+    exp_name = f"SAC_{strat_name}_{int(time.time())}_{args.gym_id}"
     project = "Mujoco"
     if args.seed == 0:
         args.seed = int(time.time())
-    args.method = "sac_dylam"
+    args.method = f"sac_{strat_name}"
     wandb.init(
         project=project,
         name=exp_name,
