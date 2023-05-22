@@ -2,30 +2,38 @@
     "HalfCheetahStrat-v0":{
         "lambdas": [1.0, 0.1],
         "r_max": [12000, 0],
-        "r_min": [0, -4000]
+        "r_min": [0, -4000],
+        "reward_scaling": 20000,
+        "num_rewards": 2
     },
 
     "HumanoidStrat-v0":{
         "lambdas": [1.25, 5.0, 0.1],
         "r_max": [12000, 0],
-        "r_min": [0, -4000]
+        "r_min": [0, -4000],
+        "reward_scaling": 20000,
+        "num_rewards": 3
     },
 
     "SSLGoToStrat-v0":{
         "lambdas": [0.5, 0.5, 0.5],
         "r_max": [2, 0.3, 1],
-        "r_min": [-2, -0.2, 0]
+        "r_min": [-2, -0.2, 0],
+        "reward_scaling": 20000,
+        "num_rewards": 3
     },
 
     "VSSStrat-v0":{
         "lambdas": [0.6600, 0.3200, 0.0053, 0.0080],
         "r_max": [0.5, 1.0, -1.0, 1.0],
-        "r_min": [0.0, 0.0, -2.0, 0.0]
+        "r_min": [0.0, 0.0, -2.0, 0.0],
+        "num_rewards": 4
     },
     
     "SimpleNavStrat-v0":{
         "lambdas": [0.5, 0.5],
         "r_max": [-300, -0],
-        "r_min": [-5000, -50]
+        "r_min": [-5000, -50],
+        "num_rewards": 2
     }
 }

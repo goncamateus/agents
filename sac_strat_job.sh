@@ -14,5 +14,4 @@ source $HOME/.pyvenvs/rl3090/bin/activate
 
 # Run the script
 python run_sac_strat.py --cuda --gym-id $1 --total-timesteps 1000000\
-    --capture-video --num-envs 16 --track --dylam\
-    --num-rewards $2 --reward-scaling $3
+    --capture-video --num-envs 16 --track

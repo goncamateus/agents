@@ -83,13 +83,12 @@ def parse_args():
     
     # Arguments for DyLam
     parser.add_argument("--episodes-rb", type=int, default=10, help="number of episodes to calculate rb")
-    parser.add_argument("--num-rewards", type=int, default=10, help="number of rewards to lambdas")
     parser.add_argument("--rew-tau", type=float, default=0.995, help="number of rewards to lambdas")
     parser.add_argument("--dylam", type=lambda x: bool(strtobool(x)), default=False, nargs="?", const=True, help="Rather use DyLam or not")
     args = parser.parse_args()
     args.buffer_size = int(args.num_envs * args.num_steps)
     args.n_batches = int(args.buffer_size // args.batch_size)
-    with open("configs.json", "r") as config_file:
+    with open("dylam_hyperparameters.json", "r") as config_file:
         configs = json.load(config_file)
     configs = configs[args.gym_id]
     for key, value in configs.items():
