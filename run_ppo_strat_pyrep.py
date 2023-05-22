@@ -1,5 +1,6 @@
 # https://github.com/vwxyzjn/cleanrl/blob/master/cleanrl/ppo.py
 import argparse
+import json
 import os
 import random
 import time
@@ -88,7 +89,11 @@ def parse_args():
     args = parser.parse_args()
     args.buffer_size = int(args.num_envs * args.num_steps)
     args.n_batches = int(args.buffer_size // args.batch_size)
-
+    with open("configs.json", "r") as config_file:
+        configs = json.load(config_file)
+    configs = configs[args.gym_id]
+    for key, value in configs.items():
+        setattr(args, key, value)
     return args
 
 
@@ -241,10 +246,13 @@ def main(args):
         # Optimizing the policy and value network
         b_inds = np.arange(args.batch_size)
         clipfracs = []
-        lambdas = torch.ones(args.num_rewards).to(agent.device) / args.num_rewards
-        r_max = torch.Tensor([-300, -0]).to(agent.device)
-        r_min = torch.Tensor([-5000, -50]).to(agent.device)
         # DyLam
+        if args.dylam:
+            lambdas = torch.ones(args.num_rewards).to(agent.device) / args.num_rewards
+        else:
+            lambdas = torch.Tensor(args.lambdas).to(agent.device)
+        r_max = torch.Tensor(args.r_max).to(agent.device)
+        r_min = torch.Tensor(args.r_min).to(agent.device)
         rew_tau = args.rew_tau
         if agent.last_epi_rewards.can_do() and args.dylam:
             rew_mean_t = torch.Tensor(agent.last_epi_rewards.mean()).to(agent.device)

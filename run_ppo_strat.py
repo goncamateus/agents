@@ -1,5 +1,6 @@
 # https://github.com/vwxyzjn/cleanrl/blob/master/cleanrl/ppo.py
 import argparse
+import json
 import os
 import random
 import time
@@ -88,7 +89,12 @@ def parse_args():
     args = parser.parse_args()
     args.buffer_size = int(args.num_envs * args.num_steps)
     args.n_batches = int(args.buffer_size // args.batch_size)
-
+    args = parser.parse_args()
+    with open("configs.json", "r") as config_file:
+        configs = json.load(config_file)
+    configs = configs[args.gym_id]
+    for key, value in configs.items():
+        setattr(args, key, value)
     return args
 
 
@@ -212,10 +218,14 @@ def main(args):
                     for key in strat_rewards:
                         log.update({f"ep_info/{key.replace('reward_', '')}": item[key]})
                         writer.add_scalar(
-                            f"charts/{key.replace('reward_', '')}", item[key], global_step
+                            f"charts/{key.replace('reward_', '')}",
+                            item[key],
+                            global_step,
                         )
                     break
-        returns, advantages = agent.value_bootstrap(next_obs, next_done, rewards, dones, values)
+        returns, advantages = agent.value_bootstrap(
+            next_obs, next_done, rewards, dones, values
+        )
         # flatten the batch
         b_obs = obs.reshape((-1,) + envs.single_observation_space.shape)
         b_logprobs = logprobs.reshape(-1)
@@ -227,10 +237,13 @@ def main(args):
         # Optimizing the policy and value network
         b_inds = np.arange(args.batch_size)
         clipfracs = []
-        lambdas = torch.ones(args.num_rewards).to(agent.device)/args.num_rewards
-        r_max = torch.Tensor([-263, -4]).to(agent.device)
-        r_min = torch.Tensor([-20962, -164]).to(agent.device)
         # DyLam
+        if args.dylam:
+            lambdas = torch.ones(args.num_rewards).to(agent.device) / args.num_rewards
+        else:
+            lambdas = torch.Tensor(args.lambdas).to(agent.device)
+        r_max = torch.Tensor(args.r_max).to(agent.device)
+        r_min = torch.Tensor(args.r_min).to(agent.device)
         rew_tau = args.rew_tau
         if agent.last_epi_rewards.can_do() and args.dylam:
             rew_mean_t = torch.Tensor(agent.last_epi_rewards.mean()).to(agent.device)
@@ -270,7 +283,9 @@ def main(args):
         )
         for i in range(len(lambdas)):
             log.update({"lambdas/component_" + str(i): lambdas[i].item()})
-            writer.add_scalar("lambdas/component_" + str(i), lambdas[i].item(), global_step)
+            writer.add_scalar(
+                "lambdas/component_" + str(i), lambdas[i].item(), global_step
+            )
         log.update(
             {
                 "losses/value_loss": agent.optimizer.param_groups[0]["lr"],

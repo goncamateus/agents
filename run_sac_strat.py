@@ -1,5 +1,6 @@
 # https://github.com/vwxyzjn/cleanrl/blob/master/cleanrl/ppo.py
 import argparse
+import json
 import os
 import random
 import time
@@ -84,6 +85,11 @@ def parse_args():
     parser.add_argument("--rew-tau", type=float, default=0.995, help="number of rewards to lambdas")
     parser.add_argument("--dylam", type=lambda x: bool(strtobool(x)), default=False, nargs="?", const=True, help="Rather use DyLam or not")
     args = parser.parse_args()
+    with open("configs.json", "r") as config_file:
+        configs = json.load(config_file)
+    configs = configs[args.gym_id]
+    for key, value in configs.items():
+        setattr(args, key, value)
     return args
 
 
@@ -129,15 +135,15 @@ def main(args):
             )
             for i in range(args.num_envs)
         ],
-        num_rewards=args.num_rewards
+        num_rewards=args.num_rewards,
     )
 
     agent = SACStrat(
-                        args,
-                        envs.single_observation_space,
-                        envs.single_action_space,
-                        envs.envs[0].ori_weights,
-                    )
+        args,
+        envs.single_observation_space,
+        envs.single_action_space,
+        envs.envs[0].ori_weights,
+    )
     start_time = time.time()
 
     # TRY NOT TO MODIFY: training loop
@@ -147,10 +153,12 @@ def main(args):
     for global_step in range(args.total_timesteps):
         # ALGO LOGIC: put the logic for the algo here
         if global_step < args.learning_starts:
-            actions = np.array([envs.single_action_space.sample() for _ in range(args.num_envs)])
+            actions = np.array(
+                [envs.single_action_space.sample() for _ in range(args.num_envs)]
+            )
         else:
             actions = agent.get_action(obs)
-        
+
         # TRY NOT TO MODIFY: execute the action and collect the next obs
         next_obs, rewards, dones, infos = envs.step(actions)
         epi_rewards = epi_rewards + rewards
@@ -164,7 +172,7 @@ def main(args):
             if d:
                 agent.last_epi_rewards.add(epi_rewards[i])
                 epi_rewards[i] = np.zeros(args.num_rewards)
-        
+
         for item in infos:
             if "episode" in item.keys():
                 print(
@@ -185,18 +193,27 @@ def main(args):
                         f"charts/{key.replace('reward_', '')}", item[key], global_step
                     )
                 break
-        
+
         # ALGO LOGIC: training.
         if global_step > args.learning_starts:
             # DyLam
-            lambdas = torch.ones(args.num_rewards).to(agent.device)/args.num_rewards
-            r_max = torch.Tensor([1, 1, 0, 1]).to(agent.device)
-            r_min = torch.Tensor([-1, -1, -1, -1]).to(agent.device)
+            if args.dylam:
+                lambdas = (
+                    torch.ones(args.num_rewards).to(agent.device) / args.num_rewards
+                )
+            else:
+                lambdas = torch.Tensor(args.lambdas).to(agent.device)
+            r_max = torch.Tensor(args.r_max).to(agent.device)
+            r_min = torch.Tensor(args.r_min).to(agent.device)
             rew_tau = args.rew_tau
             if agent.last_epi_rewards.can_do() and args.dylam:
-                rew_mean_t = torch.Tensor(agent.last_epi_rewards.mean()).to(agent.device)
+                rew_mean_t = torch.Tensor(agent.last_epi_rewards.mean()).to(
+                    agent.device
+                )
                 if agent.last_rew_mean is not None:
-                    rew_mean_t = rew_mean_t + (agent.last_rew_mean - rew_mean_t) * rew_tau
+                    rew_mean_t = (
+                        rew_mean_t + (agent.last_rew_mean - rew_mean_t) * rew_tau
+                    )
                 dQ = torch.clamp((r_max - rew_mean_t) / (r_max - r_min), 0, 1)
                 expdQ = torch.exp(dQ) - 1
                 lambdas = expdQ / (torch.sum(expdQ, 0) + 1e-4)
@@ -204,41 +221,50 @@ def main(args):
 
             update_actor = global_step % args.policy_frequency == 0
             policy_loss, qf1_loss, qf2_loss, alpha_loss = agent.update(
-                                                                        args.batch_size,
-                                                                        lambdas,
-                                                                        update_actor
-                                                                        )
+                args.batch_size, lambdas, update_actor
+            )
 
             if global_step % args.target_network_frequency == 0:
                 agent.critic_target.sync(args.tau)
-            
+
             if global_step % 100 == 0:
                 for i in range(len(lambdas)):
                     log.update({"lambdas/component_" + str(i): lambdas[i].item()})
                     writer.add_scalar(
                         "lambdas/component_" + str(i), lambdas[i].item(), global_step
                     )
-                log.update({
-                    "losses/Value1_loss":qf1_loss.item(),
-                    "losses/Value2_loss":qf2_loss.item(),
-                    "losses/alpha": agent.alpha,
-                    "charts/SPS": int(global_step / (time.time() - start_time))
-                })
+                log.update(
+                    {
+                        "losses/Value1_loss": qf1_loss.item(),
+                        "losses/Value2_loss": qf2_loss.item(),
+                        "losses/alpha": agent.alpha,
+                        "charts/SPS": int(global_step / (time.time() - start_time)),
+                    }
+                )
 
                 writer.add_scalar("losses/Value1_loss", qf1_loss.item(), global_step)
                 writer.add_scalar("losses/Value2_loss", qf2_loss.item(), global_step)
                 if update_actor:
-                    log.update({'losses/policy_loss': policy_loss.item()})
-                    writer.add_scalar("losses/policy_loss", policy_loss.item(), global_step)
+                    log.update({"losses/policy_loss": policy_loss.item()})
+                    writer.add_scalar(
+                        "losses/policy_loss", policy_loss.item(), global_step
+                    )
                 writer.add_scalar("losses/alpha", agent.alpha, global_step)
-                writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
+                writer.add_scalar(
+                    "charts/SPS",
+                    int(global_step / (time.time() - start_time)),
+                    global_step,
+                )
                 if args.autotune:
-                    log.update({'losses/alpha_loss': alpha_loss.item()})
-                    writer.add_scalar("losses/alpha_loss", alpha_loss.item(), global_step)
+                    log.update({"losses/alpha_loss": alpha_loss.item()})
+                    writer.add_scalar(
+                        "losses/alpha_loss", alpha_loss.item(), global_step
+                    )
         wandb.log(log, global_step)
 
     envs.close()
-    writer.close()        
+    writer.close()
+
 
 if __name__ == "__main__":
     args = parse_args()
