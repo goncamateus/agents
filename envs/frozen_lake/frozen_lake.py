@@ -42,7 +42,7 @@ class FrozenLakeMod(gym.Env):
         self.observation_space = Box(
             low=0,
             high=self.desc.shape[0],
-            shape=(12,),
+            shape=(10,),
             dtype=np.int32,
         )
         self.agent_pos = kwargs["agent_pos"]
@@ -108,11 +108,6 @@ class FrozenLakeMod(gym.Env):
         else:
             self.last_dist_objective = -dist2
             self.man_objective = self.objectives[1]
-        man_objective_x, man_objective_y = (
-            self.agent_pos % self.desc.shape[0],
-            self.agent_pos // self.desc.shape[1],
-        )
-        obs = self.get_obs(np.array([man_objective_x, man_objective_y]))
         self.desc = np.full((self.desc.shape[0], self.desc.shape[1]), "F", dtype="U1")
         self.desc[self.agent_pos // self.desc.shape[0]][
             self.agent_pos % self.desc.shape[1]
@@ -135,7 +130,7 @@ class FrozenLakeMod(gym.Env):
             "Original_reward": 0,
         }
         self.hit_wall = False
-        return obs
+        return self._get_obs()
 
     def min_max_norm(self, val, min, max):
         return (val - min) / (max - min)
@@ -285,14 +280,10 @@ class FrozenLakeMod(gym.Env):
             self.last_fifty_objective_count
         )
         self.cumulative_reward_info["Original_reward"] += reward.sum()
-        man_objective_x, man_objective_y = (
-            self.agent_pos % self.desc.shape[0],
-            self.agent_pos // self.desc.shape[1],
-        )
 
         if not self.stratified:
             reward = (reward * self.ori_weights).sum()
-        return self.get_obs(np.array([man_objective_x, man_objective_y])), reward, done, self.cumulative_reward_info
+        return self._get_obs(), reward, done, self.cumulative_reward_info
 
     def render(self, render_mode):
         if render_mode == "ansi":

@@ -79,6 +79,9 @@ class SimpleNav(gym.Env):
         self.done_thresh = 0.1
 
         self.reached_objectives = [False, False]
+        self.steps_to_reach = 20
+        self.last_dist_objective = 0
+        self.man_objective = self.objectives[0]
 
         self.cumulative_reward_info = {
             "reward_dist": 0,
@@ -104,6 +107,15 @@ class SimpleNav(gym.Env):
         self.obstacle_pos = self.obstacle.get_position()[:2]
         self.objectives = np.array([self.left_goal, self.right_goal])
 
+        dist1 = self._dist_reward(objective_pos=self.objectives[0])
+        dist2 = self._dist_reward(objective_pos=self.objectives[1])
+        if dist1 < dist2:
+            self.last_dist_objective = -dist1
+            self.man_objective = self.objectives[0]
+        else:
+            self.last_dist_objective = -dist2
+            self.man_objective = self.objectives[1]
+
         self.cumulative_reward_info = {
             "reward_dist": 0,
             "reward_obstacle": 0,
@@ -111,6 +123,7 @@ class SimpleNav(gym.Env):
             "Original_reward": 0,
         }
         self.hit_wall = False
+        self.steps_to_reach = 20
         return self._get_obs()
 
     def _do_action(self, action):
@@ -190,38 +203,54 @@ class SimpleNav(gym.Env):
         return -obstacle_punishment
 
     def step(self, action):
+        done = False
+        self.last_action = action
         self._do_action(action)
+        self.steps_to_reach -= 1
 
         reward = np.zeros(self.num_rewards)
-        reward[0] = -10
-        reward[0] -= (1 - int(self.reached_objectives[0])) * self._dist_reward(
-            objective=self.left_goal
-        )
-        reward[0] -= (1 - int(self.reached_objectives[1])) * self._dist_reward(
-            objective=self.right_goal
-        )
-        if self.hit_wall:
+        dist = self._dist_reward(self.man_objective)
+        reward[0] += self.last_dist_objective - dist
+        self.last_dist_objective = -dist
+        reward[1] = self._obstacle_reward()
+        if self.hit_wall or self.steps_to_reach < 0:
             reward[0] -= 200
             done = True
-        reward[1] = self._obstacle_reward()
-        done = False
-        dist_to_obj1 = self._dist_reward(self.left_goal)
-        dist_to_obj2 = self._dist_reward(self.right_goal)
-        if dist_to_obj1 < self.done_thresh and not self.reached_objectives[0]:
-            print(Fore.GREEN + "objective 1 reached" + Style.RESET_ALL)
+            self.last_fifty_objective_count.append(0)
+            self.last_fifty_objective_count = self.last_fifty_objective_count[-50:]
+        elif dist == 0:
+            self.steps_to_reach = 20
+            objs = np.array(
+                [
+                    self.objectives[0] == self.man_objective,
+                    self.objectives[1] == self.man_objective,
+                ]
+            )
+            which_objective = objs.argmax()
+            next_objective = objs.argmin()
+            self.man_objective = self.objectives[next_objective]
+            self.last_dist_objective = -self._dist_reward(
+                objective_pos=self.man_objective
+            )
+            self.reached_objectives[which_objective] = True
+            print(
+                Fore.GREEN
+                + f"objective {which_objective + 1} reached"
+                + Style.RESET_ALL
+            )
             self.objective_count += 1
-            self.reached_objectives[0] = True
-        elif dist_to_obj2 < self.done_thresh and not self.reached_objectives[1]:
-            self.reached_objectives[1] = True
-            print(Fore.GREEN + "objective 2 reached" + Style.RESET_ALL)
-            self.objective_count += 1
-        if self.reached_objectives[0] and self.reached_objectives[1]:
+        if self.objective_count == 2:
             done = True
+            self.cumulative_reward_info["reward_objective"] += 1
+            self.last_fifty_objective_count.append(1)
+            self.last_fifty_objective_count = self.last_fifty_objective_count[-50:]
             print(Fore.CYAN + "objective 1 and 2 reached" + Style.RESET_ALL)
 
         self.cumulative_reward_info["reward_dist"] += reward[0]
         self.cumulative_reward_info["reward_obstacle"] += reward[1]
-        self.cumulative_reward_info["reward_objective"] = self.objective_count
+        self.cumulative_reward_info["reward_success_rate"] = np.mean(
+            self.last_fifty_objective_count
+        )
         self.cumulative_reward_info["Original_reward"] += reward.sum()
 
         if not self.stratified:

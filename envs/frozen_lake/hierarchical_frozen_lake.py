@@ -81,12 +81,12 @@ class HierarchicalFrozenLakeMod(FrozenLakeMod):
         return self._get_obs()
 
     def _get_obs(self):
-        manager_obs = super()._get_obs()
         manager_target_x, manager_target_y = (
             self.manager_last_action % self.desc.shape[0],
             self.manager_last_action // self.desc.shape[1],
         )
-        worker_obs = np.concatenate([manager_obs, (manager_target_x, manager_target_y)])
+        worker_obs = self.get_obs(np.array([manager_target_x, manager_target_y]))
+        manager_obs = worker_obs[:-2]
         observation = {"worker": worker_obs, "manager": manager_obs}
         return observation
 
