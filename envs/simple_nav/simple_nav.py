@@ -107,8 +107,8 @@ class SimpleNav(gym.Env):
         self.obstacle_pos = self.obstacle.get_position()[:2]
         self.objectives = np.array([self.left_goal, self.right_goal])
 
-        dist1 = self._dist_reward(objective_pos=self.objectives[0])
-        dist2 = self._dist_reward(objective_pos=self.objectives[1])
+        dist1 = self._dist_reward(objective=self.objectives[0])
+        dist2 = self._dist_reward(objective=self.objectives[1])
         if dist1 < dist2:
             self.last_dist_objective = -dist1
             self.man_objective = self.objectives[0]
@@ -230,7 +230,7 @@ class SimpleNav(gym.Env):
             next_objective = objs.argmin()
             self.man_objective = self.objectives[next_objective]
             self.last_dist_objective = -self._dist_reward(
-                objective_pos=self.man_objective
+                objective=self.man_objective
             )
             self.reached_objectives[which_objective] = True
             print(
