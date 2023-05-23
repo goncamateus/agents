@@ -42,7 +42,7 @@ class FrozenLakeMod(gym.Env):
         self.observation_space = Box(
             low=0,
             high=self.desc.shape[0],
-            shape=(10,),
+            shape=(12,),
             dtype=np.int32,
         )
         self.agent_pos = kwargs["agent_pos"]
@@ -61,6 +61,7 @@ class FrozenLakeMod(gym.Env):
         self.obstacle_gauss_yvar = 0.2
 
         self.max_dist = np.sqrt(self.desc.shape[0] ** 2 + self.desc.shape[1] ** 2)
+        self.last_dist_objective = self.max_dist
 
         self.reached_objectives = [False, False]
 
@@ -90,13 +91,28 @@ class FrozenLakeMod(gym.Env):
         self.elf_images = None
         self.goal_img = None
         self.start_img = None
+        self.man_objective = self.objectives[0]
+        self.steps_to_reach = 20
 
     def reset(self):
         self.reached_objectives = [False, False]
         self.last_action = None
         self.objective_count = 0
+        self.steps_to_reach = 20
         self.agent_pos = np.random.choice(self.desc.shape[0] * self.desc.shape[1])
-
+        dist1 = self._dist_reward(objective_pos=self.objectives[0])
+        dist2 = self._dist_reward(objective_pos=self.objectives[1])
+        if dist1 < dist2:
+            self.last_dist_objective = -dist1
+            self.man_objective = self.objectives[0]
+        else:
+            self.last_dist_objective = -dist2
+            self.man_objective = self.objectives[1]
+        man_objective_x, man_objective_y = (
+            self.agent_pos % self.desc.shape[0],
+            self.agent_pos // self.desc.shape[1],
+        )
+        obs = self.get_obs(np.array([man_objective_x, man_objective_y]))
         self.desc = np.full((self.desc.shape[0], self.desc.shape[1]), "F", dtype="U1")
         self.desc[self.agent_pos // self.desc.shape[0]][
             self.agent_pos % self.desc.shape[1]
@@ -119,7 +135,7 @@ class FrozenLakeMod(gym.Env):
             "Original_reward": 0,
         }
         self.hit_wall = False
-        return self._get_obs()
+        return obs
 
     def min_max_norm(self, val, min, max):
         return (val - min) / (max - min)
@@ -183,6 +199,11 @@ class FrozenLakeMod(gym.Env):
 
         if self.agent_pos == self.obstacle_pos:
             self.agent_pos = pos_before
+            
+    def get_obs(self, cat_vec):
+        obs = self._get_obs()
+        obs = np.concatenate((obs, cat_vec))
+        return obs
 
     def _get_obs(self):
         agent_x, agent_y = (
@@ -220,47 +241,58 @@ class FrozenLakeMod(gym.Env):
         )
 
     def step(self, action):
+        done = False
         self.last_action = action
         self._do_action(action)
+        self.steps_to_reach -= 1
 
         reward = np.zeros(self.num_rewards)
-        reward[0] = -10
-        reward[0] -= (1 - int(self.reached_objectives[0])) * self._dist_reward(
-            objective_pos=self.objectives[0]
-        )
-        reward[0] -= (1 - int(self.reached_objectives[1])) * self._dist_reward(
-            objective_pos=self.objectives[1]
-        )
-        if self.hit_wall:
+        dist = self._dist_reward(self.man_objective)
+        reward[0] += self.last_dist_objective - dist
+        self.last_dist_objective = -dist
+        reward[1] = self._obstacle_reward()
+        if self.hit_wall or self.steps_to_reach < 0:
             reward[0] -= 200
             done = True
             self.last_fifty_objective_count.append(0)
             self.last_fifty_objective_count = self.last_fifty_objective_count[-50:]
-        reward[1] = self._obstacle_reward()
-        done = False
-        if self.agent_pos == self.objectives[0] and not self.reached_objectives[0]:
-            print(Fore.GREEN + "objective 1 reached" + Style.RESET_ALL)
+        elif dist == 0:
+            self.steps_to_reach = 20
+            objs = self.objectives == self.man_objective
+            which_objective = objs.argmax()
+            next_objective = objs.argmin()
+            self.man_objective = self.objectives[next_objective]
+            self.last_dist_objective = -self._dist_reward(
+                objective_pos=self.man_objective
+            )
+            self.reached_objectives[which_objective] = True
+            print(
+                Fore.GREEN
+                + f"objective {which_objective + 1} reached"
+                + Style.RESET_ALL
+            )
             self.objective_count += 1
-            self.reached_objectives[0] = True
-        elif self.agent_pos == self.objectives[1] and not self.reached_objectives[1]:
-            self.reached_objectives[1] = True
-            print(Fore.GREEN + "objective 2 reached" + Style.RESET_ALL)
-            self.objective_count += 1
-        if self.reached_objectives[0] and self.reached_objectives[1]:
+        if self.objective_count == 2:
             done = True
-            self.cumulative_reward_info["reward_objective" ] += 1
+            self.cumulative_reward_info["reward_objective"] += 1
             self.last_fifty_objective_count.append(1)
             self.last_fifty_objective_count = self.last_fifty_objective_count[-50:]
             print(Fore.CYAN + "objective 1 and 2 reached" + Style.RESET_ALL)
 
         self.cumulative_reward_info["reward_dist"] += reward[0]
         self.cumulative_reward_info["reward_obstacle"] += reward[1]
-        self.cumulative_reward_info["reward_success_rate"] = np.mean(self.last_fifty_objective_count)
+        self.cumulative_reward_info["reward_success_rate"] = np.mean(
+            self.last_fifty_objective_count
+        )
         self.cumulative_reward_info["Original_reward"] += reward.sum()
+        man_objective_x, man_objective_y = (
+            self.agent_pos % self.desc.shape[0],
+            self.agent_pos // self.desc.shape[1],
+        )
 
         if not self.stratified:
             reward = (reward * self.ori_weights).sum()
-        return self._get_obs(), reward, done, self.cumulative_reward_info
+        return self.get_obs(np.array([man_objective_x, man_objective_y])), reward, done, self.cumulative_reward_info
 
     def render(self, render_mode):
         if render_mode == "ansi":

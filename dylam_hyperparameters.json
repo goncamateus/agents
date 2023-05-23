@@ -39,8 +39,8 @@
 
     "FrozenLake11x11Strat-v0":{
         "lambdas": [0.5, 0.5],
-        "r_max": [-263, -4],
-        "r_min": [-20962, -164],
+        "r_max": [-80, -2],
+        "r_min": [-400, -40],
         "num_rewards": 2
     }
 }
