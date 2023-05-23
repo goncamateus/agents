@@ -111,10 +111,10 @@ class SimpleNav(gym.Env):
         dist1 = self._dist_reward(objective=self.objectives[0])
         dist2 = self._dist_reward(objective=self.objectives[1])
         if dist1 < dist2:
-            self.last_dist_objective = -dist1
+            self.last_dist_objective = dist1
             self.man_objective = self.objectives[0]
         else:
-            self.last_dist_objective = -dist2
+            self.last_dist_objective = dist2
             self.man_objective = self.objectives[1]
 
         self.cumulative_reward_info = {
@@ -212,13 +212,21 @@ class SimpleNav(gym.Env):
         reward = np.zeros(self.num_rewards)
         dist = self._dist_reward(self.man_objective)
         reward[0] += self.last_dist_objective - dist
-        self.last_dist_objective = -dist
+        self.last_dist_objective = dist
         reward[1] = self._obstacle_reward()
         if self.hit_wall or self.steps_to_reach < 0:
             reward[0] -= 200
             done = True
             self.last_fifty_objective_count.append(0)
             self.last_fifty_objective_count = self.last_fifty_objective_count[-50:]
+            print(
+                Fore.RED
+                + f"Fail, reached episode step limit or hit wall"
+                + Style.RESET_ALL
+            )
+            self.cumulative_reward_info["reward_success_rate"] = np.mean(
+                self.last_fifty_objective_count
+            )
         elif dist == 0:
             self.steps_to_reach = 20
             objs = np.array(
@@ -230,9 +238,7 @@ class SimpleNav(gym.Env):
             which_objective = objs.argmax()
             next_objective = objs.argmin()
             self.man_objective = self.objectives[next_objective]
-            self.last_dist_objective = -self._dist_reward(
-                objective=self.man_objective
-            )
+            self.last_dist_objective = self._dist_reward(objective=self.man_objective)
             self.reached_objectives[which_objective] = True
             print(
                 Fore.GREEN
@@ -245,13 +251,13 @@ class SimpleNav(gym.Env):
             self.cumulative_reward_info["reward_objective"] += 1
             self.last_fifty_objective_count.append(1)
             self.last_fifty_objective_count = self.last_fifty_objective_count[-50:]
+            self.cumulative_reward_info["reward_success_rate"] = np.mean(
+                self.last_fifty_objective_count
+            )
             print(Fore.CYAN + "objective 1 and 2 reached" + Style.RESET_ALL)
 
         self.cumulative_reward_info["reward_dist"] += reward[0]
         self.cumulative_reward_info["reward_obstacle"] += reward[1]
-        self.cumulative_reward_info["reward_success_rate"] = np.mean(
-            self.last_fifty_objective_count
-        )
         self.cumulative_reward_info["Original_reward"] += reward.sum()
 
         if not self.stratified:

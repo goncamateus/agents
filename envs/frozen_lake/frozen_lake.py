@@ -103,10 +103,10 @@ class FrozenLakeMod(gym.Env):
         dist1 = self._dist_reward(objective_pos=self.objectives[0])
         dist2 = self._dist_reward(objective_pos=self.objectives[1])
         if dist1 < dist2:
-            self.last_dist_objective = -dist1
+            self.last_dist_objective = dist1
             self.man_objective = self.objectives[0]
         else:
-            self.last_dist_objective = -dist2
+            self.last_dist_objective = dist2
             self.man_objective = self.objectives[1]
         self.desc = np.full((self.desc.shape[0], self.desc.shape[1]), "F", dtype="U1")
         self.desc[self.agent_pos // self.desc.shape[0]][
@@ -194,7 +194,7 @@ class FrozenLakeMod(gym.Env):
 
         if self.agent_pos == self.obstacle_pos:
             self.agent_pos = pos_before
-            
+
     def get_obs(self, cat_vec):
         obs = self._get_obs()
         obs = np.concatenate((obs, cat_vec))
@@ -244,7 +244,7 @@ class FrozenLakeMod(gym.Env):
         reward = np.zeros(self.num_rewards)
         dist = self._dist_reward(self.man_objective)
         reward[0] += self.last_dist_objective - dist
-        self.last_dist_objective = -dist
+        self.last_dist_objective = dist
         reward[1] = self._obstacle_reward()
         if self.hit_wall or self.steps_to_reach < 0:
             reward[0] -= 200
@@ -257,7 +257,7 @@ class FrozenLakeMod(gym.Env):
             which_objective = objs.argmax()
             next_objective = objs.argmin()
             self.man_objective = self.objectives[next_objective]
-            self.last_dist_objective = -self._dist_reward(
+            self.last_dist_objective = self._dist_reward(
                 objective_pos=self.man_objective
             )
             self.reached_objectives[which_objective] = True
