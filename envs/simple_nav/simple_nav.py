@@ -82,6 +82,7 @@ class SimpleNav(gym.Env):
         self.steps_to_reach = 20
         self.last_dist_objective = 0
         self.man_objective = self.objectives[0]
+        self.last_fifty_objective_count = []
 
         self.cumulative_reward_info = {
             "reward_dist": 0,
