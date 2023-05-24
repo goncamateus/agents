@@ -9,18 +9,18 @@
 
     "HumanoidStrat-v0":{
         "lambdas": [1.25, 5.0, 0.1],
-        "r_max": [12000, 0],
-        "r_min": [0, -4000],
-        "reward_scaling": 20000,
-        "num_rewards": 3
+        "r_max": [2500, 1000, 0],
+        "r_min": [0, 0, -1500],
+        "num_rewards": 3,
+        "reward_scaling": 20000
     },
 
     "SSLGoToStrat-v0":{
         "lambdas": [0.5, 0.5, 0.5],
         "r_max": [2, 0.3, 1],
         "r_min": [-2, -0.2, 0],
-        "reward_scaling": 20000,
-        "num_rewards": 3
+        "num_rewards": 3,
+        "episodes_rb": 100
     },
 
     "VSSStrat-v0":{

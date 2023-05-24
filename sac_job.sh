@@ -5,6 +5,9 @@
 #SBATCH -c 32
 #SBATCH -o sac_agent.log
 #SBATCH --gpus=1
+#SBATCH -p short
+#SBATCH --mail-type=FAIL,END,ARRAY_TASKS
+#SBATCH --mail-user=mgm4@cin.ufpe.br
 
 # Load modules and activate python environment
 module load Python3.10 Xvfb freeglut glew MuJoCo
