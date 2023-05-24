@@ -3,8 +3,8 @@
         "lambdas": [1.0, 0.1],
         "r_max": [12000,-4000],
         "r_min": [0, -5000],
-        "reward_scaling": 20000,
-        "num_rewards": 2
+        "num_rewards": 2,
+        "episodes_rb": 50
     },
 
     "HumanoidStrat-v0":{
