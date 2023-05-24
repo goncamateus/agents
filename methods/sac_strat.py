@@ -251,17 +251,14 @@ class SACStrat(nn.Module):
         # Two Q-functions to mitigate
         # positive bias in the policy improvement step
         qf1, qf2 = self.critic(state_batch, action_batch)
-
-        # qf1_loss = 0
-        # qf2_loss = 0
-        # for i in range(self.num_rewards):
-        #     # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
-        #     qf1_loss += F.mse_loss(qf1[:, i], next_q_value[:, i])
-        #     # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
-        #     qf2_loss +=  F.mse_loss(qf2[:, i], next_q_value[:, i])
-        qf1_loss = F.mse_loss(qf1, next_q_value)
-
-        qf2_loss = F.mse_loss(qf2, next_q_value)
+        
+        qf1_loss = 0
+        qf2_loss = 0
+        for i in range(self.num_rewards):
+            # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
+            qf1_loss += F.mse_loss(qf1[:, i], next_q_value[:, i])
+            # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
+            qf2_loss +=  F.mse_loss(qf2[:, i], next_q_value[:, i])
 
         # Minimize the loss between two Q-functions
         qf_loss = qf1_loss + qf2_loss
