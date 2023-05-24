@@ -115,7 +115,11 @@ class LunarLanderStratV1(LunarLander):
                 "reward_Goal": 0,
                 "Original_reward": 0,
             }
-        return state, strat_reward, done, info
+        if self.stratified:
+            reward = strat_reward
+        else:
+            reward = (strat_reward * self.ori_weights).sum()
+        return state, reward, done, info
 
 
 class LunarLanderContinuousStratV1(LunarLanderStratV1):

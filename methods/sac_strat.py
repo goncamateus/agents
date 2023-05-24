@@ -152,7 +152,6 @@ class SACStrat(nn.Module):
         args,
         observation_space,
         action_space,
-        original_weights,
         log_sig_min=-5,
         log_sig_max=2,
         hidden_dim=256,
@@ -209,7 +208,6 @@ class SACStrat(nn.Module):
         self.replay_buffer = ReplayBuffer(args.buffer_size, self.device)
 
         # DyLam
-        self.original_weights = torch.Tensor(original_weights).to(self.device)
         self.last_epi_rewards = StratLastRewards(args.episodes_rb, self.num_rewards)
         self.last_rew_mean = None
         self.to(self.device)
@@ -249,13 +247,10 @@ class SACStrat(nn.Module):
             )
             min_qf_next_target[done_batch] = 0.0
             next_q_value = reward_batch + self.gamma * min_qf_next_target
-            next_q_value = next_q_value.sum(1)
         
         # Two Q-functions to mitigate
         # positive bias in the policy improvement step
         qf1, qf2 = self.critic(state_batch, action_batch)
-        qf1 = qf1.sum(1)
-        qf2 = qf2.sum(1)
 
         # qf1_loss = 0
         # qf2_loss = 0

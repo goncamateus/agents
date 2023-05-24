@@ -81,7 +81,7 @@ def parse_args():
     # Arguments for DyLam
     parser.add_argument("--reward-scaling", type=float, default=1., help="reward scaling factor")
     parser.add_argument("--episodes-rb", type=int, default=10, help="number of episodes to calculate rb")
-    parser.add_argument("--rew-tau", type=float, default=0.995, help="number of rewards to lambdas")
+    parser.add_argument("--rew-tau", type=float, default=0.995, help="dylam tau")
     parser.add_argument("--dylam", type=lambda x: bool(strtobool(x)), default=False, nargs="?", const=True, help="Rather use DyLam or not")
     args = parser.parse_args()
     with open("dylam_hyperparameters.json", "r") as config_file:
@@ -141,7 +141,6 @@ def main(args):
         args,
         envs.single_observation_space,
         envs.single_action_space,
-        envs.envs[0].ori_weights,
     )
     start_time = time.time()
 
