@@ -76,7 +76,7 @@ def main(args):
     exp_name = f"DDPG_{int(time.time())}_{args.gym_id}"
     print(vars(args))
     wandb.init(
-        project="Mujoco",
+        project = "DyLam",
         name=exp_name,
         entity="goncamateus",
         sync_tensorboard=True,

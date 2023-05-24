@@ -102,7 +102,7 @@ def main(args):
     strat_name = "DyLam" if args.dylam else "drQ"
     exp_name = f"PPO_{strat_name}_{int(time.time())}_{args.gym_id}"
     # project = args.gym_id.split("-")[0]
-    project = "Mujoco"
+    project = "DyLam"
     if args.seed == 0:
         args.seed = int(time.time())
     args.method = f"ppo_{strat_name}"

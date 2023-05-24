@@ -101,7 +101,7 @@ def main(args):
     _display.start()
     exp_name = f"PPO_DyLam_{int(time.time())}_{args.gym_id}"
     # project = args.gym_id.split("-")[0]
-    project = "Mujoco"
+    project = "DyLam"
     if args.seed == 0:
         args.seed = int(time.time())
     args.method = "ppo_dylam"
