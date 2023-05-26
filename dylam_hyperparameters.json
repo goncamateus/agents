@@ -4,7 +4,9 @@
         "r_max": [12000,-4000],
         "r_min": [0, -5000],
         "num_rewards": 2,
-        "num_envs": 16
+        "num_envs": 16,
+        "reward_scaling": 20,
+        "episodes_rb": 50
     },
 
     "HumanoidStrat-v0":{
