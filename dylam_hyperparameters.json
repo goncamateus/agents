@@ -4,23 +4,26 @@
         "r_max": [12000,-4000],
         "r_min": [0, -5000],
         "num_rewards": 2,
-        "episodes_rb": 50
+        "episodes_rb": 50,
+        "num_envs": 16
     },
 
     "HumanoidStrat-v0":{
         "lambdas": [1.25, 5.0, 0.1],
         "r_max": [2500, 1000, 0],
-        "r_min": [0, 0, -1500],
+        "r_min": [0, 0, -1000],
         "num_rewards": 3,
-        "reward_scaling": 20000,
-        "num_envs": 1
+        "num_envs": 16,
+        "reward_scaling": 20000
     },
 
     "SSLGoToStrat-v0":{
         "lambdas": [0.5, 0.5, 0.5],
         "r_max": [2, 0.3, 1],
         "r_min": [-2, -0.2, 0],
-        "num_rewards": 3
+        "num_rewards": 3,
+        "num_envs": 16,
+        "reward_scaling": 20000
     },
 
     "FrozenLake11x11Strat-v0":{
