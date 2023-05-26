@@ -4,7 +4,6 @@
         "r_max": [12000,-4000],
         "r_min": [0, -5000],
         "num_rewards": 2,
-        "episodes_rb": 50,
         "num_envs": 16
     },
 
