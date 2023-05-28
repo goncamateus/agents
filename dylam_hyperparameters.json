@@ -32,5 +32,20 @@
         "r_max": [20, -2],
         "r_min": [-200, -25],
         "num_rewards": 2
+    },
+
+    "LunarLanderStrat-v2":{
+        "lambdas": [1, 1, 1, 1],
+        "r_max": [100, 200, -200, -200],
+        "r_min": [-100, -200, -500, -500],
+        "num_rewards": 4
+    },
+
+    "LunarLanderContinuousStrat-v2":{
+        "lambdas": [1, 1, 1, 1],
+        "r_max": [100, 200, -200, -200],
+        "r_min": [-100, -200, -500, -500],
+        "num_rewards": 4,
+        "reward_scaling": 2000
     }
 }
