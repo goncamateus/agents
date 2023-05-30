@@ -200,5 +200,4 @@ class LunarLanderStratV2(
 
 
 class LunarLanderContinuousStratV2(LunarLanderStratV2):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    continuous = True

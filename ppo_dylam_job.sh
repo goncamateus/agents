@@ -11,9 +11,8 @@
 
 # Load modules and activate python environment
 module load Python3.10 Xvfb freeglut glew MuJoCo
-source $HOME/.pyvenvs/rl3090/bin/activate
+source $HOME/.pyvenvs/rl/bin/activate
 
 # Run the script
 cd $HOME/doc/rl/agents
-python run_ppo_strat.py --cuda --gym-id $1 --total-timesteps 1000000 \
-    --capture-video --num-envs 16 --track --video-freq 10  --dylam
+python run_ppo_strat.py --cuda --gym-id $1 --total-timesteps 1000000 --num-envs 16 --track  --dylam

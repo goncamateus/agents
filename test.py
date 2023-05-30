@@ -5,7 +5,7 @@ import envs
 
 
 def main():
-    env = gym.make("HierarchicalSimpleNav-v0")
+    env = gym.make("LunarLanderContinuousOri-v2")
     env.reset()
     for step in range(10000):
         # env.render()

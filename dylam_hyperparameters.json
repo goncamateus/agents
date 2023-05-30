@@ -24,7 +24,8 @@
         "r_min": [-2, -0.2, 0],
         "num_rewards": 3,
         "num_envs": 16,
-        "reward_scaling": 20000
+        "reward_scaling": 20000,
+        "total_timesteps": 300000
     },
 
     "FrozenLake11x11Strat-v0":{

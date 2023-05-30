@@ -11,9 +11,9 @@
 
 # Load modules and activate python environment
 module load Python3.10 Xvfb freeglut glew MuJoCo
-source $HOME/.pyvenvs/rl3090/bin/activate
+source $HOME/.pyvenvs/rl/bin/activate
 
 
 # Run the script
-python run_ppo.py --cuda --gym-id $1 --total-timesteps 1000000 \
+xvfb-run -a python run_ppo.py --cuda --gym-id $1 --total-timesteps 1000000 \
     --capture-video --num-envs 16 --track --video-freq 10

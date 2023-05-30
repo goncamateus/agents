@@ -11,7 +11,7 @@
 
 # Load modules and activate python environment
 module load Python3.10 Xvfb freeglut glew MuJoCo
-source $HOME/.pyvenvs/rl3090/bin/activate
+source $HOME/.pyvenvs/rl/bin/activate
 
 
 # Run the script

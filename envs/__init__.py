@@ -79,7 +79,6 @@ register(
 register(
     id="LunarLanderContinuousStrat-v2",
     entry_point="envs.lunar_lander_strat_v2:LunarLanderContinuousStratV2",
-    kwargs={"continuous": True},
     max_episode_steps=1000,
     reward_threshold=200,
 )
@@ -87,7 +86,7 @@ register(
 register(
     id="LunarLanderContinuousOri-v2",
     entry_point="envs.lunar_lander_strat_v2:LunarLanderContinuousStratV2",
-    kwargs={"continuous": True, "stratified": False},
+    kwargs={ "stratified": False},
     max_episode_steps=1000,
     reward_threshold=200,
 )

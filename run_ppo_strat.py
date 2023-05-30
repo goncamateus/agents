@@ -111,7 +111,7 @@ def main(args):
         name=exp_name,
         entity="goncamateus",
         config=vars(args),
-        monitor_gym=True,
+        monitor_gym=False,
         mode=None if args.track else "disabled",
         save_code=True,
     )
