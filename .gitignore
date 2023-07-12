@@ -5,3 +5,4 @@ saves/
 wandb/
 runs/
 *log*
+*.csv
