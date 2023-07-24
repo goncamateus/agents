@@ -1,12 +1,12 @@
 {
     "HalfCheetahStrat-v0":{
         "lambdas": [1.0, 0.1],
-        "r_max": [12000,-4000],
+        "r_max": [12000, 0],
         "r_min": [0, -5000],
         "num_rewards": 2,
         "num_envs": 16,
         "reward_scaling": 20,
-        "episodes_rb": 50
+        "rew_tau": 0.9999
     },
 
     "HumanoidStrat-v0":{
@@ -15,7 +15,8 @@
         "r_min": [0, 0, -1000],
         "num_rewards": 3,
         "num_envs": 16,
-        "reward_scaling": 20000
+        "reward_scaling": 20000,
+        "rew_tau": 0.9999
     },
 
     "SSLGoToStrat-v0":{
@@ -25,7 +26,8 @@
         "num_rewards": 3,
         "num_envs": 16,
         "reward_scaling": 20000,
-        "total_timesteps": 300000
+        "total_timesteps": 300000,
+        "rew_tau": 0.9999
     },
 
     "FrozenLake11x11Strat-v0":{
@@ -44,9 +46,10 @@
 
     "LunarLanderContinuousStrat-v2":{
         "lambdas": [1, 1, 1, 1],
-        "r_max": [100, 200, -200, -200],
+        "r_max": [100, 200, -0, -0],
         "r_min": [-100, -200, -500, -500],
         "num_rewards": 4,
-        "reward_scaling": 2000
+        "reward_scaling": 2000,
+        "rew_tau": 0.9999
     }
 }
