@@ -246,6 +246,9 @@ class FrozenLakeMod(gym.Env):
         reward[0] += self.last_dist_objective - dist
         self.last_dist_objective = dist
         reward[1] = self._obstacle_reward()
+        objs = self.objectives == self.man_objective
+        actual_objective = objs.argmax()
+        next_objective = objs.argmin()
         if self.hit_wall or self.steps_to_reach < 0:
             reward[0] -= 200
             done = True
@@ -253,20 +256,27 @@ class FrozenLakeMod(gym.Env):
             self.last_fifty_objective_count = self.last_fifty_objective_count[-50:]
         elif dist == 0:
             self.steps_to_reach = 20
-            objs = self.objectives == self.man_objective
-            which_objective = objs.argmax()
-            next_objective = objs.argmin()
             self.man_objective = self.objectives[next_objective]
             self.last_dist_objective = self._dist_reward(
                 objective_pos=self.man_objective
             )
-            self.reached_objectives[which_objective] = True
+            self.reached_objectives[actual_objective] = True
             print(
                 Fore.GREEN
-                + f"objective {which_objective + 1} reached"
+                + f"objective {actual_objective + 1} reached"
                 + Style.RESET_ALL
             )
             self.objective_count += 1
+        elif self._dist_reward(self.objectives[next_objective]) == 0:
+            self.steps_to_reach = 20
+            self.reached_objectives[next_objective] = True
+            self.objective_count += 1
+            print(
+                Fore.GREEN
+                + f"objective {next_objective + 1} reached"
+                + Style.RESET_ALL
+            )
+
         if self.objective_count == 2:
             done = True
             self.cumulative_reward_info["reward_objective"] += 1
