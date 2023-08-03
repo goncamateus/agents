@@ -13,18 +13,18 @@ class PPO(nn.Module):
         self.action_size = action_space.n
         self.args = args
         self.critic = nn.Sequential(
-            layer_init(nn.Linear(self.obs_size, 64)),
+            layer_init(nn.Linear(self.obs_size, 128)),
             nn.Tanh(),
-            layer_init(nn.Linear(64, 64)),
+            layer_init(nn.Linear(128, 128)),
             nn.Tanh(),
-            layer_init(nn.Linear(64, 1), std=1.0),
+            layer_init(nn.Linear(128, 1), std=1.0),
         )
         self.actor = nn.Sequential(
-            layer_init(nn.Linear(self.obs_size, 64)),
+            layer_init(nn.Linear(self.obs_size, 128)),
             nn.Tanh(),
-            layer_init(nn.Linear(64, 64)),
+            layer_init(nn.Linear(128, 128)),
             nn.Tanh(),
-            layer_init(nn.Linear(64, self.action_size), std=0.01),
+            layer_init(nn.Linear(128, self.action_size), std=0.01),
         )
         self.optimizer = optim.Adam(self.parameters(), lr=args.learning_rate, eps=1e-5)
         self.device = torch.device("cuda" if args.cuda else "cpu")

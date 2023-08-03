@@ -34,18 +34,18 @@ class PPOStrat(nn.Module):
                 nn.Linear(np.array(envs.single_observation_space.shape).prod(), 256)
             ),
             nn.Tanh(),
-            layer_init(nn.Linear(256, 256)),
+            layer_init(nn.Linear(128, 128)),
             nn.Tanh(),
-            layer_init(nn.Linear(256, args.num_rewards), std=1.0),
+            layer_init(nn.Linear(128, args.num_rewards), std=1.0),
         )
         self.actor = nn.Sequential(
             layer_init(
-                nn.Linear(np.array(envs.single_observation_space.shape).prod(), 256)
+                nn.Linear(np.array(envs.single_observation_space.shape).prod(), 128)
             ),
             nn.Tanh(),
-            layer_init(nn.Linear(256, 256)),
+            layer_init(nn.Linear(128, 128)),
             nn.Tanh(),
-            layer_init(nn.Linear(256, self.action_size), std=0.01),
+            layer_init(nn.Linear(128, self.action_size), std=0.01),
         )
         self.optimizer = optim.Adam(self.parameters(), lr=args.learning_rate, eps=1e-5)
         self.last_epi_rewards = StratLastRewards(

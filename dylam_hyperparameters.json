@@ -5,7 +5,6 @@
         "r_min": [0, -5000],
         "num_rewards": 2,
         "num_envs": 16,
-        "reward_scaling": 20,
         "rew_tau": 0.9999
     },
 
