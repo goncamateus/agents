@@ -86,9 +86,9 @@ class SSLGoToStrat(SSLPathPlanningEnv):
         self.cumulative_reward_info["reward_dist"] += dist_rw
         self.cumulative_reward_info["reward_angle"] += angle_dist_rw
         self.cumulative_reward_info["Original_reward"] += (
-            WEIGHT_DIST * dist_rw
-            + WEIGHT_ANGLE * angle_dist_rw
-            + WEIGHT_OBJECTIVE * reward[2]
+            0.5 * dist_rw
+            + 0.5 * angle_dist_rw
+            + 0.5 * reward[2]
         )
         if not self.stratified:
             reward = (
