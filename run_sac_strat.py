@@ -259,7 +259,7 @@ def main(args):
                         "losses/alpha_loss", alpha_loss.item(), global_step
                     )
         wandb.log(log, global_step)
-
+    agent.save(f"models/{exp_name}/")
     envs.close()
     writer.close()
 

@@ -6,3 +6,4 @@ wandb/
 runs/
 *log*
 *.csv
+models/
