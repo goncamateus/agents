@@ -167,7 +167,7 @@ register(
     entry_point="envs.ssl_goto:SSLGoToStrat",
     kwargs={
         "stratified": False,
-        "ori_weights": [0.05, 0.05, 0.9],
+        "ori_weights": [0.25, 0.25, 0.5],
     },
     max_episode_steps=1200,
 )
@@ -177,7 +177,7 @@ register(
     entry_point="envs.ssl_goto:SSLGoToStrat",
     kwargs={
         "stratified": False,
-        "ori_weights": [0.25, 0.25, 0.5],
+        "ori_weights": [1/3, 1/3, 1/3],
     },
     max_episode_steps=1200,
 )
