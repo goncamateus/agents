@@ -13,12 +13,12 @@ from rsoccer_gym.ssl.ssl_path_planning.ssl_path_planning import (
 class SSLGoToStrat(SSLPathPlanningEnv):
     """The SSL robot needs to reach the target point with a given angle"""
 
-    def __init__(self, field_type=1, stratified=False):
+    def __init__(self, field_type=1, stratified=False, ori_weights=[0.5, 0.5, 0.5]):
         super().__init__(
             field_type=field_type,
         )
 
-        self.ori_weights = np.array([0.5, 0.5, 0.5])
+        self.ori_weights = np.array(ori_weights)
         self.num_rewards = 3
         self.stratified = stratified
         self.cumulative_reward_info = {
@@ -55,9 +55,9 @@ class SSLGoToStrat(SSLPathPlanningEnv):
         target_angle: float,
         target_vel: Point2D,
     ):
-        WEIGHT_DIST = 0.5
-        WEIGHT_ANGLE = 0.5
-        WEIGHT_OBJECTIVE = 0.5
+        WEIGHT_DIST = self.ori_weights[0]
+        WEIGHT_ANGLE = self.ori_weights[1]
+        WEIGHT_OBJECTIVE = self.ori_weights[2]
         reward = np.zeros(3)
         done = False
 

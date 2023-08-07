@@ -86,7 +86,7 @@ register(
 register(
     id="LunarLanderContinuousOri-v2",
     entry_point="envs.lunar_lander_strat_v2:LunarLanderContinuousStratV2",
-    kwargs={ "stratified": False},
+    kwargs={"stratified": False},
     max_episode_steps=1000,
     reward_threshold=200,
 )
@@ -102,6 +102,28 @@ register(
     id="HalfCheetahOri-v0",
     entry_point="envs.half_cheetah_strat:HalfCheetahStratEnv",
     kwargs={"stratified": False},
+    max_episode_steps=1000,
+    reward_threshold=4800.0,
+)
+register(
+    id="HalfCheetahOri-v1",
+    entry_point="envs.half_cheetah_strat:HalfCheetahStratEnv",
+    kwargs={
+        "stratified": False,
+        "forward_reward_weight": 0.5,
+        "ctrl_cost_weight": 0.5,
+    },
+    max_episode_steps=1000,
+    reward_threshold=4800.0,
+)
+register(
+    id="HalfCheetahOri-v2",
+    entry_point="envs.half_cheetah_strat:HalfCheetahStratEnv",
+    kwargs={
+        "stratified": False,
+        "forward_reward_weight": 0.8,
+        "ctrl_cost_weight": 0.2,
+    },
     max_episode_steps=1000,
     reward_threshold=4800.0,
 )
@@ -137,6 +159,26 @@ register(
     id="SSLGoToOri-v0",
     entry_point="envs.ssl_goto:SSLGoToStrat",
     kwargs={"stratified": False},
+    max_episode_steps=1200,
+)
+
+register(
+    id="SSLGoToOri-v1",
+    entry_point="envs.ssl_goto:SSLGoToStrat",
+    kwargs={
+        "stratified": False,
+        "ori_weights": [0.05, 0.05, 0.9],
+    },
+    max_episode_steps=1200,
+)
+
+register(
+    id="SSLGoToOri-v2",
+    entry_point="envs.ssl_goto:SSLGoToStrat",
+    kwargs={
+        "stratified": False,
+        "ori_weights": [0.25, 0.25, 0.5],
+    },
     max_episode_steps=1200,
 )
 

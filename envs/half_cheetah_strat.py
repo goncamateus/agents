@@ -49,7 +49,7 @@ class HalfCheetahStratEnv(HalfCheetahEnv):
         strat_reward = strat_reward / self.ori_weights
         self.cumulative_reward_info["reward_run"] += strat_reward[0]
         self.cumulative_reward_info["reward_ctrl"] += strat_reward[1]
-        self.cumulative_reward_info["Original_reward"] += reward
+        self.cumulative_reward_info["Original_reward"] += (strat_reward * np.array([1, 0.1])).sum()
         if self.stratified:
             reward = strat_reward
 
