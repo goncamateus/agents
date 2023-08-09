@@ -110,19 +110,8 @@ register(
     entry_point="envs.half_cheetah_strat:HalfCheetahStratEnv",
     kwargs={
         "stratified": False,
-        "forward_reward_weight": 0.5,
-        "ctrl_cost_weight": 0.5,
-    },
-    max_episode_steps=1000,
-    reward_threshold=4800.0,
-)
-register(
-    id="HalfCheetahOri-v2",
-    entry_point="envs.half_cheetah_strat:HalfCheetahStratEnv",
-    kwargs={
-        "stratified": False,
-        "forward_reward_weight": 0.8,
-        "ctrl_cost_weight": 0.2,
+        "forward_reward_weight": 1,
+        "ctrl_cost_weight": 1e-9,
     },
     max_episode_steps=1000,
     reward_threshold=4800.0,
@@ -167,24 +156,28 @@ register(
     entry_point="envs.ssl_goto:SSLGoToStrat",
     kwargs={
         "stratified": False,
-        "ori_weights": [0.25, 0.25, 0.5],
+        "ori_weights": [1 / 3, 1 / 3, 1 / 3],
     },
     max_episode_steps=1200,
 )
 
 register(
-    id="SSLGoToOri-v2",
-    entry_point="envs.ssl_goto:SSLGoToStrat",
-    kwargs={
-        "stratified": False,
-        "ori_weights": [1/3, 1/3, 1/3],
-    },
+    id="SSLGoToMod-v0",
+    entry_point="envs.ssl_goto:SSLGoToStratMod",
+    kwargs={"stratified": False},
     max_episode_steps=1200,
 )
 
 register(
     id="SSLGoToStrat-v0",
     entry_point="envs.ssl_goto:SSLGoToStrat",
+    kwargs={"stratified": True},
+    max_episode_steps=1200,
+)
+
+register(
+    id="SSLGoToStratMod-v0",
+    entry_point="envs.ssl_goto:SSLGoToStratMod",
     kwargs={"stratified": True},
     max_episode_steps=1200,
 )

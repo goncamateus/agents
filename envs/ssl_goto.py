@@ -19,6 +19,7 @@ class SSLGoToStrat(SSLPathPlanningEnv):
         )
 
         self.ori_weights = np.array(ori_weights)
+        self.__ori_weights = np.array(ori_weights)
         self.num_rewards = 3
         self.stratified = stratified
         self.cumulative_reward_info = {
@@ -55,9 +56,9 @@ class SSLGoToStrat(SSLPathPlanningEnv):
         target_angle: float,
         target_vel: Point2D,
     ):
-        WEIGHT_DIST = self.ori_weights[0]
-        WEIGHT_ANGLE = self.ori_weights[1]
-        WEIGHT_OBJECTIVE = self.ori_weights[2]
+        WEIGHT_DIST = self.__ori_weights[0]
+        WEIGHT_ANGLE = self.__ori_weights[1]
+        WEIGHT_OBJECTIVE = self.__ori_weights[2]
         reward = np.zeros(3)
         done = False
 
@@ -86,9 +87,7 @@ class SSLGoToStrat(SSLPathPlanningEnv):
         self.cumulative_reward_info["reward_dist"] += dist_rw
         self.cumulative_reward_info["reward_angle"] += angle_dist_rw
         self.cumulative_reward_info["Original_reward"] += (
-            0.5 * dist_rw
-            + 0.5 * angle_dist_rw
-            + 0.5 * reward[2]
+            0.5 * dist_rw + 0.5 * angle_dist_rw + 0.5 * reward[2]
         )
         if not self.stratified:
             reward = (
@@ -97,3 +96,37 @@ class SSLGoToStrat(SSLPathPlanningEnv):
                 + WEIGHT_OBJECTIVE * reward[2]
             )
         return reward, done
+
+
+class SSLGoToStratMod(SSLGoToStrat):
+    """The SSL robot needs to reach the target point with a given angle"""
+
+    def __init__(self, field_type=1, stratified=False, ori_weights=[0.5, 0.5]):
+        super().__init__(field_type, stratified, ori_weights + [0])
+        self.ori_weights = np.array(ori_weights)
+
+    def reward_function(
+        self,
+        robot_pos: Point2D,
+        last_robot_pos: Point2D,
+        robot_vel: Point2D,
+        last_robot_vel: Point2D,
+        robot_angle: float,
+        target_pos: Point2D,
+        target_angle: float,
+        target_vel: Point2D,
+    ):
+        reward, done = super().reward_function(
+            robot_pos,
+            last_robot_pos,
+            robot_vel,
+            last_robot_vel,
+            robot_angle,
+            target_pos,
+            target_angle,
+            target_vel,
+        )
+        if self.stratified:
+            reward = reward[:2]
+        return reward, done
+        

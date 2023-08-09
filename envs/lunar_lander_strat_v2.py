@@ -1,7 +1,6 @@
 import math
 
 import numpy as np
-from gym import spaces
 from gym.envs.box2d.lunar_lander import (
     FPS,
     LEG_DOWN,
@@ -182,15 +181,16 @@ class LunarLanderStratV2(
             terminated = True
             reward = +100
             vector_reward[0] = +100
-
         self.cumulative_reward_info["reward_Goal"] += vector_reward[0]
         self.cumulative_reward_info["reward_Shaping"] += vector_reward[1]
         self.cumulative_reward_info["reward_Power_linear"] += vector_reward[2]
         self.cumulative_reward_info["reward_Power_angular"] += vector_reward[3]
         self.cumulative_reward_info["Original_reward"] += reward
 
+        # vector_reward = vector_reward / np.array([100, 230, 570, 500])
         if not self.stratified:
-            vector_reward = reward
+            # vector_reward = vector_reward/4
+            vector_reward = vector_reward.sum()
         return (
             np.array(state, dtype=np.float32),
             vector_reward,
