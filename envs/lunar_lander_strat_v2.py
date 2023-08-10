@@ -202,6 +202,19 @@ class LunarLanderContinuousStratV2(LunarLanderStratV2):
     continuous = True
 
 
+class LunarLanderContinuousStratV3(LunarLanderContinuousStratV2):
+    continuous = True
+
+    def __init__(self, **kwargs):
+        super().__init__(stratified=True, **kwargs)
+        self.num_rewards = 2
+
+    def step(self, action):
+        state, reward, done, info = super().step(action)
+        reward = reward[:2]
+        return state, reward, done, info
+
+
 class LunarLanderContinuousMod(LunarLander):
     continuous = True
 

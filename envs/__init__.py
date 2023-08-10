@@ -92,16 +92,15 @@ register(
 )
 
 register(
-    id="LunarLanderContinuousModStrat-v0",
-    entry_point="envs.lunar_lander_strat_v2:LunarLanderContinuousMod",
+    id="LunarLanderContinuousStrat-v3",
+    entry_point="envs.lunar_lander_strat_v2:LunarLanderContinuousStratV3",
     max_episode_steps=1000,
     reward_threshold=200,
 )
 
 register(
-    id="LunarLanderContinuousMod-v0",
+    id="LunarLanderContinuousModStrat-v0",
     entry_point="envs.lunar_lander_strat_v2:LunarLanderContinuousMod",
-    kwargs={"stratified": False},
     max_episode_steps=1000,
     reward_threshold=200,
 )

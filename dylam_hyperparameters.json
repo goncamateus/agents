@@ -64,6 +64,16 @@
         "total_timesteps": 200000
     },
 
+    "LunarLanderContinuousStrat-v3":{
+        "lambdas": [1, 1],
+        "r_max": [1, 1],
+        "r_min": [-1, -1],
+        "num_rewards": 2,
+        "reward_scaling": 20000,
+        "rew_tau": 0.9999,
+        "total_timesteps": 200000
+    },
+
     "LunarLanderContinuousModStrat-v0":{
         "lambdas": [1, 1, 1, 1, 1, 1, 1],
         "r_max": [1, 1, 0.7, 0, 1, 0, 0],
@@ -71,6 +81,6 @@
         "num_rewards": 7,
         "reward_scaling": 20000,
         "rew_tau": 0.9999,
-        "total_timesteps": 1000000
+        "total_timesteps": 200000
     }
 }
