@@ -92,6 +92,21 @@ register(
 )
 
 register(
+    id="LunarLanderContinuousModStrat-v0",
+    entry_point="envs.lunar_lander_strat_v2:LunarLanderContinuousMod",
+    max_episode_steps=1000,
+    reward_threshold=200,
+)
+
+register(
+    id="LunarLanderContinuousMod-v0",
+    entry_point="envs.lunar_lander_strat_v2:LunarLanderContinuousMod",
+    kwargs={"stratified": False},
+    max_episode_steps=1000,
+    reward_threshold=200,
+)
+
+register(
     id="HalfCheetahStrat-v0",
     entry_point="envs.half_cheetah_strat:HalfCheetahStratEnv",
     max_episode_steps=1000,
@@ -148,16 +163,6 @@ register(
     id="SSLGoToOri-v0",
     entry_point="envs.ssl_goto:SSLGoToStrat",
     kwargs={"stratified": False},
-    max_episode_steps=1200,
-)
-
-register(
-    id="SSLGoToOri-v1",
-    entry_point="envs.ssl_goto:SSLGoToStrat",
-    kwargs={
-        "stratified": False,
-        "ori_weights": [1 / 3, 1 / 3, 1 / 3],
-    },
     max_episode_steps=1200,
 )
 
