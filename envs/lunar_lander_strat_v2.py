@@ -168,9 +168,9 @@ class LunarLanderStratV2(
         reward -= (
             m_power * 0.30
         )  # less fuel spent is better, about -30 for heuristic landing
-        vector_reward[2] = -m_power
+        vector_reward[2] = -m_power * 0.30
         reward -= s_power * 0.03
-        vector_reward[3] = -s_power
+        vector_reward[3] = -s_power * 0.03
 
         terminated = False
         if self.game_over or abs(state[0]) >= 1.0:
@@ -187,9 +187,8 @@ class LunarLanderStratV2(
         self.cumulative_reward_info["reward_Power_angular"] += vector_reward[3]
         self.cumulative_reward_info["Original_reward"] += reward
 
-        vector_reward = vector_reward / np.array([100, 230, 570, 500])
+        vector_reward = vector_reward / np.array([100, 230, 180, 15])
         if not self.stratified:
-            # vector_reward = vector_reward/4
             vector_reward = vector_reward.sum()
         return (
             np.array(state, dtype=np.float32),
@@ -203,8 +202,37 @@ class LunarLanderContinuousStratV2(LunarLanderStratV2):
     continuous = True
 
 
-class LunarLanderContinuousMod(LunarLanderContinuousStratV2):
-    
+class LunarLanderContinuousMod(LunarLander):
+    continuous = True
+
+    def __init__(self, stratified=True, **kwargs):
+        super().__init__(**kwargs)
+        self.cumulative_reward_info = {
+            "reward_Distance": 0,
+            "reward_Speed": 0,
+            "reward_Angle": 0,
+            "reward_Landing": 0,
+            "reward_Power_linear": 0,
+            "reward_Power_angular": 0,
+            "reward_Goal": 0,
+            "Original_reward": 0,
+        }
+        self.stratified = stratified
+        self.num_rewards = 7
+
+    def reset(self, **kwargs):
+        self.cumulative_reward_info = {
+            "reward_Distance": 0,
+            "reward_Speed": 0,
+            "reward_Angle": 0,
+            "reward_Landing": 0,
+            "reward_Power_linear": 0,
+            "reward_Power_angular": 0,
+            "reward_Goal": 0,
+            "Original_reward": 0,
+        }
+        return super().reset(**kwargs)
+
     def step(self, action):
         # Update wind
         assert self.lander is not None, "You forgot to call reset()"
@@ -302,46 +330,47 @@ class LunarLanderContinuousMod(LunarLanderContinuousStratV2):
         assert len(state) == 8
 
         reward = 0
-        vector_reward = np.zeros(4, dtype=np.float32)
-        shaping_0 = (
-            -100 * np.sqrt(state[0] * state[0] + state[1] * state[1])
-            - 100 * np.sqrt(state[2] * state[2] + state[3] * state[3])
-            - 100 * abs(state[4])
-        )
-        shaping_1 = (10 * state[6] + 10 * state[7])
+        vector_reward = np.zeros(7, dtype=np.float32)
+        shaping = []
+        shaping.append(-100 * np.sqrt(state[0] * state[0] + state[1] * state[1]))
+        shaping.append(-100 * np.sqrt(state[2] * state[2] + state[3] * state[3]))
+        shaping.append(-100 * abs(state[4]))
+        shaping.append(10 * state[6] + 10 * state[7])
+        shaping = np.array(shaping, dtype=np.float32)
         # And ten points for legs contact, the idea is if you
         # lose contact again after landing, you get negative reward
         if self.prev_shaping is not None:
-            reward = shaping_0 + shaping_1 - self.prev_shaping.sum()
-            vector_reward[0] = shaping_0 - self.prev_shaping[0]
-            vector_reward[1] = shaping_1 - self.prev_shaping[1]
-        self.prev_shaping = np.array([shaping_0, shaping_1], dtype=np.float32)
+            reward = shaping.sum() - self.prev_shaping.sum()
+            vector_reward[1:5] = shaping - self.prev_shaping
+        self.prev_shaping = shaping
 
         reward -= (
             m_power * 0.30
         )  # less fuel spent is better, about -30 for heuristic landing
-        vector_reward[2] = -m_power
+        vector_reward[5] = -m_power * 0.30
         reward -= s_power * 0.03
-        vector_reward[3] = -s_power
+        vector_reward[6] = -s_power * 0.03
 
         terminated = False
         if self.game_over or abs(state[0]) >= 1.0:
             terminated = True
             reward = -100
-            self.cumulative_reward_info["reward_Goal"] -= 100
+            vector_reward[0] = -100
         if not self.lander.awake:
             terminated = True
             reward = +100
-            self.cumulative_reward_info["reward_Goal"] += 100
-            
-        self.cumulative_reward_info["reward_Shaping"] += vector_reward[1]
-        self.cumulative_reward_info["reward_Power_linear"] += vector_reward[2]
-        self.cumulative_reward_info["reward_Power_angular"] += vector_reward[3]
-        self.cumulative_reward_info["Original_reward"] += reward
+            vector_reward[0] = 100
 
-        # vector_reward = vector_reward / np.array([210, 200, 570, 500])
+        self.cumulative_reward_info["reward_Goal"] += vector_reward[0]
+        self.cumulative_reward_info["reward_Distance"] += vector_reward[1]
+        self.cumulative_reward_info["reward_Speed"] += vector_reward[2]
+        self.cumulative_reward_info["reward_Angle"] += vector_reward[3]
+        self.cumulative_reward_info["reward_Landing"] += vector_reward[4]
+        self.cumulative_reward_info["reward_Power_linear"] += vector_reward[5]
+        self.cumulative_reward_info["reward_Power_angular"] += vector_reward[6]
+        self.cumulative_reward_info["Original_reward"] += reward
+        vector_reward = vector_reward / np.array([100, 140, 100, 120, 20, 180, 15])
         if not self.stratified:
-            # vector_reward = vector_reward/4
             vector_reward = reward
         return (
             np.array(state, dtype=np.float32),
