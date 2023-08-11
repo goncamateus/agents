@@ -205,13 +205,16 @@ class LunarLanderContinuousStratV2(LunarLanderStratV2):
 class LunarLanderContinuousStratV3(LunarLanderContinuousStratV2):
     continuous = True
 
-    def __init__(self, **kwargs):
+    def __init__(self, stratified=True, **kwargs):
         super().__init__(stratified=True, **kwargs)
         self.num_rewards = 2
+        self.non_stratified = not stratified
 
     def step(self, action):
         state, reward, done, info = super().step(action)
         reward = reward[:2]
+        if self.non_stratified:
+            reward = reward.sum()
         return state, reward, done, info
 
 
@@ -384,7 +387,7 @@ class LunarLanderContinuousMod(LunarLander):
         self.cumulative_reward_info["Original_reward"] += reward
         vector_reward = vector_reward / np.array([100, 140, 100, 120, 20, 180, 15])
         if not self.stratified:
-            vector_reward = reward
+            vector_reward = vector_reward.sum()
         return (
             np.array(state, dtype=np.float32),
             vector_reward,
