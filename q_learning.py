@@ -60,9 +60,8 @@ class QLearningAgent:
         return action
 
     def update_policy(self, observation, action, reward, next_obs):
-        next_action = self.get_action(observation)
         update = reward + self.gamma * (
-            self.q_table[next_obs][next_action] - self.q_table[observation][action]
+            self.q_table[next_obs].max() - self.q_table[observation][action]
         )
         self.q_table[observation][action] = (
             self.q_table[observation][action] + self.alpha * update
