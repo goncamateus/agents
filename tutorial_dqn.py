@@ -63,8 +63,8 @@ class QLearningAgent:
         self,
         observation_space,
         action_space,
-        alpha=1e-3,
-        gamma=0.99,
+        alpha=0.004,
+        gamma=0.98,
         buffer_max_len=10000,
     ):
         self.observation_space = observation_space
@@ -72,8 +72,8 @@ class QLearningAgent:
         self.alpha = alpha
         self.gamma = gamma
         self.epsilon = 1.0
-        self.epsilon_end = 0.01
-        self.epsilon_decay = 0.995
+        self.epsilon_end = 0.07
+        self.epsilon_decay = 0.9999
         self.n_updates = 0
         self.device = torch.device("cpu")
         self.replay_buffer = ReplayBuffer(
@@ -91,18 +91,18 @@ class QLearningAgent:
             else self.observation_space.shape[0]
         )
         self.dqn = nn.Sequential(
-            nn.Linear(obs_size, 32),
+            nn.Linear(obs_size, 256),
             nn.ReLU(),
-            nn.Linear(32, 32),
+            nn.Linear(256, 256),
             nn.ReLU(),
-            nn.Linear(32, self.action_space.n),
+            nn.Linear(256, self.action_space.n),
         )
         self.target_dqn = nn.Sequential(
-            nn.Linear(obs_size, 32),
+            nn.Linear(obs_size, 256),
             nn.ReLU(),
-            nn.Linear(32, 32),
+            nn.Linear(256, 256),
             nn.ReLU(),
-            nn.Linear(32, self.action_space.n),
+            nn.Linear(256, self.action_space.n),
         )
         self.target_dqn.load_state_dict(self.dqn.state_dict())
         self.optimizer = torch.optim.Adam(self.dqn.parameters(), lr=self.alpha)
@@ -126,41 +126,60 @@ class QLearningAgent:
         self.replay_buffer.add(observation, action, reward, next_observation, done)
 
     def update_policy(self, batch_size):
-        batch = self.replay_buffer.sample(batch_size)
-        states, actions, rewards, next_states, dones = batch
-        with torch.no_grad():
-            next_q_values = self.target_dqn(next_states).max(1).values.unsqueeze(1)
-            next_q_values[dones] = 0.0
-        y = rewards + self.gamma * next_q_values
-        q_values = self.dqn(states)
-        q_values = q_values.gather(1, actions)
-        loss = F.mse_loss(q_values, y)
-        self.optimizer.zero_grad()
-        loss.backward()
-        self.optimizer.step()
-        self.n_updates += 1
-        if self.n_updates % 10:
-            self.target_dqn.load_state_dict(self.dqn.state_dict())
+        for _ in range(8):
+            batch = self.replay_buffer.sample(batch_size)
+            states, actions, rewards, next_states, dones = batch
+            with torch.no_grad():
+                next_q_values = self.target_dqn(next_states).max(1).values.unsqueeze(1)
+                next_q_values[dones] = 0.0
+            y = rewards + self.gamma * next_q_values
+            q_values = self.dqn(states)
+            q_values = q_values.gather(1, actions)
+            loss = F.mse_loss(q_values, y)
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+            self.n_updates += 1
+            if self.n_updates % 600:
+                self.target_dqn.load_state_dict(self.dqn.state_dict())
 
 
 def main():
-    env = gym.make("MountainCar-v0", render_mode="human")
+    env = gym.make("MountainCar-v0")
     agent = QLearningAgent(env.observation_space, env.action_space)
     agent.to("cuda" if torch.cuda.is_available() else "cpu")
     for episode in range(1000):
         obs, info = env.reset()
         done = False
         truncated = False
+        steps = 0
+        reward_sum = 0
         while not (done or truncated):
             action = agent.get_action(obs)
             next_obs, reward, done, truncated, info = env.step(action)
             agent.observe(obs, action, reward, next_obs, (done or truncated))
+            reward_sum += reward
             obs = next_obs
-        print(f"Episode {episode}:", reward)
-        if agent.replay_buffer.size() >= 256:
-            agent.update_policy(batch_size=256)
-
+            if agent.replay_buffer.size() >= 128 and steps % 16 == 0:
+                agent.update_policy(batch_size=128)
+            steps += 1
+        print(f"Episode {episode} ended in {steps} steps with reward = {reward_sum}")
     env.close()
+    
+    def show():
+        return input("Show? (y/n): ") == "y"
+
+    while show():
+        env = gym.make("MountainCar-v0", render_mode="human")
+        obs, info = env.reset()
+        done = False
+        truncated = False
+        while not (done or truncated):
+            env.render()
+            action = agent.get_action(obs)
+            next_obs, reward, done, truncated, info = env.step(action)
+            obs = next_obs
+        env.close()
 
 
 if __name__ == "__main__":
