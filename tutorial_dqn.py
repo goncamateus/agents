@@ -79,6 +79,9 @@ class QLearningAgent:
         self.action_space = action_space
         self.alpha = alpha
         self.gamma = gamma
+        self.epsilon = 1.0
+        self.epsilon_end = 0.01
+        self.epsilon_decay = 0.995
         self.n_updates = 0
         self.device = torch.device("cpu")
         self.replay_buffer = ReplayBuffer(
@@ -118,6 +121,17 @@ class QLearningAgent:
         self.target_dqn.to(self.device)
         self.replay_buffer.to(self.device)
 
+    def select_action(self, state):
+        if np.random.random() > self.epsilon:
+            with torch.no_grad():
+                observation = torch.from_numpy(observation).float().to(self.device)
+                q_values = self.dqn(observation)
+                action = torch.argmax(q_values).item()
+        else:
+            action = np.random.choice(range(self.action_size))
+        self.epsilon = max(self.epsilon_end, self.epsilon - self.epsilon_decay)
+        return action
+
     def get_action(self, observation):
         with torch.no_grad():
             observation = torch.from_numpy(observation).float().to(self.device)
@@ -147,8 +161,9 @@ class QLearningAgent:
 
 
 def main():
-    env = gym.make("FrozenLake-v1", is_slippery=False, render_mode="human")
+    env = gym.make("FrozenLake-v1", is_slippery=False)
     agent = QLearningAgent(env.observation_space, env.action_space)
+    agent.to(torch.device("cuda"))
 
     for episodes in range(1000):
         obs, info = env.reset()
@@ -156,10 +171,7 @@ def main():
         observation[obs] = 1.0
         done = False
         while not done:
-            if np.random.random() < 0.85:
-                action = agent.get_action(observation)
-            else:
-                action = env.action_space.sample()
+            action = agent.get_action(observation)
             next_obs, reward, done, truncated, info = env.step(action)
             next_observation = np.zeros(agent.observation_space.n, dtype=np.float32)
             next_observation[next_obs] = 1.0
@@ -167,6 +179,7 @@ def main():
             observation = next_observation
         if agent.replay_buffer.size() >= 256:
             agent.update_policy(batch_size=256)
+    print(reward)
 
     env.close()
 
