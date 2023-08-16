@@ -13,38 +13,30 @@ class ReplayBuffer:
         self.device = device
         self.mem_count = 0
         if isinstance(self.observation_space, gym.spaces.Discrete):
-            self.state_buffer = torch.zeros(
-                (max_size, observation_space.n), dtype=torch.float32
+            self.state_buffer = np.zeros(
+                (max_size, observation_space.n), dtype=np.float32
             )
-            self.next_state_buffer = torch.zeros(
-                (max_size, observation_space.n), dtype=torch.float32
+            self.next_state_buffer = np.zeros(
+                (max_size, observation_space.n), dtype=np.float32
             )
         else:
-            self.state_buffer = torch.zeros(
+            self.state_buffer = np.zeros(
                 (max_size, observation_space.shape[0]),
-                dtype=torch.float32,
+                dtype=np.float32,
             )
-            self.next_state_buffer = torch.zeros(
+            self.next_state_buffer = np.zeros(
                 (max_size, observation_space.shape[0]),
-                dtype=torch.float32,
+                dtype=np.float32,
             )
-        self.action_buffer = torch.zeros((max_size, 1), dtype=torch.long)
-        self.reward_buffer = torch.zeros((max_size, 1), dtype=torch.float32)
-        self.done_buffer = torch.zeros(max_size, dtype=torch.bool)
+        self.action_buffer = np.zeros((max_size, 1), dtype=np.int64)
+        self.reward_buffer = np.zeros((max_size, 1), dtype=np.float32)
+        self.done_buffer = np.zeros(max_size, dtype=bool)
 
     def to(self, device):
         self.device = device
-        self.state_buffer = self.state_buffer.to(self.device)
-        self.next_state_buffer = self.next_state_buffer.to(self.device)
-        self.action_buffer = self.action_buffer.to(self.device)
-        self.reward_buffer = self.reward_buffer.to(self.device)
-        self.done_buffer = self.done_buffer.to(self.device)
 
     def add(self, observation, action, reward, next_observation, done):
-        observation = torch.from_numpy(observation).float().to(self.device)
-        reward = torch.tensor([reward], dtype=torch.float32, device=self.device)
-        next_observation = torch.from_numpy(next_observation).float().to(self.device)
-
+        reward =np.array([reward])
         self.state_buffer[self.mem_count % self.max_size] = observation
         self.action_buffer[self.mem_count % self.max_size] = action
         self.reward_buffer[self.mem_count % self.max_size] = reward
@@ -54,12 +46,12 @@ class ReplayBuffer:
 
     def sample(self, batch_size=256):
         max_mem = min(self.mem_count, self.max_size)
-        batch = torch.randint(0, max_mem, (batch_size,), device=self.device)
-        states = self.state_buffer[batch]
-        actions = self.action_buffer[batch]
-        rewards = self.reward_buffer[batch]
-        next_states = self.next_state_buffer[batch]
-        dones = self.done_buffer[batch]
+        batch = np.random.randint(0, max_mem, (batch_size,))
+        states = torch.from_numpy(self.state_buffer[batch]).to(self.device)
+        actions = torch.from_numpy(self.action_buffer[batch]).to(self.device)
+        rewards = torch.from_numpy(self.reward_buffer[batch]).to(self.device)
+        next_states = torch.from_numpy(self.next_state_buffer[batch]).to(self.device)
+        dones = torch.from_numpy(self.done_buffer[batch]).to(self.device)
         return states, actions, rewards, next_states, dones
 
     def size(self):
@@ -121,22 +113,13 @@ class QLearningAgent:
         self.target_dqn.to(self.device)
         self.replay_buffer.to(self.device)
 
-    def select_action(self, state):
+    def get_action(self, state):
         if np.random.random() > self.epsilon:
-            with torch.no_grad():
-                observation = torch.from_numpy(observation).float().to(self.device)
-                q_values = self.dqn(observation)
-                action = torch.argmax(q_values).item()
+            q_values = self.dqn(torch.FloatTensor(state).to(self.device))
+            action = q_values.argmax().item()
         else:
-            action = np.random.choice(range(self.action_size))
-        self.epsilon = max(self.epsilon_end, self.epsilon - self.epsilon_decay)
-        return action
-
-    def get_action(self, observation):
-        with torch.no_grad():
-            observation = torch.from_numpy(observation).float().to(self.device)
-            q_values = self.dqn(observation)
-            action = torch.argmax(q_values).item()
+            action = self.action_space.sample()
+            self.epsilon = max(self.epsilon_end, self.epsilon*self.epsilon_decay)
         return action
 
     def observe(self, observation, action, reward, next_observation, done):
@@ -161,25 +144,21 @@ class QLearningAgent:
 
 
 def main():
-    env = gym.make("FrozenLake-v1", is_slippery=False)
+    env = gym.make("MountainCar-v0", render_mode="human")
     agent = QLearningAgent(env.observation_space, env.action_space)
-    agent.to(torch.device("cuda"))
-
-    for episodes in range(1000):
+    agent.to("cuda" if torch.cuda.is_available() else "cpu")
+    for episode in range(1000):
         obs, info = env.reset()
-        observation = np.zeros(agent.observation_space.n, dtype=np.float32)
-        observation[obs] = 1.0
         done = False
-        while not done:
-            action = agent.get_action(observation)
+        truncated = False
+        while not (done or truncated):
+            action = agent.get_action(obs)
             next_obs, reward, done, truncated, info = env.step(action)
-            next_observation = np.zeros(agent.observation_space.n, dtype=np.float32)
-            next_observation[next_obs] = 1.0
-            agent.observe(observation, action, reward, next_observation, done)
-            observation = next_observation
+            agent.observe(obs, action, reward, next_obs, (done or truncated))
+            obs = next_obs
+        print(f"Episode {episode}:", reward)
         if agent.replay_buffer.size() >= 256:
             agent.update_policy(batch_size=256)
-    print(reward)
 
     env.close()
 
