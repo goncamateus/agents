@@ -169,13 +169,13 @@ def main():
     def show():
         return input("Show? (y/n): ") == "y"
 
+    agent.dqn.eval()
     while show():
         env = gym.make("MountainCar-v0", render_mode="human")
         obs, info = env.reset()
         done = False
         truncated = False
         while not (done or truncated):
-            env.render()
             action = agent.get_action(obs)
             next_obs, reward, done, truncated, info = env.step(action)
             obs = next_obs
