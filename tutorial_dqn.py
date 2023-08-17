@@ -36,7 +36,7 @@ class ReplayBuffer:
         self.device = device
 
     def add(self, observation, action, reward, next_observation, done):
-        reward =np.array([reward])
+        reward = np.array([reward])
         self.state_buffer[self.mem_count % self.max_size] = observation
         self.action_buffer[self.mem_count % self.max_size] = action
         self.reward_buffer[self.mem_count % self.max_size] = reward
@@ -119,7 +119,7 @@ class QLearningAgent:
             action = q_values.argmax().item()
         else:
             action = self.action_space.sample()
-            self.epsilon = max(self.epsilon_end, self.epsilon*self.epsilon_decay)
+            self.epsilon = max(self.epsilon_end, self.epsilon * self.epsilon_decay)
         return action
 
     def observe(self, observation, action, reward, next_observation, done):
@@ -165,7 +165,7 @@ def main():
             steps += 1
         print(f"Episode {episode} ended in {steps} steps with reward = {reward_sum}")
     env.close()
-    
+
     def show():
         return input("Show? (y/n): ") == "y"
 
