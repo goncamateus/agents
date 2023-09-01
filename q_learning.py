@@ -1,14 +1,56 @@
+import argparse
+import json
+import os
+import time
+from distutils.util import strtobool
+
 import gymnasium as gym
 import numpy as np
+from pyvirtualdisplay import Display
+from torch.utils.tensorboard import SummaryWriter
+
+import envs
+import wandb
+
+
+def parse_args():
+    # fmt: off
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--exp-name", type=str, default=os.path.basename(__file__).rstrip(".py"),
+        help="the name of this experiment")
+    parser.add_argument("--gym-id", type=str, default="Taxi-v3",
+        help="the id of the gym environment")
+    parser.add_argument("--learning-rate", type=float, default=1e-1,
+        help="the learning rate of the optimizer")
+    parser.add_argument("--seed", type=int, default=0,
+        help="seed of the experiment")
+    parser.add_argument("--total-episodes", type=int, default=1000,
+        help="total episodes of the experiments")
+    parser.add_argument("--track", type=lambda x: bool(strtobool(x)), default=False, nargs="?", const=True,
+        help="Log on wandb")
+
+    # Algorithm specific arguments
+    parser.add_argument("--gamma", type=float, default=0.99,
+        help="the discount factor gamma")
+    parser.add_argument("--exploration-noise", type=float, default=0.85,
+        help="the scale of exploration noise")
+    args = parser.parse_args()
+    with open("dylam_hyperparameters.json", "r") as config_file:
+        configs = json.load(config_file)
+    if args.gym_id in configs:
+        configs = configs[args.gym_id]
+        for key, value in configs.items():
+            setattr(args, key, value)
+    return args
 
 
 class QLearningAgent:
-    def __init__(self, observation_space, action_space, alpha=1e-1, gamma=0.99):
+    def __init__(self, observation_space, action_space, hyper_params=None):
         self.obs_size = observation_space.n
         self.action_size = action_space.n
         self.q_table = np.zeros((self.obs_size, self.action_size))
-        self.alpha = alpha
-        self.gamma = gamma
+        self.alpha = hyper_params.learning_rate
+        self.gamma = hyper_params.gamma
 
     def get_action(self, observation):
         # check if array has the same value
@@ -27,18 +69,41 @@ class QLearningAgent:
         )
 
 
-def main():
-    env = gym.make("Taxi-v3", render_mode="ansii")
-    agent = QLearningAgent(env.observation_space, env.action_space)
-    obs, info = env.reset()
-    reward = 0
+def main(args):
+    _display = Display(visible=0, size=(1400, 900))
+    _display.start()
+    exp_name = f"Q_Learning_{int(time.time())}_{args.gym_id}"
+    project = "DyLam"
+    if args.seed == 0:
+        args.seed = int(time.time())
+    np.random.seed(args.seed)
+    args.method = "Q-Learning"
+    wandb.init(
+        project=project,
+        name=exp_name,
+        entity="goncamateus",
+        config=vars(args),
+        monitor_gym=False,
+        mode=None if args.track else "disabled",
+        save_code=True,
+    )
+    print(vars(args))
+    writer = SummaryWriter(f"runs/{exp_name}")
+    writer.add_text(
+        "hyperparameters",
+        "|param|value|\n|-|-|\n%s"
+        % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])),
+    )
 
-    for episodes in range(1000):
+    env = gym.make(args.gym_id, render_mode="ansii")
+    agent = QLearningAgent(env.observation_space, env.action_space, hyper_params=args)
+    for episodes in range(args.total_episodes):
         obs, info = env.reset()
         done = False
         epi_reward = 0
+        log = {}
         while not done:
-            if np.random.random() < 0.85:
+            if np.random.random() < args.exploration_noise:
                 action = agent.get_action(obs)
             else:
                 action = env.action_space.sample()
@@ -49,11 +114,13 @@ def main():
             agent.update_policy(obs, action, reward, next_obs)
             obs = next_obs
         print(f"Episode {episodes} reward: {epi_reward}")
+        log.update({f"ep_info/reward_total": epi_reward})
+        wandb.log(log)
 
     env.close()
 
     print("---------------Evaluating---------------")
-    env = gym.make("Taxi-v3", render_mode="ansii")
+    env = gym.make(args.gym_id, render_mode="ansii")
     for episodes in range(10):
         obs, info = env.reset()
         done = False
@@ -68,4 +135,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    args = parse_args()
+    main(args)

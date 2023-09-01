@@ -82,5 +82,18 @@
         "reward_scaling": 20000,
         "rew_tau": 0.9999,
         "total_timesteps": 200000
+    },
+
+    "TaxiStrat-v0":{
+        "lambdas": [0.3333, 0.3333, 0.3333],
+        "r_max": [0, 1, 0],
+        "r_min": [-1, 0, -1],
+        "rew_tau": 0.995,
+        "episodes_rb": 10,
+        "num_rewards": 3,
+        "reward_scaling": 1,
+        "gamma":0.9999,
+        "alpha": 1e-1,
+        "total_episodes": 1000
     }
 }
