@@ -1,5 +1,12 @@
 from gym.envs.registration import register
+import gymnasium.envs.registration as mod_reg
 
+mod_reg.register(
+    id="TaxiStrat-v0",
+    entry_point="envs.taxi:StratTaxiEnv",
+    max_episode_steps=200,
+    reward_threshold=8,
+)
 
 register(
     id="LunarLanderStrat-v0",
@@ -134,6 +141,17 @@ register(
         "stratified": False,
         "forward_reward_weight": 1,
         "ctrl_cost_weight": 1e-9,
+    },
+    max_episode_steps=1000,
+    reward_threshold=4800.0,
+)
+register(
+    id="HalfCheetahOri-v2",
+    entry_point="envs.half_cheetah_strat:HalfCheetahStratEnv",
+    kwargs={
+        "stratified": False,
+        "forward_reward_weight": .5,
+        "ctrl_cost_weight": .5,
     },
     max_episode_steps=1000,
     reward_threshold=4800.0,
