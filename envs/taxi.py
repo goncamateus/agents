@@ -2,15 +2,22 @@ from typing import Optional
 
 import numpy as np
 from gymnasium.envs.toy_text.taxi import TaxiEnv
-from gymnasium.spaces import Box
+from gymnasium.spaces import Box, Dict
+
 
 class StratTaxiEnv(TaxiEnv):
     metadata = {
         "render_fps": 30,
     }
+
     def __init__(self, render_mode: Optional[str] = None):
         super().__init__(render_mode=render_mode)
-        self.reward_space = Box(low=-1, high=1, shape=(3,), dtype=np.float32)
+        self.reward_space = Dict(
+            {
+                "decomposed": Box(-1, 1, shape=(3,)),
+                "original": Box(-1, 1, shape=()),
+            }
+        )
         self.reward_dim = 3
         num_states = 500
         num_rows = 5
@@ -33,7 +40,10 @@ class StratTaxiEnv(TaxiEnv):
                         for action in range(num_actions):
                             # defaults
                             new_row, new_col, new_pass_idx = row, col, pass_idx
-                            reward = np.array([-1/200, 0, 0])
+                            reward = {
+                                "decomposed": np.array([-1 / 200, 0, 0]),
+                                "original": -1,
+                            }
                             terminated = False
                             taxi_loc = (row, col)
 
@@ -49,16 +59,25 @@ class StratTaxiEnv(TaxiEnv):
                                 if pass_idx < 4 and taxi_loc == self.locs[pass_idx]:
                                     new_pass_idx = 4
                                 else:  # passenger not at location
-                                    reward[2] = -1/10
+                                    reward = {
+                                        "decomposed": np.array([0, 0, -1 / 10]),
+                                        "original": -10,
+                                    }
                             elif action == 5:  # dropoff
                                 if (taxi_loc == self.locs[dest_idx]) and pass_idx == 4:
                                     new_pass_idx = dest_idx
                                     terminated = True
-                                    reward[1] = 1
+                                    reward = {
+                                        "decomposed": np.array([0, 1, 0]),
+                                        "original": 20,
+                                    }
                                 elif (taxi_loc in self.locs) and pass_idx == 4:
                                     new_pass_idx = self.locs.index(taxi_loc)
                                 else:  # dropoff at wrong location
-                                    reward[2] = -1/10
+                                    reward = {
+                                        "decomposed": np.array([0, 0, -1 / 10]),
+                                        "original": -10,
+                                    }
                             new_state = self.encode(
                                 new_row, new_col, new_pass_idx, dest_idx
                             )
@@ -67,3 +86,8 @@ class StratTaxiEnv(TaxiEnv):
                             )
 
         self.initial_state_distrib /= self.initial_state_distrib.sum()
+
+    def step(self, action):
+        state, reward, done, truncated, info = super().step(action)
+        info.update({"Original_reward": reward["original"]})
+        return state, reward["decomposed"], done, truncated, info

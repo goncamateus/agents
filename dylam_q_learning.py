@@ -150,12 +150,12 @@ def main(args):
         hyper_params=args,
     )
     obs, info = env.reset()
-    returns = []
     for episodes in range(args.total_episodes):
         obs, info = env.reset()
         done = False
         truncated = False
         epi_reward = 0
+        cumulative_original_reward = 0
         log = {}
         while not (done or truncated):
             if np.random.random() < args.exploration_noise:
@@ -163,17 +163,17 @@ def main(args):
             else:
                 action = env.action_space.sample()
             next_obs, reward, done, truncated, info = env.step(action)
+            cumulative_original_reward += info["Original_reward"]
             epi_reward += reward
             if done:
                 next_obs = obs
             agent.update_policy(obs, action, reward, next_obs)
             obs = next_obs
         log.update(
-            {f"ep_info/reward_total": (epi_reward * np.array([200, 20, 10])).sum()}
+            {f"ep_info/reward_total": cumulative_original_reward}
         )
-        returns.append((epi_reward * np.array([200, 20, 10])).sum())
         print(
-            f"Episode {episodes} reward: {(epi_reward*np.array([200, 20, 10])).sum()}"
+            f"Episode {episodes} reward: {cumulative_original_reward}"
         )
         agent.store_reward(epi_reward)
         agent.dylam()
