@@ -117,8 +117,6 @@ class DyLamQLearning:
 
 
 def main(args):
-    _display = Display(visible=0, size=(1400, 900))
-    _display.start()
     strat_name = "DyLam" if args.dylam else "drQ"
     exp_name = f"Q_Learning_{strat_name}_{int(time.time())}_{args.gym_id}"
     project = "DyLam"
@@ -183,7 +181,7 @@ def main(args):
     env.close()
 
     print("---------------Evaluating---------------")
-    env = gym.make(args.gym_id, render_mode="ansii")
+    env = gym.make(args.gym_id, render_mode="human")
     for episodes in range(10):
         obs, info = env.reset()
         done = False
