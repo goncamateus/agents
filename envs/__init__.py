@@ -8,6 +8,12 @@ mod_reg.register(
     reward_threshold=8,
 )
 
+mod_reg.register(
+    id="RaceTrack-v0",
+    entry_point="envs.race_track.race_track:RacetrackEnv",
+    max_episode_steps=1000,
+)
+
 register(
     id="LunarLanderStrat-v0",
     entry_point="envs.lunar_lander_strat:LunarLanderStrat",
@@ -150,8 +156,8 @@ register(
     entry_point="envs.half_cheetah_strat:HalfCheetahStratEnv",
     kwargs={
         "stratified": False,
-        "forward_reward_weight": .5,
-        "ctrl_cost_weight": .5,
+        "forward_reward_weight": 0.5,
+        "ctrl_cost_weight": 0.5,
     },
     max_episode_steps=1000,
     reward_threshold=4800.0,

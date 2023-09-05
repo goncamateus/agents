@@ -1,11 +1,11 @@
-import gym
+import gymnasium as gym
 import numpy as np
 
 import envs
 
 
 def main():
-    env = gym.make("LunarLanderContinuousOri-v2")
+    env = gym.make("RaceTrack-v0", render_mode="human")
     env.reset()
     for step in range(10000):
         # env.render()
@@ -15,16 +15,17 @@ def main():
         #     action = 0
         # else:
         #     action = 2
-        state, reward, done, info = env.step(env.action_space.sample())
-        print("Reward")
-        print(reward)
+        state, reward, done, truncated, info = env.step(env.action_space.sample())
+        print(env.render())
+        # print("Reward")
+        # print(reward)
 
-        print("State")
-        print(state)
+        # print("State")
+        # print(state)
 
         if done:
-            print("Info")
-            print(info)
+            # print("Info")
+            # print(info)
             env.reset()
     env.close()
 

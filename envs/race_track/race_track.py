@@ -1,6 +1,7 @@
 import sys
 from contextlib import closing
 from io import StringIO
+from os import path
 
 import gymnasium as gym
 import numpy as np
@@ -50,8 +51,10 @@ class RacetrackEnv(gym.Env):
         "022222222222222222222222220",
     ]
 
-    def __init__(self):
+    def __init__(self, render_mode=None):
         # Define the parameters from your description
+        super().__init__()
+        self.render_mode = render_mode
         self.desc = np.asarray(self.MAP, dtype="c")
         self.track_height = 30
         self.track_width = 25
@@ -73,10 +76,15 @@ class RacetrackEnv(gym.Env):
         self.wall_horizontal_image = None
         self.wall_vertical_image = None
         self.window_size = (27 * 20, 32 * 20)
+        self.steps_taken = 0
+        self.checkpoints = np.array([False, False, False, False], dtype=bool)
         self.cell_size = (
             self.window_size[0] * (32 / 27) / self.desc.shape[0],
             self.window_size[1] * (27 / 32) / self.desc.shape[1],
         )
+
+        # Reward Settings
+        self.had_collision = False
 
     def _get_state(self):
         return self.agent_pos[0] * self.track_height + self.agent_pos[1]
@@ -94,6 +102,9 @@ class RacetrackEnv(gym.Env):
                 max(0, min(new_pos[1], self.track_width - 1)),
             )
             new_velocity = (0, 0)
+            self.had_collision = True
+        else:
+            self.had_collision = False
         return new_pos, new_velocity
 
     def _handle_infield_collision(self, new_pos, new_velocity):
@@ -138,6 +149,9 @@ class RacetrackEnv(gym.Env):
                     self.infield_y_start + self.infield_width,
                 )
             new_velocity = (0, 0)
+            self.had_collision = True
+        else:
+            self.had_collision = False
         return new_pos, new_velocity
 
     def _do_action(self, action):
@@ -174,17 +188,7 @@ class RacetrackEnv(gym.Env):
         self.agent_pos = new_pos
         self.agent_velocity = new_velocity
 
-    def step(self, action):
-        # Actions
-        # 0: Up-Left
-        # 1: Up
-        # 2: Up-Right
-        # 3: Left
-        # 4: Stay
-        # 5: Right
-        # 6: Down-Left
-        # 7: Down
-        # 8: Down-Right
+    def _randomize_action(self, action):
         action_randomness = np.random.random()
         if action_randomness > 0.9:
             action_randomness -= 0.9
@@ -210,42 +214,135 @@ class RacetrackEnv(gym.Env):
                         action = 7
             else:
                 action = 4
+        return action
 
+    def _potential_reward(self):
+        potential = np.linalg.norm(self.agent_velocity)
+        if self.agent_pos[0] >= 5 and self.agent_pos[0] < 25:
+            # Meiota
+            if self.agent_pos[1] >= 25:
+                # Direita
+                if self.agent_velocity[0] != 0:
+                    potential *= -self.agent_velocity[0] / abs(self.agent_velocity[0])
+                else:
+                    potential = 0
+        if self.agent_pos[0] >= 25:
+            # Baixo
+            if self.agent_velocity[1] != 0:
+                potential *= -self.agent_velocity[1] / abs(self.agent_velocity[1])
+            else:
+                potential = 0
+
+        return potential
+
+    def _check_lap_finished(self):
+        if (
+            not np.all(self.checkpoints)
+            and self.agent_pos[0] > 15
+            and self.agent_pos[1] > 12
+        ):
+            self.checkpoints[0] = True
+        if (
+            self.checkpoints[0]
+            and not np.all(self.checkpoints[1:])
+            and self.agent_pos[0] > 25
+            and self.agent_pos[1] < 12
+        ):
+            self.checkpoints[1] = True
+        if (
+            np.all(self.checkpoints[:2])
+            and not np.all(self.checkpoints[2:])
+            and self.agent_pos[0] < 15
+            and self.agent_pos[1] < 12
+        ):
+            self.checkpoints[2] = True
+        if (
+            np.all(self.checkpoints[:3])
+            and not self.checkpoints[3]
+            and self.agent_pos[0] < 5
+            and self.agent_pos[1] >= 12
+        ):
+            self.checkpoints[3] = True
+        return np.all(self.checkpoints)
+
+    def _calculate_reward_done(self):
+        # Rewards: [Lap finished, Collision, Velocity towards goal]
+        reward = np.array([0, 0, 0, 0])
+        finished_lap = self._check_lap_finished()
+        reward[0] = 10 if finished_lap else 0
+        reward[1] = -self.wall_penalty if self.had_collision else 0
+        reward[2] = self._potential_reward()
+        reward[3] = -1 if not finished_lap else 0
+        if self.render_mode == "human":
+            self.render()
+        return reward, finished_lap
+
+    def step(self, action):
+        # Actions
+        # 0: Up-Left
+        # 1: Up
+        # 2: Up-Right
+        # 3: Left
+        # 4: Stay
+        # 5: Right
+        # 6: Down-Left
+        # 7: Down
+        # 8: Down-Right
+        action = self._randomize_action(action)
         self._do_action(action)
+        self.steps_taken += 1
         state = self._get_state()
-        # Calculate rewards (you'll need to define your reward logic)
-        reward = 0  # Implement your reward function here
+        reward, done = self._calculate_reward_done()
+        done = done or self.steps_taken >= 1000
 
-        # Check for terminal conditions (end of episode)
-        done = False  # Implement your termination condition
+        return state, reward, done, self.steps_taken >= 1000, {}
 
-        return state, reward, done, False, {}
-
-    def reset(self):
+    def reset(
+        self,
+        *,
+        seed=None,
+        options=None,
+    ):
+        super().reset(seed=seed)
         self.agent_pos = (2, self.track_width // 2)
         self.agent_velocity = (0, 0)
+        # Reward Settings
+        self.had_collision = False
+        self.previous_pos = self.agent_pos
+        self.steps_taken = 0
+        self.checkpoints = np.array([False, False, False, False], dtype=bool)
+        if self.render_mode == "human":
+            self.render()
 
-        return self._get_state()
+        return self._get_state(), {}
 
-    def render(self, mode="human"):
+    def render(self):
         row, col = self.agent_pos
         desc = self.desc.tolist()
         desc = [[c.decode("utf-8") for c in line] for line in desc]
         desc[row + 1][col + 1] = "5"
-        if mode == "ansi":
-            self._render_text(desc)
-        if mode == "human":
-            self._render_gui(mode, desc)
+        if self.render_mode is None:
+            assert self.spec is not None
+            gym.logger.warn(
+                "You are calling render method without specifying any render mode. "
+                "You can specify the render_mode at initialization, "
+                f'e.g. gym.make("{self.spec.id}", render_mode="rgb_array")'
+            )
+            return
+        if self.render_mode == "ansi":
+            return self._render_text(desc)
+        if self.render_mode in ["human", "rgb_array"]:
+            return self._render_gui(desc)
 
-    def _render_gui(self, mode, desc):
+    def _render_gui(self, desc):
         if self.window_surface is None:
             pygame.init()
 
-            if mode == "human":
+            if self.render_mode == "human":
                 pygame.display.init()
                 pygame.display.set_caption("Racetrack")
                 self.window_surface = pygame.display.set_mode(self.window_size)
-            elif mode == "rgb_array":
+            elif self.render_mode == "rgb_array":
                 self.window_surface = pygame.Surface(self.window_size)
 
         assert (
@@ -257,19 +354,29 @@ class RacetrackEnv(gym.Env):
 
         if self.cab_image is None:
             self.cab_image = pygame.transform.scale(
-                pygame.image.load("img/cab_right.png"), self.cell_size
+                pygame.image.load(
+                    path.join(path.dirname(__file__), "img/cab_right.png")
+                ),
+                self.cell_size,
             )
         if self.track_image is None:
             self.track_image = pygame.transform.scale(
-                pygame.image.load("img/track.png"), self.cell_size
+                pygame.image.load(path.join(path.dirname(__file__), "img/track.png")),
+                self.cell_size,
             )
         if self.wall_horizontal_image is None:
             self.wall_horizontal_image = pygame.transform.scale(
-                pygame.image.load("img/wall_horizontal.png"), self.cell_size
+                pygame.image.load(
+                    path.join(path.dirname(__file__), "img/wall_horizontal.png")
+                ),
+                self.cell_size,
             )
         if self.wall_vertical_image is None:
             self.wall_vertical_image = pygame.transform.scale(
-                pygame.image.load("img/wall_vertical.png"), self.cell_size
+                pygame.image.load(
+                    path.join(path.dirname(__file__), "img/wall_vertical.png")
+                ),
+                self.cell_size,
             )
 
         for y in range(self.desc.shape[0]):
@@ -292,17 +399,16 @@ class RacetrackEnv(gym.Env):
 
                 pygame.draw.rect(self.window_surface, (180, 200, 230), rect, 1)
 
-        if mode == "human":
-            pygame.event.pump()
+        if self.render_mode == "human":
             pygame.display.update()
             self.clock.tick(self.metadata["render_fps"])
-        elif mode == "rgb_array":
+        elif self.render_mode == "rgb_array":
             return np.transpose(
                 np.array(pygame.surfarray.pixels3d(self.window_surface)), axes=(1, 0, 2)
             )
 
     def _render_text(self, desc):
-        outfile = sys.stdout
+        outfile = outfile = StringIO()
         for row in range(len(desc)):
             for col in range(len(desc[row])):
                 color = "white"
@@ -314,6 +420,8 @@ class RacetrackEnv(gym.Env):
                     color = "blue"
                 desc[row][col] = utils.colorize(" ", color, highlight=True)
         outfile.write("\n".join(["".join(line) for line in desc]) + "\n")
+        with closing(outfile):
+            return outfile.getvalue()
 
 
 if __name__ == "__main__":
@@ -337,8 +445,10 @@ if __name__ == "__main__":
             "3": 8,
         }
         s, r, d, t, info = env.step(action_map[action])
-        print("state: ", s)
+        # print("state: ", s)
         print("reward: ", r)
-        print("done: ", d)
-        print("info: ", info)
+        # print("done: ", d)
+        # print("info: ", info)
         env.render("human")
+        if d:
+            break
