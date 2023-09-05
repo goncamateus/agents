@@ -53,16 +53,16 @@ class RacetrackEnv(gym.Env):
     def __init__(self):
         # Define the parameters from your description
         self.desc = np.asarray(self.MAP, dtype="c")
-        self.track_width = 30
-        self.track_height = 25
-        self.infield_width = 20
-        self.infield_height = 15
-        self.infield_y_start = (self.track_width - self.infield_width) // 2
-        self.infield_x_start = (self.track_height - self.infield_height) // 2
-        self.grid = np.zeros((self.track_height, self.track_width), dtype=int)
+        self.track_height = 30
+        self.track_width = 25
+        self.infield_height = 20
+        self.infield_width = 15
+        self.infield_y_start = (self.track_height - self.infield_height) // 2
+        self.infield_x_start = (self.track_width - self.infield_width) // 2
+        self.grid = np.zeros((self.track_width, self.track_height), dtype=int)
         self.action_space = spaces.Discrete(9)
         self.observation_space = spaces.Discrete(25 * 30)
-        self.agent_pos = (2, self.track_height // 2)
+        self.agent_pos = (2, self.track_width // 2)
         self.agent_velocity = (0, 0)
         self.agent_max_velocity = 5  # Set your desired maximum velocity here
         self.wall_penalty = 1  # Define the penalty for colliding with a wall
@@ -79,19 +79,19 @@ class RacetrackEnv(gym.Env):
         )
 
     def _get_state(self):
-        return self.agent_pos[0] * self.track_width + self.agent_pos[1]
+        return self.agent_pos[0] * self.track_height + self.agent_pos[1]
 
     def _handle_wall_collision(self, new_pos, new_velocity):
         # Handle collisions with walls and adjust position and velocity
         if (
             new_pos[0] < 0
-            or new_pos[0] >= self.track_width
+            or new_pos[0] >= self.track_height
             or new_pos[1] < 0
-            or new_pos[1] >= self.track_height
+            or new_pos[1] >= self.track_width
         ):
             new_pos = (
-                max(0, min(new_pos[0], self.track_width - 1)),
-                max(0, min(new_pos[1], self.track_height - 1)),
+                max(0, min(new_pos[0], self.track_height - 1)),
+                max(0, min(new_pos[1], self.track_width - 1)),
             )
             new_velocity = (0, 0)
         return new_pos, new_velocity
@@ -101,31 +101,31 @@ class RacetrackEnv(gym.Env):
         # if the agent is in the infield put it back on the track parralel to the wall
         if (
             new_pos[0] >= self.infield_x_start
-            and new_pos[0] < self.infield_x_start + self.infield_width
+            and new_pos[0] < self.infield_x_start + self.infield_height
             and new_pos[1] >= self.infield_y_start
-            and new_pos[1] < self.infield_y_start + self.infield_height
+            and new_pos[1] < self.infield_y_start + self.infield_width
         ):
-            if new_pos[0] < self.infield_x_start + self.infield_width // 2:
+            if new_pos[0] < self.infield_x_start + self.infield_height // 2:
                 new_pos = (
                     self.infield_x_start - 1,
                     max(
                         self.infield_y_start,
-                        min(new_pos[1], self.infield_y_start + self.infield_height - 1),
+                        min(new_pos[1], self.infield_y_start + self.infield_width - 1),
                     ),
                 )
             else:
                 new_pos = (
-                    self.infield_x_start + self.infield_width,
+                    self.infield_x_start + self.infield_height,
                     max(
                         self.infield_y_start,
-                        min(new_pos[1], self.infield_y_start + self.infield_height - 1),
+                        min(new_pos[1], self.infield_y_start + self.infield_width - 1),
                     ),
                 )
-            if new_pos[1] < self.infield_y_start + self.infield_height // 2:
+            if new_pos[1] < self.infield_y_start + self.infield_width // 2:
                 new_pos = (
                     max(
                         self.infield_x_start,
-                        min(new_pos[0], self.infield_x_start + self.infield_width - 1),
+                        min(new_pos[0], self.infield_x_start + self.infield_height - 1),
                     ),
                     self.infield_y_start - 1,
                 )
@@ -133,9 +133,9 @@ class RacetrackEnv(gym.Env):
                 new_pos = (
                     max(
                         self.infield_x_start,
-                        min(new_pos[0], self.infield_x_start + self.infield_width - 1),
+                        min(new_pos[0], self.infield_x_start + self.infield_height - 1),
                     ),
-                    self.infield_y_start + self.infield_height,
+                    self.infield_y_start + self.infield_width,
                 )
             new_velocity = (0, 0)
         return new_pos, new_velocity
@@ -222,7 +222,7 @@ class RacetrackEnv(gym.Env):
         return state, reward, done, False, {}
 
     def reset(self):
-        self.agent_pos = (2, self.track_height // 2)
+        self.agent_pos = (2, self.track_width // 2)
         self.agent_velocity = (0, 0)
 
         return self._get_state()
