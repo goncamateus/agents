@@ -176,28 +176,38 @@ class RacetrackEnv(gym.Env):
 
     def step(self, action):
         # Actions
-        # 0: Down-Left
-        # 1: Left
-        # 2: Up-Left
-        # 3: Down
+        # 0: Up-Left
+        # 1: Up
+        # 2: Up-Right
+        # 3: Left
         # 4: Stay
-        # 5: Up
-        # 6: Down-Right
-        # 7: Right
-        # 8: Up-Right
+        # 5: Right
+        # 6: Down-Left
+        # 7: Down
+        # 8: Down-Right
         action_randomness = np.random.random()
         if action_randomness > 0.9:
             action_randomness -= 0.9
-            if action_randomness < 0.02:
-                if action_randomness > 0.01:
-                    action = 0 if np.random.random() < 0.5 else 2
+            action_randomness *= 10
+            if action_randomness < 0.8:
+                if action_randomness < 0.6:
+                    if action_randomness < 0.15:
+                        action = 0
+                    elif action_randomness < 0.3:
+                        action = 2
+                    elif action_randomness < 0.45:
+                        action = 6
+                    elif action_randomness < 0.6:
+                        action = 8
                 else:
-                    action = 6 if np.random.random() < 0.5 else 8
-            elif action_randomness < 0.08:
-                if action_randomness > 0.05:
-                    action = 3 if np.random.random() < 0.5 else 5
-                else:
-                    action = 7 if np.random.random() < 0.5 else 1
+                    if action_randomness < 0.65:
+                        action = 1
+                    elif action_randomness < 0.7:
+                        action = 3
+                    elif action_randomness < 0.75:
+                        action = 5
+                    elif action_randomness < 0.8:
+                        action = 7
             else:
                 action = 4
 
@@ -309,22 +319,24 @@ class RacetrackEnv(gym.Env):
 if __name__ == "__main__":
     env = RacetrackEnv()
     env.reset()
-    # env.render("human")
+    env.render("human")
     while True:
         # Play on number keyboard
-        # action = int(input("Enter action: "))
-        # action_map = {
-        #     8: 5,
-        #     9: 6,
-        #     6: 7,
-        #     3: 6,
-        #     2: 3,
-        #     1: 0,
-        #     4: 1,
-        #     7: 2,
-        #     5: 4,
-        # }
-        s, r, d, t, info = env.step(env.action_space.sample())
+        action = ""
+        while action not in ["1", "2", "3", "4", "5", "6", "7", "8", "9"]:
+            action = input("Enter action: ")
+        action_map = {
+            "7": 0,
+            "8": 1,
+            "9": 2,
+            "4": 3,
+            "5": 4,
+            "6": 5,
+            "1": 6,
+            "2": 7,
+            "3": 8,
+        }
+        s, r, d, t, info = env.step(action_map[action])
         print("state: ", s)
         print("reward: ", r)
         print("done: ", d)
