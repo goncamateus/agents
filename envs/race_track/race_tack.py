@@ -62,7 +62,7 @@ class RacetrackEnv(gym.Env):
         self.grid = np.zeros((self.track_height, self.track_width), dtype=int)
         self.action_space = spaces.Discrete(9)
         self.observation_space = spaces.Discrete(25 * 30)
-        self.agent_pos = (2, self.track_width // 2)
+        self.agent_pos = (2, self.track_height // 2)
         self.agent_velocity = (0, 0)
         self.agent_max_velocity = 5  # Set your desired maximum velocity here
         self.wall_penalty = 1  # Define the penalty for colliding with a wall
@@ -222,7 +222,7 @@ class RacetrackEnv(gym.Env):
         return state, reward, done, False, {}
 
     def reset(self):
-        self.agent_pos = (2, self.track_width // 2)
+        self.agent_pos = (2, self.track_height // 2)
         self.agent_velocity = (0, 0)
 
         return self._get_state()
