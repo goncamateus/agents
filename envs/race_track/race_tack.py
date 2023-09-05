@@ -175,6 +175,32 @@ class RacetrackEnv(gym.Env):
         self.agent_velocity = new_velocity
 
     def step(self, action):
+        # Actions
+        # 0: Down-Left
+        # 1: Left
+        # 2: Up-Left
+        # 3: Down
+        # 4: Stay
+        # 5: Up
+        # 6: Down-Right
+        # 7: Right
+        # 8: Up-Right
+        action_randomness = np.random.random()
+        if action_randomness > 0.9:
+            action_randomness -= 0.9
+            if action_randomness < 0.02:
+                if action_randomness > 0.01:
+                    action = 0 if np.random.random() < 0.5 else 2
+                else:
+                    action = 6 if np.random.random() < 0.5 else 8
+            elif action_randomness < 0.08:
+                if action_randomness > 0.05:
+                    action = 3 if np.random.random() < 0.5 else 5
+                else:
+                    action = 7 if np.random.random() < 0.5 else 1
+            else:
+                action = 4
+
         self._do_action(action)
         state = self._get_state()
         # Calculate rewards (you'll need to define your reward logic)
@@ -183,7 +209,7 @@ class RacetrackEnv(gym.Env):
         # Check for terminal conditions (end of episode)
         done = False  # Implement your termination condition
 
-        return state, reward, done, {}
+        return state, reward, done, False, {}
 
     def reset(self):
         self.agent_pos = (2, self.track_width // 2)
@@ -283,8 +309,24 @@ class RacetrackEnv(gym.Env):
 if __name__ == "__main__":
     env = RacetrackEnv()
     env.reset()
+    # env.render("human")
     while True:
-        # reset prompt
-        sys.stdout.write("\x1b[2J\x1b[H")
-        env.step(env.action_space.sample())
+        # Play on number keyboard
+        # action = int(input("Enter action: "))
+        # action_map = {
+        #     8: 5,
+        #     9: 6,
+        #     6: 7,
+        #     3: 6,
+        #     2: 3,
+        #     1: 0,
+        #     4: 1,
+        #     7: 2,
+        #     5: 4,
+        # }
+        s, r, d, t, info = env.step(env.action_space.sample())
+        print("state: ", s)
+        print("reward: ", r)
+        print("done: ", d)
+        print("info: ", info)
         env.render("human")
