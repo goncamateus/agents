@@ -60,12 +60,12 @@ class RacetrackEnv(gym.Env):
         self.track_width = 25
         self.infield_height = 20
         self.infield_width = 15
-        self.infield_y_start = (self.track_height - self.infield_height) // 2
-        self.infield_x_start = (self.track_width - self.infield_width) // 2
+        self.infield_y_start = 5
+        self.infield_x_start = 5
         self.grid = np.zeros((self.track_width, self.track_height), dtype=int)
         self.action_space = spaces.Discrete(9)
         self.observation_space = spaces.Discrete(25 * 30)
-        self.agent_pos = (2, self.track_width // 2)
+        self.agent_pos = [2, self.track_width // 2]
         self.agent_velocity = (0, 0)
         self.agent_max_velocity = 5  # Set your desired maximum velocity here
         self.wall_penalty = 1  # Define the penalty for colliding with a wall
@@ -114,43 +114,61 @@ class RacetrackEnv(gym.Env):
         # Handle collisions with infield and adjust position and velocity
         # if the agent is in the infield put it back on the track parralel to the wall
         if (
-            new_pos[0] >= self.infield_x_start
-            and new_pos[0] < self.infield_x_start + self.infield_height
-            and new_pos[1] >= self.infield_y_start
-            and new_pos[1] < self.infield_y_start + self.infield_width
+            new_pos[0] >= self.infield_y_start
+            and new_pos[0] < self.infield_y_start + self.infield_height
+            and new_pos[1] >= self.infield_x_start
+            and new_pos[1] < self.infield_x_start + self.infield_width
         ):
-            if new_pos[0] < self.infield_x_start + self.infield_height // 2:
-                new_pos = (
-                    self.infield_x_start - 1,
-                    max(
-                        self.infield_y_start,
-                        min(new_pos[1], self.infield_y_start + self.infield_width - 1),
-                    ),
-                )
+            meiota = (self.agent_pos[0] >= 5 or self.agent_pos[0] < 25) and (
+                self.agent_pos[1] >= 20 or self.agent_pos[1] < 5
+            )
+            if not meiota:
+                # If comming from up
+                if self.agent_pos[0] < new_pos[0] and self.agent_pos[1] == new_pos[1]:
+                    new_pos[0] = self.infield_y_start - 1
+                # If comming from down
+                elif self.agent_pos[0] > new_pos[0] and self.agent_pos[1] == new_pos[1]:
+                    new_pos[0] = self.infield_y_start + self.infield_height
+                # If comming from up-left
+                elif self.agent_pos[0] < new_pos[0] and self.agent_pos[1] < new_pos[1]:
+                    new_pos[0] = self.infield_y_start - 1
+                    new_pos[1] = (new_pos[1] + self.agent_pos[1]) // 2
+                # If comming from up-right
+                elif self.agent_pos[0] < new_pos[0] and self.agent_pos[1] > new_pos[1]:
+                    new_pos[0] = self.infield_y_start - 1
+                    new_pos[1] = (self.agent_pos[1] + new_pos[1]) // 2
+                # If comming from down-left
+                elif self.agent_pos[0] > new_pos[0] and self.agent_pos[1] < new_pos[1]:
+                    new_pos[0] = self.infield_y_start + self.infield_height
+                    new_pos[1] = (new_pos[1] + self.agent_pos[1]) // 2
+                # If comming from down-right
+                elif self.agent_pos[0] > new_pos[0] and self.agent_pos[1] > new_pos[1]:
+                    new_pos[0] = self.infield_y_start + self.infield_height
+                    new_pos[1] = (self.agent_pos[1] + new_pos[1]) // 2
             else:
-                new_pos = (
-                    self.infield_x_start + self.infield_height,
-                    max(
-                        self.infield_y_start,
-                        min(new_pos[1], self.infield_y_start + self.infield_width - 1),
-                    ),
-                )
-            if new_pos[1] < self.infield_y_start + self.infield_width // 2:
-                new_pos = (
-                    max(
-                        self.infield_x_start,
-                        min(new_pos[0], self.infield_x_start + self.infield_height - 1),
-                    ),
-                    self.infield_y_start - 1,
-                )
-            else:
-                new_pos = (
-                    max(
-                        self.infield_x_start,
-                        min(new_pos[0], self.infield_x_start + self.infield_height - 1),
-                    ),
-                    self.infield_y_start + self.infield_width,
-                )
+                # If comming from left
+                if self.agent_pos[1] < new_pos[1] and self.agent_pos[0] == new_pos[0]:
+                    new_pos[1] = self.infield_x_start - 1
+                # If comming from right
+                elif self.agent_pos[1] > new_pos[1] and self.agent_pos[0] == new_pos[0]:
+                    new_pos[1] = self.infield_x_start + self.infield_width
+                # If comming from up-left
+                elif self.agent_pos[0] < new_pos[0] and self.agent_pos[1] < new_pos[1]:
+                    new_pos[0] = (new_pos[0] + self.agent_pos[0]) // 2
+                    new_pos[1] = self.infield_x_start - 1
+                # If comming from up-right
+                elif self.agent_pos[0] < new_pos[0] and self.agent_pos[1] > new_pos[1]:
+                    new_pos[0] = (self.agent_pos[0] + new_pos[0]) // 2
+                    new_pos[1] = self.infield_x_start + self.infield_width
+                # If comming from down-left
+                elif self.agent_pos[0] > new_pos[0] and self.agent_pos[1] < new_pos[1]:
+                    new_pos[0] = (self.agent_pos[0] + new_pos[0]) // 2
+                    new_pos[1] = self.infield_x_start - 1
+                # If comming from down-right
+                elif self.agent_pos[0] > new_pos[0] and self.agent_pos[1] > new_pos[1]:
+                    new_pos[0] = (new_pos[0] + self.agent_pos[0]) // 2
+                    new_pos[1] = self.infield_x_start + self.infield_width
+
             new_velocity = (
                 min(abs(self.agent_velocity[0]) - 1, 0),
                 min(abs(self.agent_velocity[1]) - 1, 0),
@@ -168,7 +186,7 @@ class RacetrackEnv(gym.Env):
         action_idy = (
             action % 3
         )  # Convert action to an index for vertical velocity change (-1, 0, 1)
-        new_velocity = (
+        new_velocity = [
             np.clip(
                 self.agent_velocity[0] + action_idx - 1,
                 -self.agent_max_velocity,
@@ -179,13 +197,13 @@ class RacetrackEnv(gym.Env):
                 -self.agent_max_velocity,
                 self.agent_max_velocity,
             ),
-        )
+        ]
 
         # Update agent's position based on velocity
-        new_pos = (
+        new_pos = [
             self.agent_pos[0] + new_velocity[0],
             self.agent_pos[1] + new_velocity[1],
-        )
+        ]
 
         new_pos, new_velocity = self._handle_wall_collision(new_pos, new_velocity)
         new_pos, new_velocity = self._handle_infield_collision(new_pos, new_velocity)
@@ -322,7 +340,7 @@ class RacetrackEnv(gym.Env):
         options=None,
     ):
         super().reset(seed=seed)
-        self.agent_pos = (2, self.track_width // 2)
+        self.agent_pos = [2, self.track_width // 2]
         self.agent_velocity = (0, 0)
         # Reward Settings
         self.had_collision = False
