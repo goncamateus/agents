@@ -106,6 +106,8 @@ def main(args):
             else:
                 action = env.action_space.sample()
             next_obs, reward, done, truncated, info = env.step(action)
+            if isinstance(reward, np.ndarray):
+                reward = reward.sum()
             epi_reward += reward
             if done:
                 next_obs = obs

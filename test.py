@@ -16,7 +16,6 @@ def main():
         # else:
         #     action = 2
         state, reward, done, truncated, info = env.step(env.action_space.sample())
-        print(env.render())
         # print("Reward")
         # print(reward)
 

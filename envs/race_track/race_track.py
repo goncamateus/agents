@@ -13,8 +13,8 @@ class RacetrackEnv(gym.Env):
     metadata = {
         "render_modes": ["human", "ansi", "rgb_array"],
         "render.modes": ["human", "ansi", "rgb_array"],
-        "render_fps": 4,
-        "render.fps": 4,
+        "render_fps": 30,
+        "render.fps": 30,
     }
     MAP = [
         "022222222222222222222222220",
@@ -87,7 +87,7 @@ class RacetrackEnv(gym.Env):
         self.had_collision = False
 
     def _get_state(self):
-        return self.agent_pos[0] * self.track_height + self.agent_pos[1]
+        return self.agent_pos[0] * self.track_width + self.agent_pos[1]
 
     def _handle_wall_collision(self, new_pos, new_velocity):
         # Handle collisions with walls and adjust position and velocity
@@ -101,7 +101,10 @@ class RacetrackEnv(gym.Env):
                 max(0, min(new_pos[0], self.track_height - 1)),
                 max(0, min(new_pos[1], self.track_width - 1)),
             )
-            new_velocity = (0, 0)
+            new_velocity = (
+                min(abs(self.agent_velocity[0]) - 1, 0),
+                min(abs(self.agent_velocity[1]) - 1, 0),
+            )
             self.had_collision = True
         else:
             self.had_collision = False
@@ -148,7 +151,10 @@ class RacetrackEnv(gym.Env):
                     ),
                     self.infield_y_start + self.infield_width,
                 )
-            new_velocity = (0, 0)
+            new_velocity = (
+                min(abs(self.agent_velocity[0]) - 1, 0),
+                min(abs(self.agent_velocity[1]) - 1, 0),
+            )
             self.had_collision = True
         else:
             self.had_collision = False
@@ -267,14 +273,12 @@ class RacetrackEnv(gym.Env):
 
     def _calculate_reward_done(self):
         # Rewards: [Lap finished, Collision, Velocity towards goal]
-        reward = np.array([0, 0, 0, 0])
+        reward = np.array([0, 0, 0, 0], dtype=np.float32)
         finished_lap = self._check_lap_finished()
         reward[0] = 10 if finished_lap else 0
         reward[1] = -self.wall_penalty if self.had_collision else 0
         reward[2] = self._potential_reward()
-        reward[3] = -1 if not finished_lap else 0
-        if self.render_mode == "human":
-            self.render()
+        reward[3] = -.1 if not finished_lap else 0
         return reward, finished_lap
 
     def step(self, action):
@@ -294,7 +298,8 @@ class RacetrackEnv(gym.Env):
         state = self._get_state()
         reward, done = self._calculate_reward_done()
         done = done or self.steps_taken >= 1000
-
+        if self.render_mode == "human":
+            self.render()
         return state, reward, done, self.steps_taken >= 1000, {}
 
     def reset(
@@ -425,9 +430,8 @@ class RacetrackEnv(gym.Env):
 
 
 if __name__ == "__main__":
-    env = RacetrackEnv()
+    env = RacetrackEnv(render_mode="human")
     env.reset()
-    env.render("human")
     while True:
         # Play on number keyboard
         action = ""
@@ -449,6 +453,5 @@ if __name__ == "__main__":
         print("reward: ", r)
         # print("done: ", d)
         # print("info: ", info)
-        env.render("human")
         if d:
             break
