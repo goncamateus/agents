@@ -256,7 +256,7 @@ class RacetrackEnv(gym.Env):
                 else:
                     potential = 0
             elif self.agent_pos[1] >= 20:
-                meiota_direita = True           
+                meiota_direita = True
                 # Direita
                 if self.agent_velocity[0] != 0:
                     potential *= self.agent_velocity[0] / abs(self.agent_velocity[0])
@@ -264,24 +264,28 @@ class RacetrackEnv(gym.Env):
                     potential = 0
         if self.agent_pos[0] < 5:
             # Cima
-            horizontal = self.agent_velocity[1] == 0
-            vertical = self.agent_velocity[0] == 0
+            vertical = self.agent_velocity[1] == 0
+            horizontal = self.agent_velocity[0] == 0
             if horizontal and vertical:
                 potential = 0
-            elif horizontal:
-                potential *= self.agent_velocity[0] / abs(self.agent_velocity[0])
-            elif vertical:
-                potential *= self.agent_velocity[1] / abs(self.agent_velocity[1])
+            else:
+                if vertical:
+                    potential = potential
+                else:
+                    potential *= self.agent_velocity[1] / abs(self.agent_velocity[1])
         if self.agent_pos[0] >= 25:
             # Baixo
-            horizontal = self.agent_velocity[1] == 0
-            vertical = self.agent_velocity[0] == 0
+            print("Baixo")
+            print(self.agent_velocity)
+            vertical = self.agent_velocity[1] == 0
+            horizontal = self.agent_velocity[0] == 0
             if horizontal and vertical:
                 potential = 0
-            elif horizontal:
-                potential *= -self.agent_velocity[0] / abs(self.agent_velocity[0])
-            elif vertical:
-                potential *= self.agent_velocity[1] / abs(self.agent_velocity[1])
+            else:
+                if vertical:
+                    potential = potential
+                else:
+                    potential *= -self.agent_velocity[1] / abs(self.agent_velocity[1])
         return potential
 
     def _check_lap_finished(self):
@@ -335,7 +339,7 @@ class RacetrackEnv(gym.Env):
         # 6: Down-Left
         # 7: Down
         # 8: Down-Right
-        action = self._randomize_action(action)
+        # action = self._randomize_action(action)
         self._do_action(action)
         self.steps_taken += 1
         state = self._get_state()
