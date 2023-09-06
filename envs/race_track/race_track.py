@@ -224,21 +224,34 @@ class RacetrackEnv(gym.Env):
 
     def _potential_reward(self):
         potential = np.linalg.norm(self.agent_velocity)
-        if self.agent_pos[0] >= 5 and self.agent_pos[0] < 25:
+        if (self.agent_pos[0] >= 5 or self.agent_pos[0] < 25) and (
+            self.agent_pos[1] >= 20 or self.agent_pos[1] < 5
+        ):
             # Meiota
-            if self.agent_pos[1] >= 25:
-                # Direita
+            if self.agent_pos[1] < 5:
+                # Esquerda
                 if self.agent_velocity[0] != 0:
                     potential *= -self.agent_velocity[0] / abs(self.agent_velocity[0])
                 else:
                     potential = 0
+            elif self.agent_pos[1] >= 20:
+                # Direita
+                if self.agent_velocity[0] != 0:
+                    potential *= self.agent_velocity[0] / abs(self.agent_velocity[0])
+                else:
+                    potential = 0
+        if self.agent_pos[0] < 5:
+            # Cima
+            if self.agent_velocity[1] != 0:
+                potential *= self.agent_velocity[1] / abs(self.agent_velocity[1])
+            else:
+                potential = 0
         if self.agent_pos[0] >= 25:
             # Baixo
             if self.agent_velocity[1] != 0:
                 potential *= -self.agent_velocity[1] / abs(self.agent_velocity[1])
             else:
                 potential = 0
-
         return potential
 
     def _check_lap_finished(self):
@@ -278,7 +291,7 @@ class RacetrackEnv(gym.Env):
         reward[0] = 10 if finished_lap else 0
         reward[1] = -self.wall_penalty if self.had_collision else 0
         reward[2] = self._potential_reward()
-        reward[3] = -.1 if not finished_lap else 0
+        reward[3] = -0.1 if not finished_lap else 0
         return reward, finished_lap
 
     def step(self, action):
