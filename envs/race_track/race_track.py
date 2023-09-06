@@ -241,18 +241,22 @@ class RacetrackEnv(gym.Env):
         return action
 
     def _potential_reward(self):
+        meiota_esquerda = False
+        meiota_direita = False
         potential = np.linalg.norm(self.agent_velocity)
         if (self.agent_pos[0] >= 5 or self.agent_pos[0] < 25) and (
             self.agent_pos[1] >= 20 or self.agent_pos[1] < 5
         ):
             # Meiota
             if self.agent_pos[1] < 5:
+                meiota_esquerda = True
                 # Esquerda
                 if self.agent_velocity[0] != 0:
                     potential *= -self.agent_velocity[0] / abs(self.agent_velocity[0])
                 else:
                     potential = 0
             elif self.agent_pos[1] >= 20:
+                meiota_direita = True           
                 # Direita
                 if self.agent_velocity[0] != 0:
                     potential *= self.agent_velocity[0] / abs(self.agent_velocity[0])
@@ -260,16 +264,24 @@ class RacetrackEnv(gym.Env):
                     potential = 0
         if self.agent_pos[0] < 5:
             # Cima
-            if self.agent_velocity[1] != 0:
-                potential *= self.agent_velocity[1] / abs(self.agent_velocity[1])
-            else:
+            horizontal = self.agent_velocity[1] == 0
+            vertical = self.agent_velocity[0] == 0
+            if horizontal and vertical:
                 potential = 0
+            elif horizontal:
+                potential *= self.agent_velocity[0] / abs(self.agent_velocity[0])
+            elif vertical:
+                potential *= self.agent_velocity[1] / abs(self.agent_velocity[1])
         if self.agent_pos[0] >= 25:
             # Baixo
-            if self.agent_velocity[1] != 0:
-                potential *= -self.agent_velocity[1] / abs(self.agent_velocity[1])
-            else:
+            horizontal = self.agent_velocity[1] == 0
+            vertical = self.agent_velocity[0] == 0
+            if horizontal and vertical:
                 potential = 0
+            elif horizontal:
+                potential *= -self.agent_velocity[0] / abs(self.agent_velocity[0])
+            elif vertical:
+                potential *= self.agent_velocity[1] / abs(self.agent_velocity[1])
         return potential
 
     def _check_lap_finished(self):
