@@ -62,6 +62,7 @@ class RacetrackEnv(gym.Env):
         self.infield_width = 15
         self.infield_y_start = 5
         self.infield_x_start = 5
+        self.limit_steps = 1000
         self.grid = np.zeros((self.track_width, self.track_height), dtype=int)
         self.action_space = spaces.Discrete(9)
         self.observation_space = spaces.Box(
@@ -116,10 +117,7 @@ class RacetrackEnv(gym.Env):
                 max(0, min(new_pos[0], self.track_height - 1)),
                 max(0, min(new_pos[1], self.track_width - 1)),
             )
-            new_velocity = (
-                min(abs(self.agent_velocity[0]) - 5, -self.agent_max_velocity),
-                min(abs(self.agent_velocity[1]) - 5, -self.agent_max_velocity),
-            )
+            new_velocity = (0, 0)
             self.had_collision = True
         else:
             self.had_collision = False
@@ -339,13 +337,13 @@ class RacetrackEnv(gym.Env):
         self.steps_taken += 1
         state = self._get_state()
         reward, done = self._calculate_reward_done()
-        done = done or self.steps_taken > 99
+        done = done or self.steps_taken > self.limit_steps
         info = {
             "Original_reward": reward.sum(),
         }
         if self.render_mode == "human":
             self.render()
-        return state, reward, done, self.steps_taken > 99, info
+        return state, reward, done, self.steps_taken > self.limit_steps, info
 
     def reset(
         self,

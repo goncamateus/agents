@@ -60,7 +60,8 @@ class QLearningAgent:
         self.gamma = hyper_params.gamma
 
     def get_action(self, observation):
-        observation = tuple(observation)
+        if isinstance(self.observation_space, gym.spaces.Box):
+            observation = tuple(observation)
         # check if array has the same value           
         if np.all(self.q_table[observation] == self.q_table[observation][0]):
             action = np.random.randint(self.action_size)
@@ -69,8 +70,9 @@ class QLearningAgent:
         return action
 
     def update_policy(self, observation, action, reward, next_obs):
-        observation = tuple(observation)
-        next_obs = tuple(next_obs)
+        if isinstance(self.observation_space, gym.spaces.Box):
+            observation = tuple(observation)
+            next_obs = tuple(next_obs)
         update = reward + self.gamma * (
             self.q_table[next_obs].max() - self.q_table[observation][action]
         )

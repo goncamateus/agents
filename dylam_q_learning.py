@@ -50,17 +50,31 @@ def parse_args():
 
 class DyLamQLearning:
     def __init__(self, observation_space, action_space, hyper_params=None):
-        self.obs_size = observation_space.n
         self.action_size = action_space.n
         self.n_rewards = hyper_params.num_rewards
-        self.q_table = np.zeros((self.obs_size, self.action_size))
-        self.components_q = np.zeros(
-            (
-                self.n_rewards,
-                self.obs_size,
-                self.action_size,
+        self.observation_space = observation_space
+        if isinstance(observation_space, gym.spaces.Discrete):
+            self.obs_size = observation_space.n
+            self.q_table = np.zeros((self.obs_size, self.action_size))
+            self.components_q = np.zeros(
+                (
+                    self.n_rewards,
+                    self.obs_size,
+                    self.action_size,
+                )
             )
-        )
+        elif isinstance(observation_space, gym.spaces.Box):
+            self.obs_size = observation_space.high - observation_space.low
+            self.obs_size += 1
+            self.q_table = np.zeros((*self.obs_size, self.action_size))
+            self.components_q = np.zeros(
+                (
+                    self.n_rewards,
+                    *self.obs_size,
+                    self.action_size,
+                )
+            )
+        
         self.lambdas = np.array(hyper_params.lambdas, dtype=np.float32)
         self.rb_reward = np.zeros((hyper_params.episodes_rb, self.n_rewards))
         self.rb_idx = 0
@@ -93,6 +107,8 @@ class DyLamQLearning:
             self.last_rew_mean = rew_mean_t
 
     def get_action(self, observation):
+        if isinstance(self.observation_space, gym.spaces.Box):
+            observation = tuple(observation)
         # check if array has the same value
         if np.all(self.q_table[observation] == self.q_table[observation][0]):
             action = np.random.randint(self.action_size)
@@ -111,9 +127,19 @@ class DyLamQLearning:
             )
 
     def update_policy(self, observation, action, reward, next_obs):
-        self.update_component_tables(observation, action, reward, next_obs)
-        Qs = self.components_q[:, observation, action]
-        self.q_table[observation][action] = (Qs * self.lambdas).sum()
+        try:
+            if isinstance(self.observation_space, gym.spaces.Box):
+                observation = tuple(observation)
+                next_obs = tuple(next_obs)
+            self.update_component_tables(observation, action, reward, next_obs)
+            Qs = 0
+            for i in range(self.n_rewards):
+                Qs += self.lambdas[i] * self.components_q[i][observation][action]
+            self.q_table[observation][action] = Qs
+        except Exception:
+            import ipdb
+
+            ipdb.set_trace()
 
 
 def main(args):
@@ -141,7 +167,7 @@ def main(args):
         % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])),
     )
 
-    env = gym.make(args.gym_id, render_mode="ansii")
+    env = gym.make(args.gym_id, render_mode="ansi")
     agent = DyLamQLearning(
         env.observation_space,
         env.action_space,
@@ -171,7 +197,7 @@ def main(args):
             {f"ep_info/reward_total": cumulative_original_reward}
         )
         print(
-            f"Episode {episodes} reward: {cumulative_original_reward}"
+            f"Episode {episodes} reward: {epi_reward}"
         )
         agent.store_reward(epi_reward)
         agent.dylam()
@@ -190,7 +216,7 @@ def main(args):
         while not (done or truncated):
             action = agent.get_action(obs)
             obs, reward, done, truncated, info = env.step(action)
-            epi_reward += (reward * np.array([200, 20, 10])).sum()
+            epi_reward += reward
         print(f"Evaluation Episode {episodes} reward: {epi_reward}")
     env.close()
 
