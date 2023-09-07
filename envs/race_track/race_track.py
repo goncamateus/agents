@@ -64,7 +64,12 @@ class RacetrackEnv(gym.Env):
         self.infield_x_start = 5
         self.grid = np.zeros((self.track_width, self.track_height), dtype=int)
         self.action_space = spaces.Discrete(9)
-        self.observation_space = spaces.Discrete(25 * 30)
+        self.observation_space = spaces.Box(
+            low=np.array([0, 0, -5, -5]),
+            high=np.array([self.track_width, self.track_height, 5, 5]),
+            shape=(4,),
+            dtype=np.int32,
+        )
         self.agent_pos = [2, self.track_width // 2]
         self.agent_velocity = (0, 0)
         self.agent_max_velocity = 5  # Set your desired maximum velocity here
@@ -88,7 +93,16 @@ class RacetrackEnv(gym.Env):
         self.last_potential = 0
 
     def _get_state(self):
-        return self.agent_pos[0] * self.track_width + self.agent_pos[1]
+        # Return the state of the agent as a tuple of (x, y, vx, vy)
+        return np.array(
+            [
+                self.agent_pos[1],
+                self.agent_pos[0],
+                5 + self.agent_velocity[1],
+                5 + self.agent_velocity[0],
+            ],
+            dtype=np.int32,
+        )
 
     def _handle_wall_collision(self, new_pos, new_velocity):
         # Handle collisions with walls and adjust position and velocity

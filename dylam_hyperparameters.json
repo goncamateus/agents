@@ -100,13 +100,13 @@
     "RaceTrack-v0":{
         "lambdas": [0.25, 0.25, 0.25, 0.25],
         "r_max": [10, 0, 0, -5],
-        "r_min": [0, -1000, -1, -100],
+        "r_min": [0, -10, 500, -100],
         "rew_tau": 0.995,
         "episodes_rb": 10,
-        "num_rewards": 3,
+        "num_rewards": 4,
         "reward_scaling": 1,
         "gamma":0.9999,
         "alpha": 1e-1,
-        "total_episodes": 1000
+        "total_episodes": 4000
     }
 }

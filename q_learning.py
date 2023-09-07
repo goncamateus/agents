@@ -5,6 +5,7 @@ import time
 from distutils.util import strtobool
 
 import gymnasium as gym
+import mo_gymnasium as mogym
 import numpy as np
 from pyvirtualdisplay import Display
 from torch.utils.tensorboard import SummaryWriter
@@ -46,14 +47,21 @@ def parse_args():
 
 class QLearningAgent:
     def __init__(self, observation_space, action_space, hyper_params=None):
-        self.obs_size = observation_space.n
         self.action_size = action_space.n
-        self.q_table = np.zeros((self.obs_size, self.action_size))
+        self.observation_space = observation_space
+        if isinstance(observation_space, gym.spaces.Discrete):
+            self.obs_size = observation_space.n
+            self.q_table = np.zeros((self.obs_size, self.action_size))
+        elif isinstance(observation_space, gym.spaces.Box):
+            self.obs_size = observation_space.high - observation_space.low
+            self.obs_size += 1
+            self.q_table = np.zeros((*self.obs_size, self.action_size))
         self.alpha = hyper_params.learning_rate
         self.gamma = hyper_params.gamma
 
     def get_action(self, observation):
-        # check if array has the same value
+        observation = tuple(observation)
+        # check if array has the same value           
         if np.all(self.q_table[observation] == self.q_table[observation][0]):
             action = np.random.randint(self.action_size)
         else:
@@ -61,12 +69,15 @@ class QLearningAgent:
         return action
 
     def update_policy(self, observation, action, reward, next_obs):
+        observation = tuple(observation)
+        next_obs = tuple(next_obs)
         update = reward + self.gamma * (
             self.q_table[next_obs].max() - self.q_table[observation][action]
         )
         self.q_table[observation][action] = (
             self.q_table[observation][action] + self.alpha * update
         )
+            
 
 
 def main(args):
@@ -93,7 +104,7 @@ def main(args):
         % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])),
     )
 
-    env = gym.make(args.gym_id, render_mode="ansii")
+    env = mogym.make(args.gym_id, render_mode="ansi")
     agent = QLearningAgent(env.observation_space, env.action_space, hyper_params=args)
     for episodes in range(args.total_episodes):
         obs, info = env.reset()
@@ -119,8 +130,8 @@ def main(args):
 
     env.close()
 
-    print("---------------Evaluating---------------")
-    env = gym.make(args.gym_id, render_mode="human")
+    # print("---------------Evaluating---------------")
+    env = mogym.make(args.gym_id, render_mode="human")
     for episodes in range(10):
         obs, info = env.reset()
         done = False
@@ -129,6 +140,8 @@ def main(args):
         while not (done or truncated):
             action = agent.get_action(obs)
             obs, reward, done, truncated, info = env.step(action)
+            if isinstance(reward, np.ndarray):
+                reward = reward.sum()
             epi_reward += reward
         print(f"Evaluation Episode {episodes} reward: {epi_reward}")
     env.close()
