@@ -85,6 +85,7 @@ class RacetrackEnv(gym.Env):
 
         # Reward Settings
         self.had_collision = False
+        self.last_potential = 0
 
     def _get_state(self):
         return self.agent_pos[0] * self.track_width + self.agent_pos[1]
@@ -102,8 +103,8 @@ class RacetrackEnv(gym.Env):
                 max(0, min(new_pos[1], self.track_width - 1)),
             )
             new_velocity = (
-                min(abs(self.agent_velocity[0]) - 1, 0),
-                min(abs(self.agent_velocity[1]) - 1, 0),
+                min(abs(self.agent_velocity[0]) - 5, -self.agent_max_velocity),
+                min(abs(self.agent_velocity[1]) - 5, -self.agent_max_velocity),
             )
             self.had_collision = True
         else:
@@ -132,19 +133,19 @@ class RacetrackEnv(gym.Env):
                 # If comming from up-left
                 elif self.agent_pos[0] < new_pos[0] and self.agent_pos[1] < new_pos[1]:
                     new_pos[0] = self.infield_y_start - 1
-                    new_pos[1] = (new_pos[1] + self.agent_pos[1]) // 2
+                    new_pos[1] = self.agent_pos[1]
                 # If comming from up-right
                 elif self.agent_pos[0] < new_pos[0] and self.agent_pos[1] > new_pos[1]:
                     new_pos[0] = self.infield_y_start - 1
-                    new_pos[1] = (self.agent_pos[1] + new_pos[1]) // 2
+                    new_pos[1] = self.agent_pos[1]
                 # If comming from down-left
                 elif self.agent_pos[0] > new_pos[0] and self.agent_pos[1] < new_pos[1]:
                     new_pos[0] = self.infield_y_start + self.infield_height
-                    new_pos[1] = (new_pos[1] + self.agent_pos[1]) // 2
+                    new_pos[1] = self.agent_pos[1]
                 # If comming from down-right
                 elif self.agent_pos[0] > new_pos[0] and self.agent_pos[1] > new_pos[1]:
                     new_pos[0] = self.infield_y_start + self.infield_height
-                    new_pos[1] = (self.agent_pos[1] + new_pos[1]) // 2
+                    new_pos[1] = self.agent_pos[1]
             else:
                 # If comming from left
                 if self.agent_pos[1] < new_pos[1] and self.agent_pos[0] == new_pos[0]:
@@ -154,25 +155,22 @@ class RacetrackEnv(gym.Env):
                     new_pos[1] = self.infield_x_start + self.infield_width
                 # If comming from up-left
                 elif self.agent_pos[0] < new_pos[0] and self.agent_pos[1] < new_pos[1]:
-                    new_pos[0] = (new_pos[0] + self.agent_pos[0]) // 2
+                    new_pos[0] = self.agent_pos[0]
                     new_pos[1] = self.infield_x_start - 1
                 # If comming from up-right
                 elif self.agent_pos[0] < new_pos[0] and self.agent_pos[1] > new_pos[1]:
-                    new_pos[0] = (self.agent_pos[0] + new_pos[0]) // 2
+                    new_pos[0] = self.agent_pos[0]
                     new_pos[1] = self.infield_x_start + self.infield_width
                 # If comming from down-left
                 elif self.agent_pos[0] > new_pos[0] and self.agent_pos[1] < new_pos[1]:
-                    new_pos[0] = (self.agent_pos[0] + new_pos[0]) // 2
+                    new_pos[0] = self.agent_pos[0]
                     new_pos[1] = self.infield_x_start - 1
                 # If comming from down-right
                 elif self.agent_pos[0] > new_pos[0] and self.agent_pos[1] > new_pos[1]:
-                    new_pos[0] = (new_pos[0] + self.agent_pos[0]) // 2
+                    new_pos[0] = self.agent_pos[0]
                     new_pos[1] = self.infield_x_start + self.infield_width
 
-            new_velocity = (
-                min(abs(self.agent_velocity[0]) - 1, 0),
-                min(abs(self.agent_velocity[1]) - 1, 0),
-            )
+            new_velocity = (0, 0)
             self.had_collision = True
         else:
             self.had_collision = False
@@ -241,73 +239,52 @@ class RacetrackEnv(gym.Env):
         return action
 
     def _potential_reward(self):
-        meiota_esquerda = False
-        meiota_direita = False
-        potential = np.linalg.norm(self.agent_velocity)
-        if (self.agent_pos[0] >= 5 or self.agent_pos[0] < 25) and (
-            self.agent_pos[1] >= 20 or self.agent_pos[1] < 5
-        ):
-            # Meiota
-            if self.agent_pos[1] < 5:
-                meiota_esquerda = True
-                # Esquerda
-                if self.agent_velocity[0] != 0:
-                    potential *= -self.agent_velocity[0] / abs(self.agent_velocity[0])
-                else:
-                    potential = 0
-            elif self.agent_pos[1] >= 20:
-                meiota_direita = True
-                # Direita
-                if self.agent_velocity[0] != 0:
-                    potential *= self.agent_velocity[0] / abs(self.agent_velocity[0])
-                else:
-                    potential = 0
-        if self.agent_pos[0] < 5:
-            # Cima
-            vertical = self.agent_velocity[1] == 0
-            horizontal = self.agent_velocity[0] == 0
-            if horizontal and vertical:
-                potential = 0
-            else:
-                if vertical:
-                    potential = potential
-                else:
-                    potential *= self.agent_velocity[1] / abs(self.agent_velocity[1])
-        if self.agent_pos[0] >= 25:
-            # Baixo
-            print("Baixo")
-            print(self.agent_velocity)
-            vertical = self.agent_velocity[1] == 0
-            horizontal = self.agent_velocity[0] == 0
-            if horizontal and vertical:
-                potential = 0
-            else:
-                if vertical:
-                    potential = potential
-                else:
-                    potential *= -self.agent_velocity[1] / abs(self.agent_velocity[1])
+        if not np.any(self.checkpoints):
+            dist_to_check = np.abs(np.array(self.agent_pos) - np.array([15, 22])).sum()
+        elif not np.any(self.checkpoints[1:]):
+            dist_to_check = np.abs(np.array(self.agent_pos) - np.array([27, 12])).sum()
+        elif not np.any(self.checkpoints[2:]):
+            dist_to_check = np.abs(np.array(self.agent_pos) - np.array([15, 2])).sum()
+        elif not self.checkpoints[3]:
+            dist_to_check = np.abs(np.array(self.agent_pos) - np.array([2, 12])).sum()
+        else:
+            dist_to_check = 0
+        potential = self.last_potential - dist_to_check
+        self.last_potential = dist_to_check
         return potential
 
     def _check_lap_finished(self):
         if (
-            not np.all(self.checkpoints)
+            not np.any(self.checkpoints)
             and self.agent_pos[0] > 15
             and self.agent_pos[1] > 12
         ):
+            if not self.checkpoints[0]:
+                self.last_potential = (
+                    np.abs(np.array(self.agent_pos) - np.array([27, 12])).sum() + 1
+                )
             self.checkpoints[0] = True
         if (
             self.checkpoints[0]
-            and not np.all(self.checkpoints[1:])
+            and not np.any(self.checkpoints[1:])
             and self.agent_pos[0] > 25
             and self.agent_pos[1] < 12
         ):
+            if not self.checkpoints[1]:
+                self.last_potential = (
+                    np.abs((np.array(self.agent_pos) - np.array([15, 2])).sum()) + 1
+                )
             self.checkpoints[1] = True
         if (
             np.all(self.checkpoints[:2])
-            and not np.all(self.checkpoints[2:])
+            and not np.any(self.checkpoints[2:])
             and self.agent_pos[0] < 15
             and self.agent_pos[1] < 12
         ):
+            if not self.checkpoints[2]:
+                self.last_potential = (
+                    np.abs(np.array(self.agent_pos) - np.array([2, 12])).sum() + 1
+                )
             self.checkpoints[2] = True
         if (
             np.all(self.checkpoints[:3])
@@ -322,9 +299,13 @@ class RacetrackEnv(gym.Env):
         # Rewards: [Lap finished, Collision, Velocity towards goal]
         reward = np.array([0, 0, 0, 0], dtype=np.float32)
         finished_lap = self._check_lap_finished()
+        if finished_lap:
+            print(utils.colorize("OH YEAH", "blue", highlight=True))
+        potential_reward = self._potential_reward()
+        penalty = self.wall_penalty if self.had_collision else 0
         reward[0] = 10 if finished_lap else 0
-        reward[1] = -self.wall_penalty if self.had_collision else 0
-        reward[2] = self._potential_reward()
+        reward[1] = -penalty
+        reward[2] = potential_reward
         reward[3] = -0.1 if not finished_lap else 0
         return reward, finished_lap
 
@@ -339,15 +320,18 @@ class RacetrackEnv(gym.Env):
         # 6: Down-Left
         # 7: Down
         # 8: Down-Right
-        # action = self._randomize_action(action)
+        action = self._randomize_action(action)
         self._do_action(action)
         self.steps_taken += 1
         state = self._get_state()
         reward, done = self._calculate_reward_done()
-        done = done or self.steps_taken >= 1000
+        done = done or self.steps_taken > 99
+        info = {
+            "Original_reward": reward.sum(),
+        }
         if self.render_mode == "human":
             self.render()
-        return state, reward, done, self.steps_taken >= 1000, {}
+        return state, reward, done, self.steps_taken > 99, info
 
     def reset(
         self,
@@ -363,6 +347,9 @@ class RacetrackEnv(gym.Env):
         self.previous_pos = self.agent_pos
         self.steps_taken = 0
         self.checkpoints = np.array([False, False, False, False], dtype=bool)
+        self.last_potential = np.abs(
+            np.array(self.agent_pos) - np.array([15, 22])
+        ).sum()
         if self.render_mode == "human":
             self.render()
 
@@ -479,6 +466,7 @@ class RacetrackEnv(gym.Env):
 if __name__ == "__main__":
     env = RacetrackEnv(render_mode="human")
     env.reset()
+    epi_reward = 0
     while True:
         # Play on number keyboard
         action = ""
@@ -496,9 +484,12 @@ if __name__ == "__main__":
             "3": 8,
         }
         s, r, d, t, info = env.step(action_map[action])
+        epi_reward += r
         # print("state: ", s)
         print("reward: ", r)
         # print("done: ", d)
         # print("info: ", info)
         if d:
+            print(epi_reward)
+            print(epi_reward.sum())
             break
