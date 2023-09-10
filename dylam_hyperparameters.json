@@ -84,6 +84,19 @@
         "total_timesteps": 200000
     },
 
+    "resource-gathering-v0":{
+        "lambdas": [0.3333, 0.3333, 0.3333],
+        "r_max": [0, 1, 1],
+        "r_min": [-1, 0, 0],
+        "rew_tau": 0.995,
+        "episodes_rb": 10,
+        "num_rewards": 3,
+        "reward_scaling": 1,
+        "gamma":0.9999,
+        "alpha": 1e-1,
+        "total_episodes": 10000
+    },
+
     "TaxiStrat-v0":{
         "lambdas": [0.3333, 0.3333, 0.3333],
         "r_max": [0, 1, 0],
@@ -98,7 +111,7 @@
     },
 
     "RaceTrack-v0":{
-        "lambdas": [0.25, 0.25, 0.25, 0.25],
+        "lambdas": [1, 1, 1, 1],
         "r_max": [10, 0, 100, -5],
         "r_min": [0, -50, 0, -100],
         "rew_tau": 0.995,
@@ -107,6 +120,19 @@
         "reward_scaling": 1,
         "gamma":0.9999,
         "alpha": 1e-1,
-        "total_episodes": 100
+        "total_episodes": 4000
+    },
+
+    "deep-sea-treasure-v0":{
+        "lambdas": [0.5, 0.5],
+        "r_max":[23.7, -1],
+        "r_min": [0, -1],
+        "rew_tau": 0.995,
+        "episodes_rb": 10,
+        "num_rewards": 2,
+        "reward_scaling": 1,
+        "gamma":0.9999,
+        "alpha": 1e-1,
+        "total_episodes": 10000
     }
 }

@@ -33,7 +33,9 @@ def parse_args():
     # Algorithm specific arguments
     parser.add_argument("--gamma", type=float, default=0.99,
         help="the discount factor gamma")
-    parser.add_argument("--exploration-noise", type=float, default=0.85,
+    parser.add_argument("--exploration-noise", type=float, default=0.5,
+        help="the scale of exploration noise")
+    parser.add_argument("--exploration-noise-end", type=float, default=0.01,
         help="the scale of exploration noise")
     args = parser.parse_args()
     with open("dylam_hyperparameters.json", "r") as config_file:
@@ -62,7 +64,7 @@ class QLearningAgent:
     def get_action(self, observation):
         if isinstance(self.observation_space, gym.spaces.Box):
             observation = tuple(observation)
-        # check if array has the same value           
+        # check if array has the same value
         if np.all(self.q_table[observation] == self.q_table[observation][0]):
             action = np.random.randint(self.action_size)
         else:
@@ -79,7 +81,6 @@ class QLearningAgent:
         self.q_table[observation][action] = (
             self.q_table[observation][action] + self.alpha * update
         )
-            
 
 
 def main(args):
@@ -108,13 +109,18 @@ def main(args):
 
     env = mogym.make(args.gym_id, render_mode="ansi")
     agent = QLearningAgent(env.observation_space, env.action_space, hyper_params=args)
-    for episodes in range(args.total_episodes):
+    epsilon = np.linspace(
+        args.exploration_noise,
+        args.exploration_noise_end,
+        int(args.total_episodes * 0.7),
+    )
+    for episode in range(args.total_episodes):
         obs, info = env.reset()
         done = False
         epi_reward = 0
         log = {}
         while not done:
-            if np.random.random() < args.exploration_noise:
+            if np.random.random() > epsilon[min(episode, len(epsilon) - 1)]:
                 action = agent.get_action(obs)
             else:
                 action = env.action_space.sample()
@@ -126,13 +132,13 @@ def main(args):
                 next_obs = obs
             agent.update_policy(obs, action, reward, next_obs)
             obs = next_obs
-        print(f"Episode {episodes} reward: {epi_reward}")
+        print(f"Episode {episode} reward: {epi_reward}")
         log.update({f"ep_info/reward_total": epi_reward})
         wandb.log(log)
 
     env.close()
 
-    # print("---------------Evaluating---------------")
+    print("---------------Evaluating---------------")
     env = mogym.make(args.gym_id, render_mode="human")
     for episodes in range(10):
         obs, info = env.reset()

@@ -32,7 +32,7 @@ class RacetrackEnv(gym.Env):
         "011111011111111111110111110",
         "011111011111111111110111110",
         "011111011111111111110111110",
-        "011111011111111111110111110",
+        "011111011111111111110111110", 
         "011111011111111111110111110",
         "011111011111111111110111110",
         "011111011111111111110111110",
@@ -252,13 +252,13 @@ class RacetrackEnv(gym.Env):
 
     def _potential_reward(self):
         if not np.any(self.checkpoints):
-            dist_to_check = np.abs(np.array(self.agent_pos) - np.array([15, 22])).sum()
+            dist_to_check = np.abs(np.array(self.agent_pos) - np.array([15, 22])).sum()/21
         elif not np.any(self.checkpoints[1:]):
-            dist_to_check = np.abs(np.array(self.agent_pos) - np.array([27, 12])).sum()
+            dist_to_check = np.abs(np.array(self.agent_pos) - np.array([27, 12])).sum()/24
         elif not np.any(self.checkpoints[2:]):
-            dist_to_check = np.abs(np.array(self.agent_pos) - np.array([15, 2])).sum()
+            dist_to_check = np.abs(np.array(self.agent_pos) - np.array([15, 2])).sum()/24
         elif not self.checkpoints[3]:
-            dist_to_check = np.abs(np.array(self.agent_pos) - np.array([2, 12])).sum()
+            dist_to_check = np.abs(np.array(self.agent_pos) - np.array([2, 12])).sum()/21
         else:
             dist_to_check = 0
         potential = self.last_potential - dist_to_check
@@ -266,6 +266,7 @@ class RacetrackEnv(gym.Env):
         return potential
 
     def _check_lap_finished(self):
+        reward = 0
         if (
             not np.any(self.checkpoints)
             and self.agent_pos[0] > 15
@@ -274,7 +275,8 @@ class RacetrackEnv(gym.Env):
             if not self.checkpoints[0]:
                 self.last_potential = (
                     np.abs(np.array(self.agent_pos) - np.array([27, 12])).sum() + 1
-                )
+                )/24
+                reward = 10
             self.checkpoints[0] = True
         if (
             self.checkpoints[0]
@@ -285,7 +287,8 @@ class RacetrackEnv(gym.Env):
             if not self.checkpoints[1]:
                 self.last_potential = (
                     np.abs((np.array(self.agent_pos) - np.array([15, 2])).sum()) + 1
-                )
+                )/21
+                reward = 10
             self.checkpoints[1] = True
         if (
             np.all(self.checkpoints[:2])
@@ -296,7 +299,8 @@ class RacetrackEnv(gym.Env):
             if not self.checkpoints[2]:
                 self.last_potential = (
                     np.abs(np.array(self.agent_pos) - np.array([2, 12])).sum() + 1
-                )
+                )/24
+                reward = 10
             self.checkpoints[2] = True
         if (
             np.all(self.checkpoints[:3])
@@ -305,19 +309,20 @@ class RacetrackEnv(gym.Env):
             and self.agent_pos[1] >= 12
         ):
             self.checkpoints[3] = True
-        return np.all(self.checkpoints)
+            reward = 10
+        return reward, np.all(self.checkpoints)
 
     def _calculate_reward_done(self):
         # Rewards: [Lap finished, Collision, Velocity towards goal]
         reward = np.array([0, 0, 0, 0], dtype=np.float32)
-        finished_lap = self._check_lap_finished()
+        checkpoint_rewards, finished_lap = self._check_lap_finished()
         if finished_lap:
             print(utils.colorize("OH YEAH", "blue", highlight=True))
         potential_reward = self._potential_reward()
         penalty = self.wall_penalty if self.had_collision else 0
         reward[0] = 10 if finished_lap else 0
         reward[1] = -penalty
-        reward[2] = potential_reward
+        reward[2] = checkpoint_rewards
         reward[3] = -0.1 if not finished_lap else 0
         return reward, finished_lap
 
@@ -332,7 +337,7 @@ class RacetrackEnv(gym.Env):
         # 6: Down-Left
         # 7: Down
         # 8: Down-Right
-        action = self._randomize_action(action)
+        # action = self._randomize_action(action)
         self._do_action(action)
         self.steps_taken += 1
         state = self._get_state()
@@ -361,7 +366,7 @@ class RacetrackEnv(gym.Env):
         self.checkpoints = np.array([False, False, False, False], dtype=bool)
         self.last_potential = np.abs(
             np.array(self.agent_pos) - np.array([15, 22])
-        ).sum()
+        ).sum()/21
         if self.render_mode == "human":
             self.render()
 

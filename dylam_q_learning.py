@@ -5,6 +5,7 @@ import time
 from distutils.util import strtobool
 
 import gymnasium as gym
+import mo_gymnasium as mogym
 import numpy as np
 from pyvirtualdisplay import Display
 from torch.utils.tensorboard import SummaryWriter
@@ -32,7 +33,9 @@ def parse_args():
     # Algorithm specific arguments
     parser.add_argument("--gamma", type=float, default=0.99,
         help="the discount factor gamma")
-    parser.add_argument("--exploration-noise", type=float, default=0.85,
+    parser.add_argument("--exploration-noise", type=float, default=0.5,
+        help="the scale of exploration noise")
+    parser.add_argument("--exploration-noise-end", type=float, default=0.01,
         help="the scale of exploration noise")
     # Arguments for DyLam
     parser.add_argument("--reward-scaling", type=float, default=1., help="reward scaling factor")
@@ -74,7 +77,7 @@ class DyLamQLearning:
                     self.action_size,
                 )
             )
-        
+
         self.lambdas = np.array(hyper_params.lambdas, dtype=np.float32)
         self.rb_reward = np.zeros((hyper_params.episodes_rb, self.n_rewards))
         self.rb_idx = 0
@@ -167,14 +170,18 @@ def main(args):
         % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])),
     )
 
-    env = gym.make(args.gym_id, render_mode="ansi")
+    env = mogym.make(args.gym_id, render_mode="ansi")
     agent = DyLamQLearning(
         env.observation_space,
         env.action_space,
         hyper_params=args,
     )
-    obs, info = env.reset()
-    for episodes in range(args.total_episodes):
+    epsilon = np.linspace(
+        args.exploration_noise,
+        args.exploration_noise_end,
+        int(args.total_episodes * 0.7),
+    )
+    for episode in range(args.total_episodes):
         obs, info = env.reset()
         done = False
         truncated = False
@@ -182,42 +189,26 @@ def main(args):
         cumulative_original_reward = 0
         log = {}
         while not (done or truncated):
-            if np.random.random() < args.exploration_noise:
+            if np.random.random() > epsilon[min(episode, len(epsilon) - 1)]:
                 action = agent.get_action(obs)
             else:
                 action = env.action_space.sample()
             next_obs, reward, done, truncated, info = env.step(action)
+            if "Original_reward" not in info:
+                info["Original_reward"] = reward.sum()
             cumulative_original_reward += info["Original_reward"]
             epi_reward += reward
             if done:
                 next_obs = obs
             agent.update_policy(obs, action, reward, next_obs)
             obs = next_obs
-        log.update(
-            {f"ep_info/reward_total": cumulative_original_reward}
-        )
-        print(
-            f"Episode {episodes} reward: {epi_reward}"
-        )
+        log.update({f"ep_info/reward_total": cumulative_original_reward})
+        print(f"Episode {episode} reward: {epi_reward}")
         agent.store_reward(epi_reward)
         agent.dylam()
         for i in range(args.num_rewards):
             log.update({"lambdas/component_" + str(i): agent.lambdas[i].item()})
         wandb.log(log)
-    env.close()
-
-    print("---------------Evaluating---------------")
-    env = gym.make(args.gym_id, render_mode="human")
-    for episodes in range(10):
-        obs, info = env.reset()
-        done = False
-        truncated = False
-        epi_reward = 0
-        while not (done or truncated):
-            action = agent.get_action(obs)
-            obs, reward, done, truncated, info = env.step(action)
-            epi_reward += reward
-        print(f"Evaluation Episode {episodes} reward: {epi_reward}")
     env.close()
 
 
