@@ -134,5 +134,25 @@
         "gamma":0.9999,
         "alpha": 1e-1,
         "total_episodes": 10000
+    },
+
+    "MountainCar-v0":{
+        "learning_rate": 0.004,
+        "gamma": 0.98,
+        "buffer_size": 10000,
+        "epsilon": 1.0,
+        "epsilon_decay": 0.999,
+        "epsilon_end": 0.07,
+        "num_epochs": 8,
+        "target_update_freq": 600,
+        "policy_frequency": 16,
+        "batch_size": 128,
+        "total_timesteps": 100000,
+        "stratified": false,
+        "dylam": false,
+        "lambdas": [1],
+        "r_max":[1],
+        "r_min": [0],
+        "num_rewards": 1
     }
 }

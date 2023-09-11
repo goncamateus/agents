@@ -1,3 +1,5 @@
+import os
+
 import gymnasium as gym
 import numpy as np
 import torch
@@ -33,6 +35,7 @@ class DQNAgent(nn.Module):
         self.replay_buffer = ReplayBuffer(hyper_params.buffer_size, self.device)
         self.set_net()
 
+        self.lambdas = np.array(hyper_params.lambdas, dtype=np.float32)
         self.rew_tau = hyper_params.rew_tau
         self.rew_max = np.array(hyper_params.r_max, dtype=np.float32)
         self.rew_min = np.array(hyper_params.r_min, dtype=np.float32)
@@ -106,11 +109,12 @@ class DQNAgent(nn.Module):
             next_state_batch,
             done_batch,
         ) = batch
+        action_batch = action_batch.unsqueeze(1).long()
         if self.num_rewards == 1:
             reward_batch = reward_batch.unsqueeze(1)
         self.n_updates += 1
         losses = []
-        for i in range(len(self.num_rewards)):
+        for i in range(self.num_rewards):
             with torch.no_grad():
                 next_q_values = (
                     self.comp_target_dqns[i](next_state_batch)
@@ -130,7 +134,7 @@ class DQNAgent(nn.Module):
                 self.comp_target_dqns[i].load_state_dict(self.comp_dqns[i].state_dict())
         return losses
 
-    def update(self, batch_size, lambdas):
+    def update(self, batch_size):
         comp_losses = []
         losses = []
         for _ in range(self.n_epochs):
@@ -142,6 +146,7 @@ class DQNAgent(nn.Module):
                 next_state_batch,
                 done_batch,
             ) = batch
+            action_batch = action_batch.unsqueeze(1).long()
             if self.stratified:
                 comp_loss = self.update_components(batch)
                 comp_losses.append(comp_loss)
@@ -149,7 +154,7 @@ class DQNAgent(nn.Module):
                 with torch.no_grad():
                     for i in range(self.num_rewards):
                         Qs[i] = self.comp_dqns[i](state_batch).gather(1, action_batch)
-                    Qs = torch.sum(lambdas * Qs)
+                    Qs = torch.sum(self.lambdas * Qs)
                 actual_Qs = self.dqn(state_batch).gather(1, action_batch)
                 loss = F.mse_loss(actual_Qs, Qs)
                 self.optimizer.zero_grad()
@@ -157,12 +162,13 @@ class DQNAgent(nn.Module):
                 self.optimizer.step()
                 losses.append(loss.item())
             else:
+                reward_batch = reward_batch.unsqueeze(1)
                 with torch.no_grad():
                     next_q_values = (
                         self.target_dqn(next_state_batch).max(1).values.unsqueeze(1)
                     )
                     next_q_values[done_batch] = 0.0
-                y = reward_batch[:, i] + self.gamma * next_q_values
+                y = reward_batch + self.gamma * next_q_values
                 q_values = self.dqn(state_batch)
                 q_values = q_values.gather(1, action_batch)
                 loss = F.mse_loss(q_values, y)
@@ -175,3 +181,19 @@ class DQNAgent(nn.Module):
         mean_losses = np.mean(losses)
         mean_comp_losses = np.mean(comp_losses, axis=0)
         return mean_losses, mean_comp_losses
+
+    def save(self, path):
+        os.makedirs(path, exist_ok=True)
+        torch.save(self.dqn.state_dict(), path + "dqn.pt")
+        for i in range(self.num_rewards):
+            torch.save(self.comp_dqns[i].state_dict(), path + f"comp_dqn_{i}.pt")
+
+    def load(self, path):
+        self.dqn.load_state_dict(torch.load(path + "dqn.pt"))
+        self.eval()
+        for i in range(self.num_rewards):
+            self.comp_dqns[i].load_state_dict(torch.load(path + f"comp_dqn_{i}.pt"))
+            self.comp_dqns[i].eval()
+        self.target_dqn.load_state_dict(self.dqn.state_dict())
+        for i in range(self.num_rewards):
+            self.comp_target_dqns[i].load_state_dict(self.comp_dqns[i].state_dict())

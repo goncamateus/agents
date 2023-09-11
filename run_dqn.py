@@ -95,7 +95,7 @@ def main(args):
     project = "DyLam"
     if args.seed == 0:
         args.seed = int(time.time())
-    args.method = method_name.split("_")[1] if not args.stratified else method_name
+    args.method = method_name.split("_")[1] if args.stratified else method_name
     wandb.init(
         project=project,
         name=exp_name,
@@ -123,7 +123,13 @@ def main(args):
     try:
         env = gym.make(args.gym_id, render_mode="rgb_array")
     except gym.error.NameNotFound:
-        env = mo_gym.make(args.gym_id, render_mode="rgb_array")u
+        env = mo_gym.make(args.gym_id, render_mode="rgb_array")
+    if args.capture_video:
+        env = gym.wrappers.RecordVideo(
+            env,
+            f"monitor/{exp_name}",
+            episode_trigger=lambda x: x % args.video_freq == 0,
+        )
 
     agent = DQNAgent(
         args,
@@ -134,11 +140,11 @@ def main(args):
 
     # TRY NOT TO MODIFY: training loop
     epi_reward = np.zeros(args.num_rewards)
-    obs = env.reset()
+    obs, _ = env.reset()
     log = {}
     for global_step in range(args.total_timesteps):
         # ALGO LOGIC: put the logic for the algo here
-        if global_step < args.learning_starts:
+        if global_step < args.batch_size:
             action = env.action_space.sample()
         else:
             action = agent.get_action(obs)
@@ -146,72 +152,63 @@ def main(args):
         # TRY NOT TO MODIFY: execute the action and collect the next obs
         next_obs, rewards, done, truncated, info = env.step(action)
         if not args.stratified:
-            rewards = rewards.sum()
+            if isinstance(rewards, np.ndarray):
+                rewards = rewards.sum()
         epi_reward = epi_reward + rewards
 
         # TRY NOT TO MODIFY: save data to reply buffer; handle `terminal_observation`
-        agent.replay_buffer.add(obs, action, rewards, next_obs, done)
+        agent.replay_buffer.add([obs], [action], [rewards], [next_obs], [done])
 
         # TRY NOT TO MODIFY: CRUCIAL step easy to overlook
         obs = next_obs
-            
+
         if done or truncated:
             agent.rb_rewards.add(epi_reward)
+            agent.dylam()
+            if "Original_reward" in info:
+                print(
+                    f"global_step={global_step}, episodic_return={info['Original_reward']}"
+                )
+                log.update({f"ep_info/reward_total": info["Original_reward"]})
+                writer.add_scalar(
+                    "charts/episodic_return", info["Original_reward"], global_step
+                )
+            else:
+                print(
+                    f"global_step={global_step}, episodic_return={(epi_reward * args.lambdas)[0]}"
+                )
+                log.update({f"ep_info/reward_total": (epi_reward * args.lambdas)[0]})
+                writer.add_scalar(
+                    "charts/episodic_return",
+                    (epi_reward * args.lambdas)[0],
+                    global_step,
+                )
             epi_reward = np.zeros(args.num_rewards)
-            print(
-                f"global_step={global_step}, episodic_return={info['Original_reward']}"
-            )
-            log.update({f"ep_info/reward_total": info["Original_reward"]})
-            writer.add_scalar(
-                "charts/episodic_return", info["Original_reward"], global_step
-            )
             strat_rewards = [x for x in info.keys() if x.startswith("reward_")]
             for key in strat_rewards:
                 log.update({f"ep_info/{key.replace('reward_', '')}": info[key]})
                 writer.add_scalar(
                     f"charts/{key.replace('reward_', '')}", info[key], global_step
                 )
+            obs, _ = env.reset()
 
         # ALGO LOGIC: training.
-        if global_step > args.learning_starts:
-            # DyLam
-            if args.dylam:
-                lambdas = (
-                    torch.ones(args.num_rewards).to(agent.device) / args.num_rewards
-                )
-            else:
-                lambdas = torch.Tensor(args.lambdas).to(agent.device)
-            r_max = torch.Tensor(args.r_max).to(agent.device)
-            r_min = torch.Tensor(args.r_min).to(agent.device)
-            rew_tau = args.rew_tau
-            if agent.last_epi_rewards.can_do() and args.dylam:
-                rew_mean_t = torch.Tensor(agent.last_epi_rewards.mean()).to(
-                    agent.device
-                )
-                if agent.last_rew_mean is not None:
-                    rew_mean_t = (
-                        rew_mean_t + (agent.last_rew_mean - rew_mean_t) * rew_tau
-                    )
-                dQ = torch.clamp((r_max - rew_mean_t) / (r_max - r_min), 0, 1)
-                expdQ = torch.exp(dQ) - 1
-                lambdas = expdQ / (torch.sum(expdQ, 0) + 1e-4)
-                agent.last_rew_mean = rew_mean_t
-
+        if global_step > args.batch_size:
             update_policy = global_step % args.policy_frequency == 0
             if update_policy:
-                policy_loss = agent.update(args.batch_size, lambdas)
+                policy_loss, component_loss = agent.update(args.batch_size)
 
             if global_step % 100 == 0:
-                for i in range(len(lambdas)):
-                    log.update({"lambdas/component_" + str(i): lambdas[i].item()})
+                for i in range(len(agent.lambdas)):
+                    log.update({"lambdas/component_" + str(i): agent.lambdas[i]})
                     writer.add_scalar(
-                        "lambdas/component_" + str(i), lambdas[i].item(), global_step
+                        "lambdas/component_" + str(i),
+                        agent.lambdas[i],
+                        global_step,
                     )
                 if update_policy:
-                    log.update({"losses/policy_loss": policy_loss.item()})
-                    writer.add_scalar(
-                        "losses/policy_loss", policy_loss.item(), global_step
-                    )
+                    log.update({"losses/policy_loss": policy_loss})
+                    writer.add_scalar("losses/policy_loss", policy_loss, global_step)
                 log.update(
                     {
                         "charts/SPS": int(global_step / (time.time() - start_time)),
@@ -225,7 +222,7 @@ def main(args):
 
         wandb.log(log, global_step)
     agent.save(f"models/{exp_name}/")
-    envs.close()
+    env.close()
     writer.close()
 
 
