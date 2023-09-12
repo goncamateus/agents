@@ -28,6 +28,7 @@ class DQNAgent(nn.Module):
         self.epsilon_decay = hyper_params.epsilon_decay
         self.target_update_freq = hyper_params.target_update_freq
         self.n_epochs = hyper_params.num_epochs
+        self.reward_scaling = hyper_params.reward_scaling
         self.n_updates = 0
         self.device = torch.device(
             "cuda" if torch.cuda.is_available() and hyper_params.cuda else "cpu"
@@ -35,11 +36,14 @@ class DQNAgent(nn.Module):
         self.replay_buffer = ReplayBuffer(hyper_params.buffer_size, self.device)
         self.set_net()
 
-        self.lambdas = np.array(hyper_params.lambdas, dtype=np.float32)
+        self.drQ = not hyper_params.dylam
+        if self.drQ:
+            self.lambdas = np.ones(self.num_rewards)
+        else:
+            self.lambdas = np.array(hyper_params.lambdas, dtype=np.float32)
         self.rew_tau = hyper_params.rew_tau
         self.rew_max = np.array(hyper_params.r_max, dtype=np.float32)
         self.rew_min = np.array(hyper_params.r_min, dtype=np.float32)
-        self.drQ = not hyper_params.dylam
         self.stratified = hyper_params.stratified
         self.rb_rewards = StratLastRewards(hyper_params.episodes_rb, self.num_rewards)
         self.last_rew_mean = None
@@ -64,10 +68,8 @@ class DQNAgent(nn.Module):
         self.target_dqn = my_model()
         self.target_dqn.load_state_dict(self.dqn.state_dict())
         self.optimizer = torch.optim.Adam(self.dqn.parameters(), lr=self.alpha)
-        self.comp_dqns = nn.ModuleList([my_model()] * self.num_rewards).to(self.device)
-        self.comp_target_dqns = nn.ModuleList([my_model()] * self.num_rewards).to(
-            self.device
-        )
+        self.comp_dqns = [my_model() for _ in range(self.num_rewards)]
+        self.comp_target_dqns = [my_model() for _ in range(self.num_rewards)]
         self.comp_optimizers = []
         for i in range(self.num_rewards):
             self.comp_target_dqns[i].load_state_dict(self.comp_dqns[i].state_dict())
@@ -109,6 +111,7 @@ class DQNAgent(nn.Module):
             next_state_batch,
             done_batch,
         ) = batch
+        reward_batch = reward_batch * self.reward_scaling
         action_batch = action_batch.unsqueeze(1).long()
         if self.num_rewards == 1:
             reward_batch = reward_batch.unsqueeze(1)
@@ -122,7 +125,7 @@ class DQNAgent(nn.Module):
                     .values.unsqueeze(1)
                 )
                 next_q_values[done_batch] = 0.0
-            y = reward_batch[:, i] + self.gamma * next_q_values
+            y = reward_batch[:, i].unsqueeze(1) + self.gamma * next_q_values
             q_values = self.comp_dqns[i](state_batch)
             q_values = q_values.gather(1, action_batch)
             loss = F.mse_loss(q_values, y)
@@ -146,15 +149,21 @@ class DQNAgent(nn.Module):
                 next_state_batch,
                 done_batch,
             ) = batch
+            reward_batch = reward_batch * self.reward_scaling
             action_batch = action_batch.unsqueeze(1).long()
             if self.stratified:
                 comp_loss = self.update_components(batch)
                 comp_losses.append(comp_loss)
-                Qs = torch.zeros(self.num_rewards).to(self.device)
+                Qs = torch.zeros((batch_size, self.num_rewards)).to(self.device)
                 with torch.no_grad():
                     for i in range(self.num_rewards):
-                        Qs[i] = self.comp_dqns[i](state_batch).gather(1, action_batch)
-                    Qs = torch.sum(self.lambdas * Qs)
+                        Qs[:, i] = (
+                            self.comp_dqns[i](state_batch)
+                            .gather(1, action_batch)
+                            .squeeze()
+                        )
+                    lambs = torch.FloatTensor(self.lambdas).to(self.device)
+                    Qs = torch.sum(lambs * Qs, 1).unsqueeze(1)
                 actual_Qs = self.dqn(state_batch).gather(1, action_batch)
                 loss = F.mse_loss(actual_Qs, Qs)
                 self.optimizer.zero_grad()
