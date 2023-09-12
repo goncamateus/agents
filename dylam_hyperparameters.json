@@ -47,13 +47,6 @@
         "num_rewards": 2
     },
 
-    "LunarLanderStrat-v2":{
-        "lambdas": [1, 1, 1, 1],
-        "r_max": [1, 1, 0, 0],
-        "r_min": [-1, -1, -1, -1],
-        "num_rewards": 4
-    },
-
     "LunarLanderContinuousStrat-v2":{
         "lambdas": [1, 1, 1, 1],
         "r_max": [1, 1, -0, -0],
@@ -174,5 +167,25 @@
         "total_timesteps": 1000000,
         "stratified": false,
         "dylam": false
+    },
+
+    "LunarLanderStrat-v2":{
+        "lambdas": [0.25, 0.25, 0.25, 0.25],
+        "r_max": [1, 1, 0, 0],
+        "r_min": [-1, -1, -1, -1],
+        "num_rewards": 4,
+        "learning_rate": 1e-4,
+        "gamma": 0.99,
+        "buffer_size": 1e5,
+        "epsilon": 1.0,
+        "epsilon_decay": 0.995,
+        "epsilon_end": 0.1,
+        "num_epochs": 1,
+        "target_update_freq": 600,
+        "policy_frequency": 5,
+        "batch_size": 64,
+        "total_timesteps": 1000000,
+        "stratified": true,
+        "reward_scaling": 200
     }
 }

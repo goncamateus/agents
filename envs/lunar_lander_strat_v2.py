@@ -186,10 +186,10 @@ class LunarLanderStratV2(
         self.cumulative_reward_info["reward_Power_linear"] += vector_reward[2]
         self.cumulative_reward_info["reward_Power_angular"] += vector_reward[3]
         self.cumulative_reward_info["Original_reward"] += reward
-
-        vector_reward = vector_reward / np.array([100, 230, 180, 15])
         if not self.stratified:
             vector_reward = vector_reward.sum()
+        else:
+            vector_reward = vector_reward / np.array([100, 230, 180, 15])
         return (
             np.array(state, dtype=np.float32),
             vector_reward,

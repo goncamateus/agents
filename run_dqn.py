@@ -209,6 +209,16 @@ def main(args):
                 if update_policy:
                     log.update({"losses/policy_loss": policy_loss})
                     writer.add_scalar("losses/policy_loss", policy_loss, global_step)
+                    if args.stratified:
+                        for i in range(len(component_loss)):
+                            log.update(
+                                {"losses/component_" + str(i): component_loss[i]}
+                            )
+                            writer.add_scalar(
+                                "losses/component_" + str(i),
+                                component_loss[i],
+                                global_step,
+                            )
                 log.update(
                     {
                         "charts/SPS": int(global_step / (time.time() - start_time)),
