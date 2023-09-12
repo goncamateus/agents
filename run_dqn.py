@@ -28,8 +28,8 @@ def parse_args():
         help="the id of the gym environment")
     parser.add_argument("--learning-rate", type=float, default=2.5e-4,
         help="the learning rate of the optimizer")
-    # parser.add_argument("--learning-start", type=float, default=256,
-    #     help="timestep to start learning")
+    parser.add_argument("--learning-start", type=float, default=0,
+        help="timestep to start learning")
     parser.add_argument("--seed", type=int, default=0,
         help="seed of the experiment")
     parser.add_argument("--total-timesteps", type=int, default=1000000,
@@ -80,6 +80,8 @@ def parse_args():
     configs = configs[args.gym_id]
     for key, value in configs.items():
         setattr(args, key, value)
+    if args.learning_start == 0:
+        args.learning_start = args.batch_size
     return args
 
 
@@ -148,7 +150,7 @@ def main(args):
     log = {}
     for global_step in range(args.total_timesteps):
         # ALGO LOGIC: put the logic for the algo here
-        if global_step < args.batch_size:
+        if global_step < args.learning_start:
             action = env.action_space.sample()
         else:
             action = agent.get_action(obs)
@@ -204,7 +206,7 @@ def main(args):
             obs, _ = env.reset()
 
         # ALGO LOGIC: training.
-        if global_step > args.batch_size:
+        if global_step > args.learning_start:
             update_policy = global_step % args.policy_frequency == 0
             if update_policy:
                 policy_loss, component_loss = agent.update(args.batch_size)

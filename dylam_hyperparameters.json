@@ -205,6 +205,7 @@
         "policy_frequency": 1,
         "batch_size": 32,
         "total_timesteps": 1000000,
+        "learning_starts": 200,
         "stratified": false,
         "dylam": false
     }
