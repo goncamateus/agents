@@ -1,7 +1,7 @@
 import math
 
 import numpy as np
-from gym.envs.box2d.lunar_lander import (
+from gymnasium.envs.box2d.lunar_lander import (
     FPS,
     LEG_DOWN,
     MAIN_ENGINE_POWER,
@@ -194,6 +194,7 @@ class LunarLanderStratV2(
             np.array(state, dtype=np.float32),
             vector_reward,
             terminated,
+            False,
             self.cumulative_reward_info,
         )
 
@@ -211,11 +212,11 @@ class LunarLanderContinuousStratV3(LunarLanderContinuousStratV2):
         self.non_stratified = not stratified
 
     def step(self, action):
-        state, reward, done, info = super().step(action)
+        state, reward, done, truncated, info = super().step(action)
         reward = reward[:2]
         if self.non_stratified:
             reward = reward.sum()
-        return state, reward, done, info
+        return state, reward, done, truncated, info
 
 
 class LunarLanderContinuousMod(LunarLander):
@@ -392,5 +393,6 @@ class LunarLanderContinuousMod(LunarLander):
             np.array(state, dtype=np.float32),
             vector_reward,
             terminated,
+            False,
             self.cumulative_reward_info,
         )

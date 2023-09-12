@@ -14,14 +14,14 @@ mod_reg.register(
     max_episode_steps=1000,
 )
 
-register(
+mod_reg.register(
     id="LunarLanderStrat-v0",
     entry_point="envs.lunar_lander_strat:LunarLanderStrat",
     max_episode_steps=1000,
     reward_threshold=200,
 )
 
-register(
+mod_reg.register(
     id="LunarLanderOri-v0",
     entry_point="envs.lunar_lander_strat:LunarLanderStrat",
     kwargs={"stratified": False},
@@ -29,14 +29,14 @@ register(
     reward_threshold=200,
 )
 
-register(
+mod_reg.register(
     id="LunarLanderContinuousStrat-v0",
     entry_point="envs.lunar_lander_strat:LunarLanderContinuousStrat",
     max_episode_steps=1000,
     reward_threshold=200,
 )
 
-register(
+mod_reg.register(
     id="LunarLanderContinuousOri-v0",
     entry_point="envs.lunar_lander_strat:LunarLanderContinuousStrat",
     kwargs={"stratified": False},
@@ -44,14 +44,14 @@ register(
     reward_threshold=200,
 )
 
-register(
+mod_reg.register(
     id="LunarLanderStrat-v1",
     entry_point="envs.lunar_lander_strat_v1:LunarLanderStratV1",
     max_episode_steps=1000,
     reward_threshold=200,
 )
 
-register(
+mod_reg.register(
     id="LunarLanderOri-v1",
     entry_point="envs.lunar_lander_strat_v1:LunarLanderStratV1",
     kwargs={"stratified": False},
@@ -59,14 +59,14 @@ register(
     reward_threshold=200,
 )
 
-register(
+mod_reg.register(
     id="LunarLanderContinuousStrat-v1",
     entry_point="envs.lunar_lander_strat_v1:LunarLanderContinuousStratV1",
     max_episode_steps=1000,
     reward_threshold=200,
 )
 
-register(
+mod_reg.register(
     id="LunarLanderContinuousOri-v1",
     entry_point="envs.lunar_lander_strat_v1:LunarLanderContinuousStratV1",
     kwargs={"stratified": False},
@@ -74,14 +74,14 @@ register(
     reward_threshold=200,
 )
 
-register(
+mod_reg.register(
     id="LunarLanderStrat-v2",
     entry_point="envs.lunar_lander_strat_v2:LunarLanderStratV2",
     max_episode_steps=1000,
     reward_threshold=200,
 )
 
-register(
+mod_reg.register(
     id="LunarLanderOri-v2",
     entry_point="envs.lunar_lander_strat_v2:LunarLanderStratV2",
     kwargs={"stratified": False},
@@ -89,14 +89,14 @@ register(
     reward_threshold=200,
 )
 
-register(
+mod_reg.register(
     id="LunarLanderContinuousStrat-v2",
     entry_point="envs.lunar_lander_strat_v2:LunarLanderContinuousStratV2",
     max_episode_steps=1000,
     reward_threshold=200,
 )
 
-register(
+mod_reg.register(
     id="LunarLanderContinuousOri-v2",
     entry_point="envs.lunar_lander_strat_v2:LunarLanderContinuousStratV2",
     kwargs={"stratified": False},
@@ -104,14 +104,14 @@ register(
     reward_threshold=200,
 )
 
-register(
+mod_reg.register(
     id="LunarLanderContinuousStrat-v3",
     entry_point="envs.lunar_lander_strat_v2:LunarLanderContinuousStratV3",
     max_episode_steps=1000,
     reward_threshold=200,
 )
 
-register(
+mod_reg.register(
     id="LunarLanderContinuous-v3",
     entry_point="envs.lunar_lander_strat_v2:LunarLanderContinuousStratV3",
     kwargs={"stratified": False},
@@ -119,7 +119,7 @@ register(
     reward_threshold=200,
 )
 
-register(
+mod_reg.register(
     id="LunarLanderContinuousModStrat-v0",
     entry_point="envs.lunar_lander_strat_v2:LunarLanderContinuousMod",
     max_episode_steps=1000,

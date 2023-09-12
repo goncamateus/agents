@@ -24,7 +24,7 @@ class ReplayBuffer:
                 self.buffer.append(experience)
             else:
                 self.buffer[self.ptr] = experience
-                self.ptr = (self.ptr + 1) % self.max_size
+            self.ptr = int((self.ptr + 1) % self.max_size)
 
     def clear(self):
         self.buffer.clear()
