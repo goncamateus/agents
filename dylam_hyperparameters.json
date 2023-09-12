@@ -208,5 +208,25 @@
         "learning_starts": 200,
         "stratified": false,
         "dylam": false
+    },
+
+    "mo-highway-v0":{
+        "lambdas": [0.3333, 0.3333, 0.3333],
+        "r_max": [1, 1, 0],
+        "r_min": [ 0, 0, -1],
+        "num_rewards": 3,
+        "learning_rate": 5e-4,
+        "gamma": 0.8,
+        "buffer_size": 15000,
+        "epsilon": 1.0,
+        "epsilon_decay": 0.995,
+        "epsilon_end": 0.1,
+        "num_epochs": 1,
+        "target_update_freq": 50,
+        "policy_frequency": 1,
+        "batch_size": 32,
+        "total_timesteps": 20000,
+        "learning_starts": 200,
+        "stratified": true
     }
 }

@@ -200,12 +200,20 @@ def main(args):
                 )
             epi_reward = np.zeros(args.num_rewards)
             strat_rewards = [x for x in info.keys() if x.startswith("reward_")]
-            strat_rewards += [x for x in info.keys() if x.endswith("_reward")]
             for key in strat_rewards:
                 comp_name = key.replace("reward_", "")
-                comp_name = comp_name.replace("_reward", "")
                 log.update({f"ep_info/{comp_name}": info[key]})
                 writer.add_scalar(f"charts/{comp_name}", info[key], global_step)
+            if "rewards" in info:
+                strat_rewards = [
+                    x for x in info["rewards"].keys() if x.endswith("_reward")
+                ]
+                for key in strat_rewards:
+                    comp_name = key.replace("_reward", "")
+                    log.update({f"ep_info/{comp_name}": info["rewards"][key]})
+                    writer.add_scalar(
+                        f"charts/{comp_name}", info["rewards"][key], global_step
+                    )
             obs, _ = env.reset()
 
         # ALGO LOGIC: training.
