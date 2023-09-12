@@ -134,6 +134,9 @@ def main(args):
             f"monitor/{exp_name}",
             episode_trigger=lambda x: x % args.video_freq == 0,
         )
+        if "highway" in args.gym_id:
+            env.unwrapped.set_record_video_wrapper(env)
+            env.configure({"simulation_frequency": 15})  # Higher FPS for rendering
     if len(env.observation_space.shape) > 1:
         env = gym.wrappers.FlattenObservation(env)
 

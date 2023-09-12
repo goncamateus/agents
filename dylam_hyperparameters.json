@@ -204,7 +204,7 @@
         "target_update_freq": 50,
         "policy_frequency": 1,
         "batch_size": 32,
-        "total_timesteps": 1000000,
+        "total_timesteps": 20000,
         "learning_starts": 200,
         "stratified": false,
         "dylam": false
