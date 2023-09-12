@@ -7,6 +7,7 @@ import time
 from distutils.util import strtobool
 
 import gymnasium as gym
+import highway_env
 import mo_gymnasium as mo_gym
 import numpy as np
 import torch
@@ -15,7 +16,6 @@ from torch.utils.tensorboard import SummaryWriter
 
 import envs
 import wandb
-
 from methods.dqn import DQNAgent
 
 
@@ -28,6 +28,8 @@ def parse_args():
         help="the id of the gym environment")
     parser.add_argument("--learning-rate", type=float, default=2.5e-4,
         help="the learning rate of the optimizer")
+    # parser.add_argument("--learning-start", type=float, default=256,
+    #     help="timestep to start learning")
     parser.add_argument("--seed", type=int, default=0,
         help="seed of the experiment")
     parser.add_argument("--total-timesteps", type=int, default=1000000,
@@ -130,6 +132,8 @@ def main(args):
             f"monitor/{exp_name}",
             episode_trigger=lambda x: x % args.video_freq == 0,
         )
+    if len(env.observation_space.shape) > 1:
+        env = gym.wrappers.FlattenObservation(env)
 
     agent = DQNAgent(
         args,
@@ -165,14 +169,20 @@ def main(args):
         if done or truncated:
             agent.rb_rewards.add(epi_reward)
             agent.dylam()
+            original_key = None
             if "Original_reward" in info:
+                original_key = "Original_reward"
+            elif "original_reward" in info:
+                original_key = "original_reward"
+            if original_key:
                 print(
-                    f"global_step={global_step}, episodic_return={info['Original_reward']}"
+                    f"global_step={global_step}, episodic_return={info[original_key]}"
                 )
-                log.update({f"ep_info/reward_total": info["Original_reward"]})
+                log.update({f"ep_info/reward_total": info[original_key]})
                 writer.add_scalar(
-                    "charts/episodic_return", info["Original_reward"], global_step
+                    "charts/episodic_return", info[original_key], global_step
                 )
+                info.pop(original_key)
             else:
                 print(
                     f"global_step={global_step}, episodic_return={(epi_reward * args.lambdas)[0]}"
@@ -185,11 +195,12 @@ def main(args):
                 )
             epi_reward = np.zeros(args.num_rewards)
             strat_rewards = [x for x in info.keys() if x.startswith("reward_")]
+            strat_rewards += [x for x in info.keys() if x.endswith("_reward")]
             for key in strat_rewards:
-                log.update({f"ep_info/{key.replace('reward_', '')}": info[key]})
-                writer.add_scalar(
-                    f"charts/{key.replace('reward_', '')}", info[key], global_step
-                )
+                comp_name = key.replace("reward_", "")
+                comp_name = comp_name.replace("_reward", "")
+                log.update({f"ep_info/{comp_name}": info[key]})
+                writer.add_scalar(f"charts/{comp_name}", info[key], global_step)
             obs, _ = env.reset()
 
         # ALGO LOGIC: training.

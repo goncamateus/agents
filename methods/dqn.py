@@ -90,7 +90,7 @@ class DQNAgent(nn.Module):
         self.rb_rewards.add(rewards)
 
     def dylam(self):
-        if self.rb_rewards.can_do() and not self.drQ:
+        if self.stratified and self.rb_rewards.can_do() and not self.drQ:
             rew_mean_t = self.rb_rewards.mean()
             if self.last_rew_mean is not None:
                 rew_mean_t = (
@@ -117,14 +117,22 @@ class DQNAgent(nn.Module):
             reward_batch = reward_batch.unsqueeze(1)
         self.n_updates += 1
         losses = []
+        if self.drQ:
+            next_q_values = 0
+            for i in range(self.num_rewards):
+                with torch.no_grad():
+                    next_q_values += self.comp_target_dqns[i](next_state_batch)
+            next_q_values = next_q_values.max(1).values.unsqueeze(1)
+            next_q_values[done_batch] = 0.0
         for i in range(self.num_rewards):
-            with torch.no_grad():
-                next_q_values = (
-                    self.comp_target_dqns[i](next_state_batch)
-                    .max(1)
-                    .values.unsqueeze(1)
-                )
-                next_q_values[done_batch] = 0.0
+            if not self.drQ:
+                with torch.no_grad():
+                    next_q_values = (
+                        self.comp_target_dqns[i](next_state_batch)
+                        .max(1)
+                        .values.unsqueeze(1)
+                    )
+                    next_q_values[done_batch] = 0.0
             y = reward_batch[:, i].unsqueeze(1) + self.gamma * next_q_values
             q_values = self.comp_dqns[i](state_batch)
             q_values = q_values.gather(1, action_batch)
@@ -188,7 +196,7 @@ class DQNAgent(nn.Module):
                 if self.n_updates % self.target_update_freq == 0:
                     self.target_dqn.load_state_dict(self.dqn.state_dict())
         mean_losses = np.mean(losses)
-        mean_comp_losses = np.mean(comp_losses, axis=0)
+        mean_comp_losses = np.mean(comp_losses, axis=0) if comp_losses else None
         return mean_losses, mean_comp_losses
 
     def save(self, path):
