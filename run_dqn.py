@@ -7,7 +7,6 @@ import time
 from distutils.util import strtobool
 
 import gymnasium as gym
-import highway_env
 import mo_gymnasium as mo_gym
 import numpy as np
 import torch
@@ -177,8 +176,6 @@ def main(args):
             original_key = None
             if "Original_reward" in info:
                 original_key = "Original_reward"
-            elif "original_reward" in info:
-                original_key = "original_reward"
             if original_key:
                 print(
                     f"global_step={global_step}, episodic_return={info[original_key]}"
@@ -204,16 +201,6 @@ def main(args):
                 comp_name = key.replace("reward_", "")
                 log.update({f"ep_info/{comp_name}": info[key]})
                 writer.add_scalar(f"charts/{comp_name}", info[key], global_step)
-            if "rewards" in info:
-                strat_rewards = [
-                    x for x in info["rewards"].keys() if x.endswith("_reward")
-                ]
-                for key in strat_rewards:
-                    comp_name = key.replace("_reward", "")
-                    log.update({f"ep_info/{comp_name}": info["rewards"][key]})
-                    writer.add_scalar(
-                        f"charts/{comp_name}", info["rewards"][key], global_step
-                    )
             obs, _ = env.reset()
 
         # ALGO LOGIC: training.

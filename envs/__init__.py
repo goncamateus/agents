@@ -126,6 +126,30 @@ mod_reg.register(
     reward_threshold=200,
 )
 
+mod_reg.register(
+    id="highway-v1",
+    entry_point="envs.highway_env:ModHighwayEnv",
+    nondeterministic=True,
+)
+
+mod_reg.register(
+    id="highway-fast-v1",
+    entry_point="envs.highway_env:ModHighwayEnvFast",
+    nondeterministic=True,
+)
+
+mod_reg.register(
+    id="highwayStrat-v0",
+    entry_point="envs.highway_env:HighwayStratEnv",
+    nondeterministic=True,
+)
+
+mod_reg.register(
+    id="highwayStrat-fast-v0",
+    entry_point="envs.highway_env:HighwayStratEnvFast",
+    nondeterministic=True,
+)
+
 register(
     id="HalfCheetahStrat-v0",
     entry_point="envs.half_cheetah_strat:HalfCheetahStratEnv",

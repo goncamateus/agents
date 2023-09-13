@@ -5,7 +5,7 @@ import envs
 
 
 def main():
-    env = gym.make("RaceTrack-v0", render_mode="human")
+    env = gym.make("highwayStrat-v0", render_mode="human")
     env.reset()
     for step in range(10000):
         # env.render()
@@ -16,15 +16,16 @@ def main():
         # else:
         #     action = 2
         state, reward, done, truncated, info = env.step(env.action_space.sample())
-        # print("Reward")
-        # print(reward)
+        print("Reward")
+        print(reward)
 
-        # print("State")
-        # print(state)
+        print("State")
+        print(state)
 
         if done:
-            # print("Info")
-            # print(info)
+            print(step)
+            print("Info")
+            print(info)
             env.reset()
     env.close()
 
