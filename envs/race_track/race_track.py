@@ -66,14 +66,14 @@ class RacetrackEnv(gym.Env):
         self.grid = np.zeros((self.track_width, self.track_height), dtype=int)
         self.action_space = spaces.Discrete(9)
         self.observation_space = spaces.Box(
-            low=np.array([0, 0, -5, -5]),
-            high=np.array([self.track_width, self.track_height, 5, 5]),
-            shape=(4,),
+            low=np.array([0, 0]),
+            high=np.array([self.track_width, self.track_height]),
+            shape=(2,),
             dtype=np.int32,
         )
         self.agent_pos = [2, self.track_width // 2]
         self.agent_velocity = (0, 0)
-        self.agent_max_velocity = 5  # Set your desired maximum velocity here
+        self.agent_max_velocity = 1  # Set your desired maximum velocity here
         self.wall_penalty = 1  # Define the penalty for colliding with a wall
         self.window_surface = None
         self.clock = None
@@ -99,8 +99,8 @@ class RacetrackEnv(gym.Env):
             [
                 self.agent_pos[1],
                 self.agent_pos[0],
-                5 + self.agent_velocity[1],
-                5 + self.agent_velocity[0],
+                # 5 + self.agent_velocity[1],
+                # 5 + self.agent_velocity[0],
             ],
             dtype=np.int32,
         )

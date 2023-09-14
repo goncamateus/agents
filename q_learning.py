@@ -127,10 +127,10 @@ def main(args):
     )
     for episode in range(args.total_episodes):
         obs, info = env.reset()
-        done = False
+        done = truncated = False
         epi_reward = 0
         log = {}
-        while not done:
+        while not (done or truncated):
             if np.random.random() > epsilon[min(episode, len(epsilon) - 1)]:
                 action = agent.get_action(obs)
             else:
@@ -139,7 +139,7 @@ def main(args):
             if isinstance(reward, np.ndarray):
                 reward = reward.sum()
             epi_reward += reward
-            if done:
+            if done or truncated:
                 next_obs = obs
             agent.update_policy(obs, action, reward, next_obs)
             obs = next_obs
