@@ -29,6 +29,10 @@ def parse_args():
         help="total episodes of the experiments")
     parser.add_argument("--track", type=lambda x: bool(strtobool(x)), default=False, nargs="?", const=True,
         help="Log on wandb")
+    parser.add_argument("--capture-video", type=lambda x: bool(strtobool(x)), default=False, nargs="?", const=True,
+        help="weather to capture videos of the agent performances (check out `videos` folder)")
+    parser.add_argument("--video-freq", type=int, default=50,
+        help="Frequency of saving videos, in episodes")    
 
     # Algorithm specific arguments
     parser.add_argument("--gamma", type=float, default=0.99,
@@ -89,6 +93,7 @@ class DyLamQLearning:
         self.alpha = hyper_params.learning_rate
         self.gamma = hyper_params.gamma
         self.drQ = not hyper_params.dylam
+        self.reward_scaling = hyper_params.reward_scaling
 
     def store_reward(self, reward):
         self.rb_reward[self.rb_idx] = reward
@@ -120,6 +125,7 @@ class DyLamQLearning:
         return action
 
     def update_component_tables(self, observation, action, reward, next_obs):
+        reward = reward * self.reward_scaling
         for i in range(self.n_rewards):
             update = reward[i] + self.gamma * (
                 self.components_q[i][next_obs].max()
@@ -148,7 +154,7 @@ class DyLamQLearning:
 def main(args):
     strat_name = "DyLam" if args.dylam else "drQ"
     exp_name = f"Q_Learning_{strat_name}_{int(time.time())}_{args.gym_id}"
-    project = "DyLam"
+    project = "DyLam-Q"
     if args.seed == 0:
         args.seed = int(time.time())
     np.random.seed(args.seed)
@@ -158,9 +164,10 @@ def main(args):
         name=exp_name,
         entity="goncamateus",
         config=vars(args),
-        monitor_gym=False,
+        monitor_gym=True,
         mode=None if args.track else "disabled",
         save_code=True,
+        sync_tensorboard=True,
     )
     print(vars(args))
     writer = SummaryWriter(f"runs/{exp_name}")
@@ -170,7 +177,13 @@ def main(args):
         % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])),
     )
 
-    env = mogym.make(args.gym_id, render_mode="ansi")
+    env = mogym.make(args.gym_id, render_mode="rgb_array")
+    if args.capture_video:
+        env = gym.wrappers.RecordVideo(
+            env,
+            f"monitor/{exp_name}",
+            episode_trigger=lambda x: x % args.video_freq == 0,
+        )
     agent = DyLamQLearning(
         env.observation_space,
         env.action_space,
@@ -203,11 +216,16 @@ def main(args):
             agent.update_policy(obs, action, reward, next_obs)
             obs = next_obs
         log.update({f"ep_info/reward_total": cumulative_original_reward})
+        writer.add_scalar("ep_info/total", cumulative_original_reward, episode)
         print(f"Episode {episode} reward: {epi_reward}")
         agent.store_reward(epi_reward)
         agent.dylam()
         for i in range(args.num_rewards):
             log.update({"lambdas/component_" + str(i): agent.lambdas[i].item()})
+            writer.add_scalar(
+                "lambdas/component_" + str(i), agent.lambdas[i].item(), episode
+            )
+
         wandb.log(log)
     env.close()
 

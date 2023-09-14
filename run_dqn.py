@@ -95,7 +95,7 @@ def main(args):
         else:
             method_name = "DQN_drQ"
     exp_name = f"{method_name}_{int(time.time())}_{args.gym_id}"
-    project = "DyLam"
+    project = "DyLam-Q"
     if args.seed == 0:
         args.seed = int(time.time())
     args.method = method_name.split("_")[1] if args.stratified else method_name

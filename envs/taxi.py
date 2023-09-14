@@ -8,6 +8,7 @@ from gymnasium.spaces import Box, Dict
 class StratTaxiEnv(TaxiEnv):
     metadata = {
         "render_fps": 30,
+        "render_modes": ["human", "rgb_array", "ansi"],
     }
 
     def __init__(self, render_mode: Optional[str] = None):

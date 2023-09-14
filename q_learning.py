@@ -29,6 +29,10 @@ def parse_args():
         help="total episodes of the experiments")
     parser.add_argument("--track", type=lambda x: bool(strtobool(x)), default=False, nargs="?", const=True,
         help="Log on wandb")
+    parser.add_argument("--capture-video", type=lambda x: bool(strtobool(x)), default=False, nargs="?", const=True,
+        help="weather to capture videos of the agent performances (check out `videos` folder)")
+    parser.add_argument("--video-freq", type=int, default=50,
+        help="Frequency of saving videos, in episodes")
 
     # Algorithm specific arguments
     parser.add_argument("--gamma", type=float, default=0.99,
@@ -85,7 +89,7 @@ class QLearningAgent:
 
 def main(args):
     exp_name = f"Q_Learning_{int(time.time())}_{args.gym_id}"
-    project = "DyLam"
+    project = "DyLam-Q"
     if args.seed == 0:
         args.seed = int(time.time())
     np.random.seed(args.seed)
@@ -95,9 +99,10 @@ def main(args):
         name=exp_name,
         entity="goncamateus",
         config=vars(args),
-        monitor_gym=False,
+        monitor_gym=True,
         mode=None if args.track else "disabled",
         save_code=True,
+        sync_tensorboard=True,
     )
     print(vars(args))
     writer = SummaryWriter(f"runs/{exp_name}")
@@ -107,7 +112,13 @@ def main(args):
         % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])),
     )
 
-    env = mogym.make(args.gym_id, render_mode="ansi")
+    env = mogym.make(args.gym_id, render_mode="rgb_array")
+    if args.capture_video:
+        env = gym.wrappers.RecordVideo(
+            env,
+            f"monitor/{exp_name}",
+            episode_trigger=lambda x: x % args.video_freq == 0,
+        )
     agent = QLearningAgent(env.observation_space, env.action_space, hyper_params=args)
     epsilon = np.linspace(
         args.exploration_noise,
@@ -134,24 +145,9 @@ def main(args):
             obs = next_obs
         print(f"Episode {episode} reward: {epi_reward}")
         log.update({f"ep_info/reward_total": epi_reward})
+        writer.add_scalar("ep_info/total", epi_reward, episode)
         wandb.log(log)
 
-    env.close()
-
-    print("---------------Evaluating---------------")
-    env = mogym.make(args.gym_id, render_mode="human")
-    for episodes in range(10):
-        obs, info = env.reset()
-        done = False
-        truncated = False
-        epi_reward = 0
-        while not (done or truncated):
-            action = agent.get_action(obs)
-            obs, reward, done, truncated, info = env.step(action)
-            if isinstance(reward, np.ndarray):
-                reward = reward.sum()
-            epi_reward += reward
-        print(f"Evaluation Episode {episodes} reward: {epi_reward}")
     env.close()
 
 
