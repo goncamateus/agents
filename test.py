@@ -5,17 +5,17 @@ import envs
 
 
 def main():
-    env = gym.make("highwayStrat-v0", render_mode="human")
+    env = gym.make("FrozenLake11x11-v0", render_mode="human")
     env.reset()
     for step in range(10000):
         # env.render()
-        # action = input("UP = 0; DOWN = 1; RIGHT = 2; LEFT = 3\n")
-        # action = int(action)
+        action = input("UP = 0; DOWN = 1; RIGHT = 2; LEFT = 3\n")
+        action = int(action)
         # if step < 5:
         #     action = 0
         # else:
         #     action = 2
-        state, reward, done, truncated, info = env.step(env.action_space.sample())
+        state, reward, done, truncated, info = env.step(action)
         print("Reward")
         print(reward)
 

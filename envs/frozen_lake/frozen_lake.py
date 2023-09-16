@@ -2,12 +2,12 @@ import os
 from contextlib import closing
 from io import StringIO
 
-import gym
+import gymnasium as gym
 import numpy as np
 import pygame
 from colorama import Fore, Style
-from gym.spaces import Box, Discrete
 from gymnasium import utils
+from gymnasium.spaces import Box, Discrete
 from scipy.stats import multivariate_normal
 
 UP = 0
@@ -27,13 +27,14 @@ class FrozenLakeMod(gym.Env):
     metadata = {
         "render_modes": ["human", "ansi", "rgb_array"],
         "render.modes": ["human", "ansi", "rgb_array"],
-        "render_fps": 4,
-        "render.fps": 4,
+        "render_fps": 15,
+        "render.fps": 15,
     }
 
-    def __init__(self, stratified=False, **kwargs):
+    def __init__(self, stratified=False, render_mode=None, **kwargs):
         super().__init__()
         self.stratified = stratified
+        self.render_mode = render_mode
         self.num_rewards = 2
         self.ori_weights = np.array([1, 1])
 
@@ -94,7 +95,13 @@ class FrozenLakeMod(gym.Env):
         self.man_objective = self.objectives[0]
         self.steps_to_reach = 20
 
-    def reset(self):
+    def reset(
+        self,
+        *,
+        seed=None,
+        options=None,
+    ):
+        super().reset(seed=seed)
         self.reached_objectives = [False, False]
         self.last_action = None
         self.objective_count = 0
@@ -130,7 +137,9 @@ class FrozenLakeMod(gym.Env):
             "Original_reward": 0,
         }
         self.hit_wall = False
-        return self._get_obs()
+        if self.render_mode == "human":
+            self.render()
+        return self._get_obs(), self.cumulative_reward_info
 
     def min_max_norm(self, val, min, max):
         return (val - min) / (max - min)
@@ -267,17 +276,18 @@ class FrozenLakeMod(gym.Env):
                 + Style.RESET_ALL
             )
             self.objective_count += 1
-        elif self._dist_reward(self.objectives[next_objective]) == 0:
+        elif (
+            self._dist_reward(self.objectives[next_objective]) == 0
+            and not self.reached_objectives[next_objective]
+        ):
             self.steps_to_reach = 20
             self.reached_objectives[next_objective] = True
             self.objective_count += 1
             print(
-                Fore.GREEN
-                + f"objective {next_objective + 1} reached"
-                + Style.RESET_ALL
+                Fore.GREEN + f"objective {next_objective + 1} reached" + Style.RESET_ALL
             )
 
-        if self.objective_count == 2:
+        if self.reached_objectives[0] and self.reached_objectives[1]:
             done = True
             self.cumulative_reward_info["reward_objective"] += 1
             self.last_fifty_objective_count.append(1)
@@ -293,23 +303,33 @@ class FrozenLakeMod(gym.Env):
 
         if not self.stratified:
             reward = (reward * self.ori_weights).sum()
-        return self._get_obs(), reward, done, self.cumulative_reward_info
+        if self.render_mode == "human":
+            self.render()
+        return self._get_obs(), reward, done, False, self.cumulative_reward_info
 
-    def render(self, render_mode):
-        if render_mode == "ansi":
+    def render(self):
+        if self.render_mode is None:
+            assert self.spec is not None
+            gym.logger.warn(
+                "You are calling render method without specifying any render mode. "
+                "You can specify the render_mode at initialization, "
+                f'e.g. gym.make("{self.spec.id}", render_mode="rgb_array")'
+            )
+            return
+        if self.render_mode == "ansi":
             return self._render_text()
         else:
-            return self._render_gui(render_mode)
+            return self._render_gui()
 
-    def _render_gui(self, mode="human"):
+    def _render_gui(self):
         if self.window_surface is None:
             pygame.init()
 
-            if mode == "human":
+            if self.render_mode == "human":
                 pygame.display.init()
                 pygame.display.set_caption("Grid Environment")
                 self.window_surface = pygame.display.set_mode(self.window_size)
-            elif mode == "rgb_array":
+            elif self.render_mode == "rgb_array":
                 self.window_surface = pygame.Surface(self.window_size)
 
         assert (
@@ -385,11 +405,11 @@ class FrozenLakeMod(gym.Env):
         else:
             self.window_surface.blit(elf_img, cell_rect)
 
-        if mode == "human":
+        if self.render_mode == "human":
             pygame.event.pump()
             pygame.display.update()
             self.clock.tick(self.metadata["render_fps"])
-        elif mode == "rgb_array":
+        elif self.render_mode == "rgb_array":
             return np.transpose(
                 np.array(pygame.surfarray.pixels3d(self.window_surface)), axes=(1, 0, 2)
             )

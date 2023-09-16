@@ -1,7 +1,7 @@
 import dataclasses
 import os
 
-import gym
+import gymnasium as gym
 import numpy as np
 # import rsoccer_gym
 import torch
@@ -152,9 +152,6 @@ def make_env(
             env = RecordEpisodeStatistics(env)
         if extra_wrapper is not None:
             env = extra_wrapper(env)
-        env.seed(arguments.seed)
-        env.action_space.seed(arguments.seed)
-        env.observation_space.seed(arguments.seed)
         return env
 
     return thunk
