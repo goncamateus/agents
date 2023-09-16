@@ -55,7 +55,7 @@ def parse_args():
     return args
 
 
-class DyLamQLearning:
+class StratQLearning:
     def __init__(self, observation_space, action_space, hyper_params=None):
         self.action_size = action_space.n
         self.n_rewards = hyper_params.num_rewards
@@ -125,15 +125,24 @@ class DyLamQLearning:
         return action
 
     def update_component_tables(self, observation, action, reward, next_obs):
-        reward = reward * self.reward_scaling
-        for i in range(self.n_rewards):
-            update = reward[i] + self.gamma * (
-                self.components_q[i][next_obs].max()
-                - self.components_q[i][observation][action]
-            )
-            self.components_q[i][observation][action] = (
-                self.components_q[i][observation][action] + self.alpha * update
-            )
+        if self.drQ:
+            for i in range(self.n_rewards):
+                update = reward[i] + self.gamma * (
+                    self.components_q[i][next_obs].max()
+                    - self.components_q[i][observation][action]
+                )
+                self.components_q[i][observation][action] = (
+                    self.components_q[i][observation][action] + self.alpha * update
+                )
+        else:
+            for i in range(self.n_rewards):
+                update = reward[i] + self.gamma * (
+                    self.components_q[i][next_obs].max()
+                    - self.components_q[i][observation][action]
+                )
+                self.components_q[i][observation][action] = (
+                    self.components_q[i][observation][action] + self.alpha * update
+                )
 
     def update_policy(self, observation, action, reward, next_obs):
         try:
@@ -184,7 +193,7 @@ def main(args):
             f"monitor/{exp_name}",
             episode_trigger=lambda x: x % args.video_freq == 0,
         )
-    agent = DyLamQLearning(
+    agent = StratQLearning(
         env.observation_space,
         env.action_space,
         hyper_params=args,
