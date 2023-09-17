@@ -105,20 +105,16 @@
 
     "RaceTrack-v0":{
         "lambdas": [1, 1, 1, 1],
-        "r_max": [10, 0, 100, -5],
-        "r_min": [0, -50, 0, -100],
-        "rew_tau": 0.995,
-        "episodes_rb": 10,
+        "r_max": [10, 0, 73, -5],
+        "r_min": [0, -50, -1000, -100],
+        "rew_tau": 0.99,
+        "episodes_rb": 5,
         "num_rewards": 4,
         "reward_scaling": 1,
         "gamma":0.9999,
         "alpha": 1e-1,
-        "learning_rate": 1e-1,
         "total_episodes": 4000,
-        "total_timesteps": 500000,
-        "batch_size": 1024,
-        "num_epochs": 1,
-        "target_update_freq": 250000
+        "video_freq": 249
     },
 
     "deep-sea-treasure-v0":{

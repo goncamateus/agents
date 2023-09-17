@@ -18,30 +18,30 @@ class RacetrackEnv(gym.Env):
     }
     MAP = [
         "022222222222222222222222220",
-        "011111111111191111111111110",
-        "011111111111191111111111110",
-        "011111111111191111111111110",
-        "011111111111191111111111110",
-        "011111111111191111111111110",
+        "011111111111190111111111110",
+        "011111111111190111111111110",
+        "011111111111190111111111110",
+        "011111111111190111111111110",
+        "011111111111190111111111110",
         "011111022222222222220111110",
-        "011111011111111111110111110",
-        "011111011111111111110111110",
-        "011111011111111111110111110",
-        "011111011111111111110111110",
-        "011111011111111111110111110",
-        "011111011111111111110111110",
-        "011111011111111111110111110",
-        "011111011111111111110111110",
-        "011111011111111111110111110", 
-        "011111011111111111110111110",
-        "011111011111111111110111110",
-        "011111011111111111110111110",
-        "011111011111111111110111110",
-        "011111011111111111110111110",
-        "011111011111111111110111110",
-        "011111011111111111110111110",
-        "011111011111111111110111110",
-        "011111011111111111110111110",
+        "011111002222222222200111110",
+        "011111000222222222000111110",
+        "011111000222222222000111110",
+        "011111000022222220000111110",
+        "011111000002222200000111110",
+        "011111000000222000000111110",
+        "011111000000020000000111110",
+        "011111000000000000000111110",
+        "011111000000000000000111110",
+        "011111000000000000000111110",
+        "011111000000000000000111110",
+        "011111000000000000000111110",
+        "011111000000020000000111110",
+        "011111000000222000000111110",
+        "011111000002222200000111110",
+        "011111000022222220000111110",
+        "011111000222222222000111110",
+        "011111002222222222200111110",
         "011111022222222222220111110",
         "011111111111111111111111110",
         "011111111111111111111111110",
@@ -63,7 +63,6 @@ class RacetrackEnv(gym.Env):
         self.infield_y_start = 5
         self.infield_x_start = 5
         self.limit_steps = 1000
-        self.grid = np.zeros((self.track_width, self.track_height), dtype=int)
         self.action_space = spaces.Discrete(9)
         self.observation_space = spaces.Box(
             low=np.array([0, 0]),
@@ -71,7 +70,7 @@ class RacetrackEnv(gym.Env):
             shape=(2,),
             dtype=np.int32,
         )
-        self.agent_pos = [2, self.track_width // 2]
+        self.agent_pos = [2, 2 + self.track_width // 2]
         self.agent_velocity = (0, 0)
         self.agent_max_velocity = 1  # Set your desired maximum velocity here
         self.wall_penalty = 1  # Define the penalty for colliding with a wall
@@ -92,6 +91,7 @@ class RacetrackEnv(gym.Env):
         # Reward Settings
         self.had_collision = False
         self.last_potential = 0
+        self.map_visited = np.zeros((self.track_height, self.track_width), dtype=bool)
 
     def _get_state(self):
         # Return the state of the agent as a tuple of (x, y, vx, vy)
@@ -188,6 +188,18 @@ class RacetrackEnv(gym.Env):
             self.had_collision = False
         return new_pos, new_velocity
 
+    def _handle_start_collision(self, new_pos, new_velocity):
+        agent_y, agent_x = self.agent_pos
+        new_y, new_x = new_pos
+        up = agent_y < self.infield_y_start
+        mid_right = agent_x > self.track_width // 2
+        if up and mid_right:
+            if new_x == 1 + self.track_width // 2:
+                new_pos = (new_y, 2 + self.track_width // 2)
+                new_velocity = (0, 0)
+                self.had_collision = True
+        return new_pos, new_velocity
+
     def _do_action(self, action):
         # Calculate the new velocity based on the action
         action_idx = (
@@ -217,6 +229,7 @@ class RacetrackEnv(gym.Env):
 
         new_pos, new_velocity = self._handle_wall_collision(new_pos, new_velocity)
         new_pos, new_velocity = self._handle_infield_collision(new_pos, new_velocity)
+        new_pos, new_velocity = self._handle_start_collision(new_pos, new_velocity)
 
         # Update agent's position and velocity
         self.agent_pos = new_pos
@@ -251,78 +264,62 @@ class RacetrackEnv(gym.Env):
         return action
 
     def _potential_reward(self):
-        if not np.any(self.checkpoints):
-            dist_to_check = np.abs(np.array(self.agent_pos) - np.array([15, 22])).sum()/21
-        elif not np.any(self.checkpoints[1:]):
-            dist_to_check = np.abs(np.array(self.agent_pos) - np.array([27, 12])).sum()/24
-        elif not np.any(self.checkpoints[2:]):
-            dist_to_check = np.abs(np.array(self.agent_pos) - np.array([15, 2])).sum()/24
-        elif not self.checkpoints[3]:
-            dist_to_check = np.abs(np.array(self.agent_pos) - np.array([2, 12])).sum()/21
-        else:
-            dist_to_check = 0
-        potential = self.last_potential - dist_to_check
-        self.last_potential = dist_to_check
-        return potential
+        reward = 0
+        agent_y, agent_x = self.agent_pos
+        up = agent_y < self.infield_y_start
+        down = agent_y >= self.infield_y_start + self.infield_height
+        right = agent_x >= self.infield_x_start + self.infield_width
+        left = agent_x < self.infield_x_start
+        tile_check = self.map_visited[agent_y, agent_x]
+        if up:
+            if tile_check:
+                reward = -1
+            else:
+                reward = 1
+                self.map_visited[: self.infield_y_start, agent_x] = True
+                self.map_visited[:agent_y, 1 + self.track_width // 2 :] = True
+        elif down:
+            if tile_check:
+                reward = -1
+            else:
+                reward = 1
+                self.map_visited[
+                    self.infield_y_start + self.infield_height :, agent_x
+                ] = True
+                self.map_visited[agent_y:, agent_x:] = True
+        elif right:
+            if tile_check:
+                reward = -1
+            else:
+                reward = 1
+                self.map_visited[
+                    agent_y, self.infield_x_start + self.infield_width :
+                ] = True
+        elif left:
+            if tile_check:
+                reward = -1
+            else:
+                reward = 1
+                self.map_visited[agent_y, : self.infield_x_start] = True
+        return reward
 
     def _check_lap_finished(self):
-        reward = 0
-        if (
-            not np.any(self.checkpoints)
-            and self.agent_pos[0] > 15
-            and self.agent_pos[1] > 12
-        ):
-            if not self.checkpoints[0]:
-                self.last_potential = (
-                    np.abs(np.array(self.agent_pos) - np.array([27, 12])).sum() + 1
-                )/24
-                reward = 10
-            self.checkpoints[0] = True
-        if (
-            self.checkpoints[0]
-            and not np.any(self.checkpoints[1:])
-            and self.agent_pos[0] > 25
-            and self.agent_pos[1] < 12
-        ):
-            if not self.checkpoints[1]:
-                self.last_potential = (
-                    np.abs((np.array(self.agent_pos) - np.array([15, 2])).sum()) + 1
-                )/21
-                reward = 10
-            self.checkpoints[1] = True
-        if (
-            np.all(self.checkpoints[:2])
-            and not np.any(self.checkpoints[2:])
-            and self.agent_pos[0] < 15
-            and self.agent_pos[1] < 12
-        ):
-            if not self.checkpoints[2]:
-                self.last_potential = (
-                    np.abs(np.array(self.agent_pos) - np.array([2, 12])).sum() + 1
-                )/24
-                reward = 10
-            self.checkpoints[2] = True
-        if (
-            np.all(self.checkpoints[:3])
-            and not self.checkpoints[3]
-            and self.agent_pos[0] < 5
-            and self.agent_pos[1] >= 12
-        ):
-            self.checkpoints[3] = True
-            reward = 10
-        return reward, np.all(self.checkpoints)
+        agent_y, agent_x = self.agent_pos
+        if agent_x == -1 + self.track_width // 2 and agent_y < self.infield_y_start:
+            return True
+        return False
 
     def _calculate_reward_done(self):
         # Rewards: [Lap finished, Collision, Velocity towards goal]
         reward = np.array([0, 0, 0, 0], dtype=np.float32)
-        checkpoint_rewards, finished_lap = self._check_lap_finished()
+        finished_lap = self._check_lap_finished()
         if finished_lap:
             print(utils.colorize("OH YEAH", "blue", highlight=True))
         potential_reward = self._potential_reward()
         penalty = self.wall_penalty if self.had_collision else 0
         reward[0] = 10 if finished_lap else 0
         reward[1] = -penalty
-        reward[2] = checkpoint_rewards
+        reward[2] = potential_reward
         reward[3] = -0.1 if not finished_lap else 0
         return reward, finished_lap
 
@@ -357,16 +354,16 @@ class RacetrackEnv(gym.Env):
         options=None,
     ):
         super().reset(seed=seed)
-        self.agent_pos = [2, self.track_width // 2]
+        self.agent_pos = [2, 2 + self.track_width // 2]
         self.agent_velocity = (0, 0)
         # Reward Settings
         self.had_collision = False
         self.previous_pos = self.agent_pos
         self.steps_taken = 0
         self.checkpoints = np.array([False, False, False, False], dtype=bool)
-        self.last_potential = np.abs(
-            np.array(self.agent_pos) - np.array([15, 22])
-        ).sum()/21
+        self.last_potential = (
+            np.abs(np.array(self.agent_pos) - np.array([15, 22])).sum() / 21
+        )
         if self.render_mode == "human":
             self.render()
 
@@ -502,7 +499,7 @@ if __name__ == "__main__":
         }
         s, r, d, t, info = env.step(action_map[action])
         epi_reward += r
-        # print("state: ", s)
+        print("state: ", s)
         print("reward: ", r)
         # print("done: ", d)
         # print("info: ", info)
