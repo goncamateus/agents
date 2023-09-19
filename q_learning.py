@@ -145,7 +145,12 @@ def main(args):
             obs = next_obs
         print(f"Episode {episode} reward: {epi_reward}")
         log.update({f"ep_info/reward_total": epi_reward})
-        writer.add_scalar("ep_info/total", epi_reward, episode)
+        writer.add_scalar("ep_info/reward_total", epi_reward, episode)
+        strat_rewards = [x for x in info.keys() if x.startswith("reward_")]
+        for key in strat_rewards:
+            comp_name = key.replace("reward_", "")
+            log.update({f"ep_info/{comp_name}": info[key]})
+            writer.add_scalar(f"ep_info/{comp_name}", info[key], episode)
         wandb.log(log)
 
     env.close()

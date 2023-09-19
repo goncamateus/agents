@@ -108,7 +108,7 @@
         "r_max": [1, 0, -0.07, -0.07],
         "r_min": [0, -0.5, -1, -1],
         "rew_tau": 0.999,
-        "episodes_rb": 5,
+        "episodes_rb": 3,
         "num_rewards": 4,
         "reward_scaling": 1,
         "gamma":0.9999,

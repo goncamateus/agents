@@ -221,7 +221,7 @@ def main(args):
             agent.update_policy(obs, action, reward, next_obs)
             obs = next_obs
         log.update({f"ep_info/reward_total": cumulative_original_reward})
-        writer.add_scalar("ep_info/total", cumulative_original_reward, episode)
+        writer.add_scalar("ep_info/reward_total", cumulative_original_reward, episode)
         print(f"Episode {episode} reward: {epi_reward}")
         agent.store_reward(epi_reward)
         agent.dylam()
@@ -230,6 +230,11 @@ def main(args):
             writer.add_scalar(
                 "lambdas/component_" + str(i), agent.lambdas[i].item(), episode
             )
+        strat_rewards = [x for x in info.keys() if x.startswith("reward_")]
+        for key in strat_rewards:
+            comp_name = key.replace("reward_", "")
+            log.update({f"ep_info/{comp_name}": info[key]})
+            writer.add_scalar(f"ep_info/{comp_name}", info[key], episode)
 
         wandb.log(log)
     env.close()

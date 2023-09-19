@@ -92,6 +92,13 @@ class RacetrackEnv(gym.Env):
         self.had_collision = False
         self.last_potential = 0
         self.map_visited = np.zeros((self.track_height, self.track_width), dtype=bool)
+        self.cumulative_reward_info = {
+            "reward_objective": 0,
+            "reward_collision": 0,
+            "reward_potential": 0,
+            "reward_time": 0,
+            "Original_reward": 0,
+        }
 
     def _get_state(self):
         # Return the state of the agent as a tuple of (x, y, vx, vy)
@@ -318,9 +325,13 @@ class RacetrackEnv(gym.Env):
         potential_reward = self._potential_reward()
         penalty = self.wall_penalty if self.had_collision else 0
         reward[0] = 1 if finished_lap else 0
-        reward[1] = -penalty/100
-        reward[2] = potential_reward/1000
+        self.cumulative_reward_info["reward_objective"] += reward[0]
+        reward[1] = -penalty / 100
+        self.cumulative_reward_info["reward_collision"] += penalty
+        reward[2] = potential_reward / 1000
+        self.cumulative_reward_info["reward_potential"] += potential_reward
         reward[3] = -1e-3 if not finished_lap else 0
+        self.cumulative_reward_info["reward_time"] += -1e3 * reward[3]
         return reward, finished_lap
 
     def step(self, action):
@@ -340,12 +351,16 @@ class RacetrackEnv(gym.Env):
         state = self._get_state()
         reward, done = self._calculate_reward_done()
         done = done or self.steps_taken > self.limit_steps
-        info = {
-            "Original_reward": reward.sum(),
-        }
+        self.cumulative_reward_info.update({"Original_reward": reward.sum()})
         if self.render_mode == "human":
             self.render()
-        return state, reward, done, self.steps_taken > self.limit_steps, info
+        return (
+            state,
+            reward,
+            done,
+            self.steps_taken > self.limit_steps,
+            self.cumulative_reward_info,
+        )
 
     def reset(
         self,
@@ -364,10 +379,17 @@ class RacetrackEnv(gym.Env):
         self.last_potential = (
             np.abs(np.array(self.agent_pos) - np.array([15, 22])).sum() / 21
         )
+        self.cumulative_reward_info = {
+            "reward_objective": 0,
+            "reward_collision": 0,
+            "reward_potential": 0,
+            "reward_time": 0,
+            "Original_reward": 0,
+        }
         if self.render_mode == "human":
             self.render()
 
-        return self._get_state(), {}
+        return self._get_state(), self.cumulative_reward_info
 
     def render(self):
         row, col = self.agent_pos
