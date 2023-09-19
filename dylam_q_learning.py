@@ -172,7 +172,7 @@ def main(args):
         monitor_gym=True,
         mode=None if args.track else "disabled",
         save_code=True,
-        sync_tensorboard=True,
+        sync_tensorboard=False,
     )
     print(vars(args))
     writer = SummaryWriter(f"runs/{exp_name}")
@@ -236,7 +236,7 @@ def main(args):
             log.update({f"ep_info/{comp_name}": info[key]})
             writer.add_scalar(f"ep_info/{comp_name}", info[key], episode)
 
-        wandb.log(log)
+        wandb.log(log, episode)
     env.close()
 
 

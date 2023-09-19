@@ -113,7 +113,7 @@
         "reward_scaling": 1,
         "gamma":0.9999,
         "alpha": 1e-1,
-        "total_episodes": 4000,
+        "total_episodes": 2000,
         "video_freq": 249
     },
 
