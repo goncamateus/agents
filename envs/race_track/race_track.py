@@ -317,10 +317,10 @@ class RacetrackEnv(gym.Env):
             print(utils.colorize("OH YEAH", "blue", highlight=True))
         potential_reward = self._potential_reward()
         penalty = self.wall_penalty if self.had_collision else 0
-        reward[0] = 10 if finished_lap else 0
-        reward[1] = -penalty
-        reward[2] = potential_reward
-        reward[3] = -0.1 if not finished_lap else 0
+        reward[0] = 1 if finished_lap else 0
+        reward[1] = -penalty/100
+        reward[2] = potential_reward/1000
+        reward[3] = -1e-3 if not finished_lap else 0
         return reward, finished_lap
 
     def step(self, action):

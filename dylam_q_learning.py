@@ -145,19 +145,14 @@ class StratQLearning:
                 )
 
     def update_policy(self, observation, action, reward, next_obs):
-        try:
-            if isinstance(self.observation_space, gym.spaces.Box):
-                observation = tuple(observation)
-                next_obs = tuple(next_obs)
-            self.update_component_tables(observation, action, reward, next_obs)
-            Qs = 0
-            for i in range(self.n_rewards):
-                Qs += self.lambdas[i] * self.components_q[i][observation][action]
-            self.q_table[observation][action] = Qs
-        except Exception:
-            import ipdb
-
-            ipdb.set_trace()
+        if isinstance(self.observation_space, gym.spaces.Box):
+            observation = tuple(observation)
+            next_obs = tuple(next_obs)
+        self.update_component_tables(observation, action, reward, next_obs)
+        Qs = 0
+        for i in range(self.n_rewards):
+            Qs += self.lambdas[i] * self.components_q[i][observation][action]
+        self.q_table[observation][action] = Qs
 
 
 def main(args):
