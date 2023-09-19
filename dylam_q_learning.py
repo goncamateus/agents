@@ -145,6 +145,7 @@ class StratQLearning:
                 )
 
     def update_policy(self, observation, action, reward, next_obs):
+        reward *= self.reward_scaling
         if isinstance(self.observation_space, gym.spaces.Box):
             observation = tuple(observation)
             next_obs = tuple(next_obs)
