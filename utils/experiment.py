@@ -1,9 +1,10 @@
 import dataclasses
 import os
 
-import gymnasium as gym
+# import gymnasium as gym
+import gym
 import numpy as np
-# import rsoccer_gym
+import rsoccer_gym
 import torch
 
 from utils.async_vec import AsyncVectorEnv
