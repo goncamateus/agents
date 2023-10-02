@@ -1,6 +1,5 @@
 FROM nvidia/cuda:12.2.0-base-ubuntu20.04
 # Set environment variables
-ARG wandb_api=0
 ENV DEBIAN_FRONTEND=noninteractive
 # Install system dependencies
 RUN apt update && apt upgrade -y
@@ -50,6 +49,6 @@ WORKDIR /rl/rSoccer
 RUN git checkout cadeira_deep_gonca
 RUN pip install -e .
 WORKDIR /rl/agents
-ENV WANDB_API_KEY=$wandb_api
+RUN git checkout cadeira_deep
 COPY wandb_hack.py /deep/lib/python3.10/site-packages/wandb/integration/gym/__init__.py
-CMD [ "python run_sac.py --gym-id SSLPathPlanning-v0 --total-timesteps 150000 --capture-video --num-envs 16 --track" ]
+CMD [ "python", "run_sac.py", "--gym-id SSLPathPlanning-v0 --total-timesteps 150000 --capture-video --num-envs 16 --track" ]
