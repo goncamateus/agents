@@ -12,7 +12,6 @@ import torch
 from pyvirtualdisplay import Display
 from torch.utils.tensorboard import SummaryWriter
 
-import envs
 import wandb
 from methods.sac import SAC
 from utils.experiment import make_env
