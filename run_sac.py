@@ -152,6 +152,8 @@ def main(args):
         
         for item in infos:
             if "episode" in item.keys():
+                epi_length = item["episode"]["l"]*envs.envs[0].repeat_count
+                print(epi_length)
                 print(
                     f'global_step={global_step}, episodic_return={item["episode"]["r"]}'
                 )
@@ -159,9 +161,9 @@ def main(args):
                 writer.add_scalar(
                     "charts/episodic_return", item["episode"]["r"], global_step
                 )
-                log.update({f"ep_info/episodic_length": item["episode"]["l"]})
+                log.update({f"ep_info/episodic_length": epi_length})
                 writer.add_scalar(
-                    "charts/episodic_length", item["episode"]["l"], global_step
+                    "charts/episodic_length", epi_length, global_step
                 )
                 strat_rewards = [x for x in item.keys() if x.startswith("reward_")]
                 for key in strat_rewards:
