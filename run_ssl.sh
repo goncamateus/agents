@@ -1,0 +1,1 @@
+python run_sac.py --gym-id SSLPathPlanning-v0 --total-timesteps 100000 --capture-video --num-envs 16 --video-freq 10 --learning-start 1000 --track
