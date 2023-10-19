@@ -152,7 +152,7 @@ def main(args):
         
         for item in infos:
             if "episode" in item.keys():
-                epi_length = item["episode"]["l"]*envs.envs[0].repeat_count
+                epi_length = item["episode"]["l"]*envs.envs[0].n_actions
                 print(
                     f'global_step={global_step}, episodic_return={item["episode"]["r"]}'
                 )

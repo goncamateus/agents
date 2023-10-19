@@ -8,7 +8,7 @@ import rsoccer_gym
 import torch
 
 from utils.async_vec import AsyncVectorEnv
-from utils.wrappers import RecordEpisodeStatistics, SkipWrapper
+from utils.wrappers import RecordEpisodeStatistics, RepeatActionWrapper
 
 
 class StratLastRewards:
@@ -136,7 +136,7 @@ def make_env(
                     f"monitor/{run_name}",
                     episode_trigger=lambda x: x % arguments.video_freq == 0,
                 )
-        env = SkipWrapper(env, repeat_count=40)
+        env = RepeatActionWrapper(env, n_actions=1)
         # For PPO -------------------------------------------------------
         if "continuous" in arguments and arguments.continuous:
             env = gym.wrappers.ClipAction(env)
