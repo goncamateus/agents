@@ -46,7 +46,7 @@ RUN ["/bin/bash", "-c", "source /deep/bin/activate"]
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 WORKDIR /rl/rSoccer
-RUN git checkout cadeira_deep_gonca
+RUN git checkout cadeira_deep
 RUN pip install -e .
 WORKDIR /rl/agents
 RUN git checkout cadeira_deep
