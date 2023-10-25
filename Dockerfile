@@ -50,5 +50,6 @@ RUN git checkout cadeira_deep
 RUN pip install -e .
 WORKDIR /rl/agents
 RUN git checkout cadeira_deep
+RUN git config --global --add safe.directory /rl/agents
 COPY wandb_hack.py /deep/lib/python3.10/site-packages/wandb/integration/gym/__init__.py
 CMD [ "python", "run_sac.py", "--gym-id", "SSLPathPlanning-v0", "--total-timesteps", "150000", "--capture-video", "--num-envs", "16", "--track" ]
