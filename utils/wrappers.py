@@ -95,11 +95,9 @@ class RepeatActionWrapper(gym.Wrapper):
 
     def step(self, action):
         done = False
-        total_reward = 0
         for _ in range(self.n_actions):
             self.stepcount += 1
             obs, reward, done, info = self.env.step(action)
-            total_reward += reward
             if done:
                 break
         if "skip.stepcount" in info:
@@ -108,7 +106,7 @@ class RepeatActionWrapper(gym.Wrapper):
                 "the SkipWrapper wrappers."
             )
         info["skip.stepcount"] = self.stepcount
-        return obs, total_reward, done, info
+        return obs, reward, done, info
 
     def reset(self):
         self.stepcount = 0
