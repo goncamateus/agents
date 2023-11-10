@@ -1,5 +1,6 @@
 # https://github.com/vwxyzjn/cleanrl/blob/master/cleanrl/ppo.py
 import argparse
+import json
 import os
 import random
 import time
@@ -86,7 +87,11 @@ def parse_args():
             help="CAPS epsilon for standard deviation in the spacial loss")
  
     args = parser.parse_args()
-
+    with open("dylam_hyperparameters.json", "r") as config_file:
+        configs = json.load(config_file)
+    configs = configs[args.gym_id]
+    for key, value in configs.items():
+        setattr(args, key, value)
     return args
 
 
@@ -219,6 +224,7 @@ def main(args):
                     )
         wandb.log(log, global_step)
 
+    agent.save(f"models/{exp_name}/")
     envs.close()
     writer.close()
 

@@ -272,5 +272,15 @@
         "learning_starts": 200,
         "stratified": true,
         "rew_tau": 0.95
+    },
+
+    "SSLPathPlanning-v1":{
+        "num_envs": 16,
+        "total_timesteps": 200000,
+        "autotune": false,
+        "lambda_temporal": 1,
+        "lambda_spacial": 5,
+        "caps_epsilon": 0.05,
+        "capture_video": true
     }
 }

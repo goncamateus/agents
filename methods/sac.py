@@ -1,4 +1,5 @@
 import copy
+import os
 
 import numpy as np
 import torch
@@ -296,3 +297,14 @@ class SAC(nn.Module):
                 self.alpha = self.log_alpha.exp().item()
 
         return policy_loss, qf1_loss, qf2_loss, alpha_loss
+
+    def save(self, path):
+        os.makedirs(path, exist_ok=True)
+        torch.save(self.actor.state_dict(), path + "actor.pt")
+        torch.save(self.critic.state_dict(), path + "critic.pt")
+
+    def load(self, path):
+        self.actor.load_state_dict(torch.load(path + "actor.pt"))
+        self.critic.load_state_dict(torch.load(path + "critic.pt"))
+        self.actor.eval()
+        self.critic.eval()
