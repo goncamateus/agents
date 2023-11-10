@@ -154,7 +154,6 @@ class SAC(nn.Module):
         log_sig_max=2,
         hidden_dim=256,
     ):
-
         super(SAC, self).__init__()
         self.log_sig_min = log_sig_min
         self.log_sig_max = log_sig_max
@@ -183,11 +182,16 @@ class SAC(nn.Module):
         self.actor_optim = Adam(self.actor.parameters(), lr=args.policy_lr)
         self.critic_optim = Adam(self.critic.parameters(), lr=args.q_lr)
 
+        # CAPS
+        self.lambda_temporal = args.lambda_temporal
+        self.lambda_spacial = args.lambda_spacial
+        self.caps_epsilon = args.caps_epsilon
+
         # Automatic entropy tuning
         self.target_entropy = None
         self.log_alpha = None
         self.alpha_optim = None
-        if args.autotune:
+        if args.autotune and not (self.lambda_temporal or self.lambda_spacial):
             self.target_entropy = -torch.prod(
                 torch.Tensor(self.action_space.shape).to(self.device)
             ).item()
@@ -219,7 +223,7 @@ class SAC(nn.Module):
             done_batch,
         ) = self.replay_buffer.sample(batch_size)
 
-        reward_batch = reward_batch*self.reward_scaling
+        reward_batch = reward_batch * self.reward_scaling
         with torch.no_grad():
             next_state_action, next_state_log_pi, _ = self.actor.sample(
                 next_state_batch
@@ -262,6 +266,20 @@ class SAC(nn.Module):
             policy_loss = self.alpha * log_pi
             policy_loss = policy_loss - min_qf_pi
             policy_loss = policy_loss.mean()
+
+            # CAPS
+            if self.lambda_temporal:
+                temporal_dist = torch.norm(next_state_action - pi, dim=1).mean()
+                policy_loss += self.lambda_temporal * temporal_dist
+            if self.lambda_spacial:
+                obs_high = torch.Tensor(self.observation_space.high).to(self.device)
+                obs_low = torch.Tensor(self.observation_space.low).to(self.device)
+                state_batch_bar = torch.normal(state_batch, self.caps_epsilon)
+                state_batch_bar = torch.clamp(state_batch_bar, obs_low, obs_high)
+                pi_bar, _, _ = self.actor.sample(state_batch_bar)
+                spacial_dist = torch.norm(pi_bar - pi, dim=1).mean()
+                policy_loss += self.lambda_spacial * spacial_dist
+
             self.actor_optim.zero_grad()
             policy_loss.backward()
             self.actor_optim.step()

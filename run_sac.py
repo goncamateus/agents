@@ -77,6 +77,13 @@ def parse_args():
     parser.add_argument("--autotune", type=lambda x:bool(strtobool(x)), default=True, nargs="?", const=True,
         help="automatic tuning of the entropy coefficient")
     parser.add_argument("--reward-scaling", type=float, default=1., help="reward scaling factor")
+    
+    parser.add_argument("--lambda-temporal", type=float, default=0,
+            help="CAPS Weight on temporal loss")
+    parser.add_argument("--lambda-spacial", type=float, default=0,
+            help="CAPS Weight on spacial loss")
+    parser.add_argument("--caps-epsilon", type=float, default=1,
+            help="CAPS epsilon for standard deviation in the spacial loss")
  
     args = parser.parse_args()
 
@@ -136,10 +143,12 @@ def main(args):
     for global_step in range(args.total_timesteps):
         # ALGO LOGIC: put the logic for the algo here
         if global_step < args.learning_starts:
-            actions = np.array([envs.single_action_space.sample() for _ in range(args.num_envs)])
+            actions = np.array(
+                [envs.single_action_space.sample() for _ in range(args.num_envs)]
+            )
         else:
             actions = agent.get_action(obs)
-        
+
         # TRY NOT TO MODIFY: execute the action and collect the next obs
         next_obs, rewards, dones, infos = envs.step(actions)
 
@@ -149,10 +158,10 @@ def main(args):
 
         # TRY NOT TO MODIFY: CRUCIAL step easy to overlook
         obs = next_obs
-        
+
         for item in infos:
             if "episode" in item.keys():
-                epi_length = item["episode"]["l"]*envs.envs[0].n_actions
+                epi_length = item["episode"]["l"] * envs.envs[0].n_actions
                 print(
                     f'global_step={global_step}, episodic_return={item["episode"]["r"]}'
                 )
@@ -161,9 +170,7 @@ def main(args):
                     "charts/episodic_return", item["episode"]["r"], global_step
                 )
                 log.update({f"ep_info/episodic_length": epi_length})
-                writer.add_scalar(
-                    "charts/episodic_length", epi_length, global_step
-                )
+                writer.add_scalar("charts/episodic_length", epi_length, global_step)
                 strat_rewards = [x for x in item.keys() if x.startswith("reward_")]
                 for key in strat_rewards:
                     log.update({f"ep_info/{key.replace('reward_', '')}": item[key]})
@@ -171,37 +178,50 @@ def main(args):
                         f"charts/{key.replace('reward_', '')}", item[key], global_step
                     )
                 break
-        
+
         # ALGO LOGIC: training.
         if global_step > args.learning_starts:
             update_actor = global_step % args.policy_frequency == 0
-            policy_loss, qf1_loss, qf2_loss, alpha_loss = agent.update(args.batch_size, update_actor)
+            policy_loss, qf1_loss, qf2_loss, alpha_loss = agent.update(
+                args.batch_size, update_actor
+            )
 
             if global_step % args.target_network_frequency == 0:
                 agent.critic_target.sync(args.tau)
-            
+
             if global_step % 100 == 0:
-                log.update({
-                    "losses/Value1_loss":qf1_loss.item(),
-                    "losses/Value2_loss":qf2_loss.item(),
-                    "losses/alpha": agent.alpha,
-                    "charts/SPS": int(global_step / (time.time() - start_time))
-                })
+                log.update(
+                    {
+                        "losses/Value1_loss": qf1_loss.item(),
+                        "losses/Value2_loss": qf2_loss.item(),
+                        "losses/alpha": agent.alpha,
+                        "charts/SPS": int(global_step / (time.time() - start_time)),
+                    }
+                )
 
                 writer.add_scalar("losses/Value1_loss", qf1_loss.item(), global_step)
                 writer.add_scalar("losses/Value2_loss", qf2_loss.item(), global_step)
                 if update_actor:
-                    log.update({'losses/policy_loss': policy_loss.item()})
-                    writer.add_scalar("losses/policy_loss", policy_loss.item(), global_step)
+                    log.update({"losses/policy_loss": policy_loss.item()})
+                    writer.add_scalar(
+                        "losses/policy_loss", policy_loss.item(), global_step
+                    )
                 writer.add_scalar("losses/alpha", agent.alpha, global_step)
-                writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
+                writer.add_scalar(
+                    "charts/SPS",
+                    int(global_step / (time.time() - start_time)),
+                    global_step,
+                )
                 if args.autotune:
-                    log.update({'losses/alpha_loss': alpha_loss.item()})
-                    writer.add_scalar("losses/alpha_loss", alpha_loss.item(), global_step)
+                    log.update({"losses/alpha_loss": alpha_loss.item()})
+                    writer.add_scalar(
+                        "losses/alpha_loss", alpha_loss.item(), global_step
+                    )
         wandb.log(log, global_step)
 
     envs.close()
-    writer.close()        
+    writer.close()
+
 
 if __name__ == "__main__":
     args = parse_args()
