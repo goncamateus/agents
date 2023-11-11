@@ -226,9 +226,9 @@ def main(args):
         wandb.log(log, global_step)
         if global_step % 9999 == 0:
             agent.save(f"models/{exp_name}/")
-            artifact.add_file(f"models/{exp_name}/actor.pt")
-            wandb_run.log_artifact(artifact)
 
+    artifact.add_file(f"models/{exp_name}/actor.pt")
+    wandb_run.log_artifact(artifact)
     envs.close()
     writer.close()
 
