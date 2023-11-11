@@ -104,7 +104,7 @@ def main(args):
     if args.seed == 0:
         args.seed = int(time.time())
     args.method = "sac"
-    wandb.init(
+    wandb_run = wandb.init(
         project=project,
         name=exp_name,
         entity="goncamateus",
@@ -113,6 +113,7 @@ def main(args):
         mode=None if args.track else "disabled",
         save_code=True,
     )
+    artifact = wandb.Artifact("model", type="model")
     print(vars(args))
     writer = SummaryWriter(f"runs/{exp_name}")
     writer.add_text(
@@ -223,8 +224,11 @@ def main(args):
                         "losses/alpha_loss", alpha_loss.item(), global_step
                     )
         wandb.log(log, global_step)
+        if global_step % 9999 == 0:
+            agent.save(f"models/{exp_name}/")
+            artifact.add_file(f"models/{exp_name}/actor.pt")
+            wandb_run.log_artifact(artifact)
 
-    agent.save(f"models/{exp_name}/")
     envs.close()
     writer.close()
 
