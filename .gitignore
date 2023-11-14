@@ -7,3 +7,4 @@ runs/
 *log*
 *.csv
 models/
+artifacts/
