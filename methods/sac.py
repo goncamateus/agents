@@ -273,10 +273,8 @@ class SAC(nn.Module):
                 temporal_dist = torch.norm(next_state_action - pi, dim=1).mean()
                 policy_loss += self.lambda_temporal * temporal_dist
             if self.lambda_spacial:
-                obs_high = torch.Tensor(self.observation_space.high).to(self.device)
-                obs_low = torch.Tensor(self.observation_space.low).to(self.device)
                 state_batch_bar = torch.normal(state_batch, self.caps_epsilon)
-                state_batch_bar = torch.clamp(state_batch_bar, obs_low, obs_high)
+                state_batch_bar = torch.clamp(state_batch_bar, -1.2, 1.2)
                 pi_bar, _, _ = self.actor.sample(state_batch_bar)
                 spacial_dist = torch.norm(pi_bar - pi, dim=1).mean()
                 policy_loss += self.lambda_spacial * spacial_dist

@@ -136,7 +136,10 @@ def make_env(
                     f"monitor/{run_name}",
                     episode_trigger=lambda x: x % arguments.video_freq == 0,
                 )
-        env = RepeatActionWrapper(env, n_actions=16)
+        n_actions = 1
+        if "repeat_action" in arguments:
+            n_actions = arguments.repeat_action
+        env = RepeatActionWrapper(env, n_actions=n_actions)
         # For PPO -------------------------------------------------------
         if "continuous" in arguments and arguments.continuous:
             env = gym.wrappers.ClipAction(env)

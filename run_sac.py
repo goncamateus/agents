@@ -85,6 +85,9 @@ def parse_args():
             help="CAPS Weight on spacial loss")
     parser.add_argument("--caps-epsilon", type=float, default=1,
             help="CAPS epsilon for standard deviation in the spacial loss")
+    
+    parser.add_argument("--repeat-action", type=int, default=1,
+            help="Repeat Action N steps.")
  
     args = parser.parse_args()
     with open("dylam_hyperparameters.json", "r") as config_file:
