@@ -20,11 +20,11 @@ def main():
     env = gym.make("SSLPathPlanning-v1")
     env = gym.wrappers.RecordVideo(
         env,
-        f"monitor/test",
+        f"monitor/caps",
         episode_trigger=lambda x: True,
     )
-    env = RepeatActionWrapper(env, n_actions=16)
-    state_dict = load_model("artifacts/no-caps/actor.pt")
+    env = RepeatActionWrapper(env, n_actions=1)
+    state_dict = load_model("artifacts/model:v1/actor.pt")
     num_inputs = np.array(env.observation_space.shape).prod()
     num_actions = np.array(env.action_space.shape).prod()
     actor = GaussianPolicy(
@@ -40,14 +40,15 @@ def main():
     actor.eval()
     actor.to("cpu")
 
-    for _ in range(100):
+    for _ in range(5):
         obs = env.reset()
         done = False
         while not done:
             env.render()
             state = torch.Tensor(obs.reshape(1, -1))
             action = actor.get_action(state)[0]
-            obs, reward, done, _ = env.step(action)
+            obs, reward, done, info = env.step(action)
+        print(info)
 
     env.close()
 

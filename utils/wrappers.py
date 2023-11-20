@@ -100,11 +100,6 @@ class RepeatActionWrapper(gym.Wrapper):
             obs, reward, done, info = self.env.step(action)
             if done:
                 break
-        if "skip.stepcount" in info:
-            raise gym.error.Error(
-                'Key "skip.stepcount" already in info. Make sure you are not stacking '
-                "the SkipWrapper wrappers."
-            )
         info["skip.stepcount"] = self.stepcount
         return obs, reward, done, info
 
