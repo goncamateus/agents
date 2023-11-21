@@ -295,7 +295,7 @@
 
     "SSLPathPlanningMedium-v0":{
         "num_envs": 16,
-        "total_timesteps": 1000000,
+        "total_timesteps": 500000,
         "autotune": false,
         "lambda_temporal": 1,
         "lambda_spacial": 5,
