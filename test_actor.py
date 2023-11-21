@@ -44,7 +44,6 @@ def main():
         obs = env.reset()
         done = False
         while not done:
-            env.render()
             state = torch.Tensor(obs.reshape(1, -1))
             action = actor.get_action(state)[0]
             obs, reward, done, info = env.step(action)
