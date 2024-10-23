@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "agents"
+version = "0.1.0"
+description = "Implementations of Reinforcement Learning methods by goncamateus"
+authors = ["goncamateus <mgm4@cin.ufpe.br>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.13"
+gymnasium = {extras = ["all"], version = "^1.0.0"}
+
+[tool.poetry.group.dev.dependencies]
+ipdb = "^0.13.13"
+ipython = "^8.28.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
