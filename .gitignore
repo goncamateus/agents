@@ -1,9 +1,0 @@
-monitor/
-saves/
-.vscode/
-*.pyc
-wandb/
-runs/
-*log*
-*.csv
-models/
