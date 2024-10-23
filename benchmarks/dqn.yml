@@ -1,0 +1,3 @@
+LunarLander-v3:
+  num_envs: 16
+  total_timesteps: 100000
