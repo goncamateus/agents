@@ -7,104 +7,127 @@ from gonca_rl.agents import Agent
 from gonca_rl.utils.experiment.logger import Logger
 
 
-def end_of_episode(done: bool, truncated: bool) -> bool:
-    """Returns if the episode ended.
+def update_agent(
+    agent: Agent, global_step: int, logger: Logger
+) -> dict[str, float] | None:
+    """Updates agent if needed.
 
     Args:
-        done (bool): Episode ended flag.
-        truncated (bool): Epsiode max step reached flag.
+        agent (Agent): Agent to update.
+        global_step (int): Global step count.
+        logger (Logger): Logger to update.
 
     Returns:
-        bool: Episode ended flag.
+        dict[str, float] | None: List of logs when can log.
     """
-    return done or truncated
+    train_log = None
+    if global_step % agent.update_interval() == 0:
+        train_log = agent.update()
+        logger.update_train(train_log, global_step)
+    return train_log
 
 
-def get_logs_from_info(
-    info: dict, info_keys: Optional[list] = None, is_vector_env: bool = False
-) -> list[dict[str, float]]:
-    """Returns logs from info dictionary.
+def treats_next_state(
+    state: np.ndarray,
+    next_state: np.ndarray,
+    done: bool | np.ndarray,
+    is_vector_env: bool,
+):
+    """Treats next state when the episode ends.
 
     Args:
-        info (dict): Info dictionary from environment.
-        info_keys (Optional[list], optional): Keys from info dictionary that we want to log. Defaults to None.
-        is_vector_env (bool, optional): Rather the environment is vectorized. Defaults to False.
+        state (np.ndarray): Current state.
+        next_state (np.ndarray): Next state.
+        done (bool | np.ndarray): Done flag.
+        is_vector_env (bool): Rather the environment is vectorized.
 
     Returns:
-        list[dict[str, float]]: List of logs.
+        np.ndarray: Real next state
     """
-    logs = []
-    if info_keys is not None:
-        for key in info_keys:
-            if is_vector_env:
-                logs.append({f"Episode/{key}": np.mean(info[key])})
-            else:
-                logs.append({f"Episode/{key}": info[key]})
-    return logs
 
-
-def get_log_from_reward(
-    episode_reward: float | np.ndarray, is_vector_env: bool = False
-) -> dict[str, float]:
-    """Returns log from episode reward.
-
-    Args:
-        episode_reward (float | np.ndarray): Episode reward.
-        is_vector_env (bool, optional): Rather the environment is vectorized. Defaults to False.
-
-    Returns:
-        dict[str, float]: Log dictionary from episode reward.
-    """
-    reward_log = episode_reward
+    real_next_state = next_state
     if is_vector_env:
-        reward_log = np.mean(episode_reward)
-    return {"Episode/Return": reward_log}
+        for i in range(next_state):
+            if done[i]:
+                real_next_state[i] = state[i]
+    else:
+        if done:
+            real_next_state = state
+    return real_next_state
 
 
-def episode_rollout(
-    env: gym.Env, agent: Agent, global_step: int, info_keys: Optional[list] = None
-) -> list[dict[str, float]]:
-    """Rollout for a single episode.
-        This function is responsible for interacting with the environment for a single episode
-        and updating the agent's memory when there is one.
+def evaluate(
+    agent: Agent,
+    env: gym.Env,
+    logger: Logger,
+    global_step: int,
+    info_keys: Optional[list] = None,
+):
+    """Evaluates agent if needed.
+
     Args:
-        env (gym.Env): gymnaisum environment.
-        agent (Agent): Agent to interact with environment.
-        global_step (int): Global step count from outer loop.
+        agent (Agent): Agent to evaluate.
+        env (gym.Env): Gym environment.
+        logger (Logger): Logger to update.
+        global_step (int): Global step count.
         info_keys (Optional[list], optional): Keys from info dictionary that we want to log. Defaults to None.
-
-    Returns:
-        list[dict[str, float]]: List of logs.
     """
-    is_vector_env = isinstance(env, gym.vector.VectorEnv)
-    episode_reward = 0
-    done, truncated = False, False
-    logs = []
-    
-    state = env.reset()
-    while not end_of_episode(done, truncated):
-        action = agent.get_action(state)
-        next_state, reward, done, truncated, info = env.step(action)
-        if is_vector_env:
-            done = np.all(done)
-            truncated = np.all(truncated)
-        agent.memorize(state, action, reward, next_state, done)
-        episode_reward += reward
-        state = next_state
-        global_step += 1
-    logs.append(get_log_from_reward(episode_reward, is_vector_env))
-    logs += get_logs_from_info(info, info_keys, is_vector_env)
-    return logs
+    eval_env = gym.make(env.spec.id)
+    if global_step % agent.eval_interval() == 0:
+        eval_reward = 0
+        state, _ = eval_env.reset()
+        done = False
+        truncated = False
+        while not (done or truncated):
+            action = agent.get_action(state, is_training=False)
+            state, reward, done, truncated, info = env.step(action)
+            eval_reward += reward
+        logger.update_episode(
+            eval_reward, info, done, truncated, global_step, info_keys, evaluation=True
+        )
 
 
-def train_rollout(
+def rollout(
     env: gym.Env,
     agent: Agent,
     logger: Logger,
     max_step_count: int,
     info_keys: Optional[list] = None,
-):
+    is_training: bool = True,
+) -> tuple[dict[str, float], list[tuple[dict[str, float], int]]]:
+    """Rollout for a single episode.
+        This function is responsible for interacting with the environment for a single episode
+        and updating the agent's memory when there is one.
+
+    Args:
+        env (gym.Env): gymnaisum environment.
+        agent (Agent): Agent to interact with environment.
+        logger (Logger): Logger to update.
+        max_step_count (int): Maximum step count for the experiment.
+        info_keys (Optional[list], optional): Keys from info dictionary that we want to log. Defaults to None.
+        is_training (bool, optional): Rather the agent is training. Defaults to True.
+
+    Returns:
+        tuple[dict[str, float], list[tuple[dict[str, float], int]]]: tuple of episode logs and train logs.
+    """
+    is_vector_env = isinstance(env, gym.vector.VectorEnv)
+    episode_reward = 0
+    state, info = env.reset()
     global_step = 0
     while global_step < max_step_count:
-        logs = episode_rollout(env, agent, global_step, info_keys)
-
+        action = agent.get_action(state, is_training)
+        next_state, reward, done, truncated, info = env.step(action)
+        real_next_state = treats_next_state(state, next_state, done, is_vector_env)
+        agent.memorize(state, action, reward, real_next_state, done)
+        if is_training:
+            update_agent(agent, global_step)
+        episode_reward += reward
+        state = next_state
+        global_step += 1
+        logger.update_episode(
+            episode_reward, info, done, truncated, global_step, info_keys
+        )
+        evaluate(agent, env, logger, global_step, info_keys)
+        logger.push()
+    env.close()
+    logger.finish()
