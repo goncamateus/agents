@@ -20,11 +20,9 @@ def update_agent(
     Returns:
         dict[str, float] | None: List of logs when can log.
     """
-    train_log = None
     if global_step % agent.update_interval() == 0:
         train_log = agent.update()
         logger.update_train(train_log, global_step)
-    return train_log
 
 
 def treats_next_state(
@@ -47,7 +45,7 @@ def treats_next_state(
 
     real_next_state = next_state
     if is_vector_env:
-        for i in range(next_state):
+        for i in range(next_state.shape[0]):
             if done[i]:
                 real_next_state[i] = state[i]
     else:
