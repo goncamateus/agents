@@ -1761,6 +1761,22 @@ files = [
 ]
 
 [[package]]
+name = "rc-robosim"
+version = "1.2"
+description = "SSL and VSS robot soccer simulator"
+category = "main"
+optional = false
+python-versions = "*"
+files = [
+    {file = "rc-robosim-1.2.tar.gz", hash = "sha256:5080167ece949ad83b6e59fa96420ad0a1b5b8abd8c602776b70fa6c127961e7"},
+    {file = "rc_robosim-1.2-cp310-cp310-manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:2df3e53f92362ef88ad7d08b5c96b63b171a53a4deee54ce698d00dd54a6b5ed"},
+    {file = "rc_robosim-1.2-cp36-cp36m-manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:6607c20883eafc41183bc57ae6a6c43b563fff851742e554de6148a02e2506b5"},
+    {file = "rc_robosim-1.2-cp37-cp37m-manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:9619c803cae935cfa866ee4c4e0dfd7cb9cf0528bc5da48549fea803a21bf029"},
+    {file = "rc_robosim-1.2-cp38-cp38-manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:f192918b937bdb4c5fceddd721a37818f4f60bbcdbc742526ed3cbed86d8005b"},
+    {file = "rc_robosim-1.2-cp39-cp39-manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:8174aa8b628ad54bf6c992fe4be5b6c0f653e9e18a7397c2b96dae9519809ad4"},
+]
+
+[[package]]
 name = "rich"
 version = "13.9.4"
 description = "Render rich text, tables, progress bars, syntax highlighting, markdown and more to the terminal"
@@ -1779,6 +1795,27 @@ typing-extensions = {version = ">=4.0.0,<5.0", markers = "python_version < \"3.1
 
 [package.extras]
 jupyter = ["ipywidgets (>=7.5.1,<9)"]
+
+[[package]]
+name = "rsoccer-gym"
+version = "1.0.0"
+description = "RSoccer Gym is an open-source framework to study Reinforcement Learning for RoboCup's Small Size League and IEEE VSSS competition environments."
+category = "main"
+optional = false
+python-versions = ">=3.10"
+files = []
+develop = false
+
+[package.dependencies]
+gymnasium = ">=1.0.0"
+pygame = "^2.6.1"
+rc-robosim = "^1.2"
+
+[package.source]
+type = "git"
+url = "https://github.com/robocin/rSoccer.git"
+reference = "HEAD"
+resolved_reference = "3adf7c3e89fe6d1b47431ee4099dc5ee89420415"
 
 [[package]]
 name = "scipy"
@@ -2228,4 +2265,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "264e6fb58941a612267ca6acc1cf514626f21ba12a4ee94e7a65100cca46e7d5"
+content-hash = "81ca3a494a96d99a4ae15dd29b46634e22bc3940660bb8f59343b397068ce7ad"
