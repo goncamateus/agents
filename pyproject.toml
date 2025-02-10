@@ -26,6 +26,7 @@ rsoccer-gym = {git = "https://github.com/robocin/rSoccer.git"}
 
 [tool.poetry.group.dev.dependencies]
 ipython = "^8.32.0"
+pytest = "^8.3.4"
 
 [build-system]
 requires = ["poetry-core"]
