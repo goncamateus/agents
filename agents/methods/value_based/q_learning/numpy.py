@@ -5,7 +5,7 @@ from agents.methods.value_based.q_learning.q_learning import QLearning
 
 
 class NumpyQLearning(QLearning):
-    def set_table(self):
+    def __set_table(self):
         self.q_table = np.zeros((self.num_states, self.num_actions))
 
     def get_output(self, observation):

@@ -12,8 +12,8 @@ class Agent(ABC):
         action_space: Space,
     ):
         self.hyper_parameters = hyper_parameters
-        self.set_input_space(observation_space)
-        self.set_output_space(action_space)
+        self.__set_input_space(observation_space)
+        self.__set_output_space(action_space)
 
     @property
     @abstractmethod
@@ -23,9 +23,9 @@ class Agent(ABC):
     @abstractmethod
     def hyper_parameters(self, hyper_parameters: Dict): ...
 
-    def set_input_space(self, observation_space: Space): ...
+    def __set_input_space(self, observation_space: Space): ...
 
-    def set_output_space(self, action_space: Space): ...
+    def __set_output_space(self, action_space: Space): ...
 
     @abstractmethod
     def get_action(self, *args, **kwargs): ...

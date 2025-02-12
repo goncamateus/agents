@@ -26,7 +26,7 @@ class QLearning(Agent):
 
     def __init__(self, hyper_parameters, observation_space, action_space):
         super().__init__(hyper_parameters, observation_space, action_space)
-        self.set_table()
+        self.__set_table()
 
     def hyper_parameters(self, hyper_parameters: Dict):
         """Set the hyperparameters of the agent.
@@ -49,7 +49,7 @@ class QLearning(Agent):
         self.epsilon_min = hyper_parameters.get("epsilon_min")
         self.reward_scale = hyper_parameters.get("reward_scale")
 
-    def set_input_space(self, observation_space: T_space):
+    def __set_input_space(self, observation_space: T_space):
         """Set the input space of the agent.
 
         Args:
@@ -76,7 +76,7 @@ class QLearning(Agent):
         else:
             raise ValueError("Observation space must be of type Discrete or Box 2D.")
 
-    def set_output_space(self, action_space: Discrete):
+    def __set_output_space(self, action_space: Discrete):
         """Set the output space of the agent.
 
         Args:
@@ -90,7 +90,7 @@ class QLearning(Agent):
         self.action_space = action_space
         self.num_actions = action_space.n
 
-    def set_table(self):
+    def __set_table(self):
         """Initialize the Q-table with zeros."""
         ...
 
@@ -151,21 +151,21 @@ class QLearning(Agent):
         self.q_table[state][action] += self.alpha * td_value
         return td_value
 
-    def save(self, path: str):
+    def save(self, path: pathlib.Path):
         """Save the Q-table to a file.
 
         Args:
-            path (str): The path to save the Q-table.
+            path (pathlib.Path): The path to save the Q-table.
         """
-        pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+        path.mkdir(parents=True, exist_ok=True)
         if not isinstance(self.q_table, np.ndarray):
             self.q_table = np.array(self.q_table)
-        np.save(path + "q_table.npy", self.q_table)
+        np.save(path / "q_table.npy", self.q_table)
 
-    def load(self, path: str):
+    def load(self, path: pathlib.Path):
         """Load the Q-table from a file.
 
         Args:
-            path (str): The path to load the Q-table.
+            path (pathlib.Path): The path to load the Q-table.
         """
-        self.q_table = np.load(path + "q_table.npy")
+        self.q_table = np.load(path / "q_table.npy")

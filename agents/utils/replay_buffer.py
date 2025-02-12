@@ -25,14 +25,14 @@ class ReplayBuffer:
         Add an experience to the buffer.
         If the buffer is full, overwrite the oldest experience.
         This method accepts multiple experiences at once.
-        
+
         Args:
             state (np.ndarray): The state(s) at the current time step.
             action (np.ndarray): The action(s) taken at the current time step.
             reward (np.ndarray): The reward(s) received at the current time step.
             next_state (np.ndarray): The state(s) at the next time step.
             done (np.ndarray): A boolean indicating if the episode is done.
-            
+
         Example:
         ### Single experience
             >>> state = np.array([1, 2, 3])
@@ -87,7 +87,7 @@ class ReplayBuffer:
             rewards_v (torch.Tensor): The rewards received at the current time step.
             last_states_v (torch.Tensor): The states at the next time step.
             dones_t (torch.Tensor): A boolean indicating if the episode is done.
-            
+
         Example:
             >>> states_v, actions_v, rewards_v, last_states_v, dones_t = buffer.sample(32)
         """
