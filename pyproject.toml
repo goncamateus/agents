@@ -27,6 +27,28 @@ rsoccer-gym = {git = "https://github.com/robocin/rSoccer.git"}
 [tool.poetry.group.dev.dependencies]
 ipython = "^8.32.0"
 pytest = "^8.3.4"
+coverage = "^7.6.12"
+pytest-cov = "^6.0.0"
+taskipy = "^1.14.1"
+
+[tool.coverage.run]
+branch = true
+source = ["agents"]  
+
+[tool.coverage.report]
+show_missing = true  
+fail_under = 80  
+omit = [
+    "tests/",
+    "*/__init__.py",
+    "agents/methods/agent.py",
+]
+
+[tool.coverage.html]  
+directory = "htmlcov"
+
+[tool.taskipy.tasks]
+test = "pytest --cov tests/"
 
 [build-system]
 requires = ["poetry-core"]
