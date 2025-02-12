@@ -1,5 +1,4 @@
-# Reinforcement Learning applied to RoboCIn context environments
-
+# Reinforcement Learning applied to RoboCIn context environments ![Tests Status](./reports/tests-badge.svg)
 This repository is a collection of Reinforcement Learning algorithms applied to RoboCIn context environments. The main goal is to provide a set of tools to help students and researchers to develop and test Reinforcement Learning algorithms in RoboCIn context environments.
 
 ## Installation
