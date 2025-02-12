@@ -3,7 +3,7 @@ import torch.nn as nn
 
 from torch.distributions import Normal
 
-from agents.methods.architectures.torch.initializers import xavier_init
+from agents.methods.architectures.torch.utils import xavier_init
 
 
 class GaussianPolicy(nn.Module):
@@ -18,7 +18,7 @@ class GaussianPolicy(nn.Module):
         log_sig_min (float, optional): Minimum value for the log standard deviation. Default is -5.
         log_sig_max (float, optional): Maximum value for the log standard deviation. Default is 2.
         epsilon (float, optional): Small value to prevent division by zero in log probability calculation. Default is 1e-6.
-        action_range (tuple, optional): Range of the action space. Default is (1, 0).
+        action_range (tuple, optional): Range of the action space (high, low). Default is (1, 0).
 
     Methods:
         forward(state):
@@ -38,7 +38,7 @@ class GaussianPolicy(nn.Module):
         log_sig_min=-5,
         log_sig_max=2,
         epsilon=1e-6,
-        action_range=(1, 0),
+        action_range=(torch.ones(1), torch.zeros(1)),
     ):
         super(GaussianPolicy, self).__init__()
         self.log_sig_min = log_sig_min
@@ -50,7 +50,7 @@ class GaussianPolicy(nn.Module):
         self.back_bone = [
             nn.Linear(hidden_dim, hidden_dim) for _ in range(back_bone_size)
         ]
-        self.back_bone = nn.ModuleList(self.back_bone)
+        self.back_bone = nn.Sequential(*self.back_bone)
 
         self.mean_linear = nn.Linear(256, action_dim)
         self.log_std_linear = nn.Linear(256, action_dim)

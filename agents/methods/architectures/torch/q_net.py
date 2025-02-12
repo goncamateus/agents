@@ -41,7 +41,7 @@ class QNet(nn.Module):
         self.back_bone = [
             nn.Linear(hidden_dim, hidden_dim) for _ in range(back_bone_size)
         ]
-        self.back_bone = nn.ModuleList(self.back_bone)
+        self.back_bone = nn.Sequential(*self.back_bone)
         self.output_layer = nn.Linear(hidden_dim, number_outputs)
 
         if initializer is not None:

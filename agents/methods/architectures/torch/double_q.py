@@ -28,15 +28,26 @@ class DoubleQNet(nn.Module):
         action_dim: int,
         hidden_dim: int = 256,
         back_bone_size: int = 2,
+        number_outputs: int = 1,
         initializer=None,
     ):
         super(DoubleQNet, self).__init__()
         self.q_net1 = QNet(
-            state_dim, action_dim, hidden_dim, back_bone_size, initializer
+            state_dim,
+            action_dim,
+            hidden_dim,
+            back_bone_size,
+            number_outputs,
+            initializer,
         )
         self.q_net2 = QNet(
-            state_dim, action_dim, hidden_dim, back_bone_size, initializer
+            state_dim,
+            action_dim,
+            hidden_dim,
+            back_bone_size,
+            number_outputs,
+            initializer,
         )
 
-    def forward(self, x):
-        return self.q_net1(x), self.q_net2(x)
+    def forward(self, observation, action):
+        return self.q_net1(observation, action), self.q_net2(observation, action)
