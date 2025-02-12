@@ -64,5 +64,4 @@ jobs:
       - name: Run tests and generate coverage  
         run: |  
           poetry run task test
-          poetry run task test-report
           poetry run test-badge
