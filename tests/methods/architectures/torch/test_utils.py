@@ -3,8 +3,6 @@ import torch
 import torch.nn as nn
 
 from agents.methods.architectures.torch.utils import target_soft_update
-from agents.methods.architectures.torch.utils import xavier_init
-from agents.methods.architectures.torch.utils import kaiming_init
 
 
 class SimpleModel(nn.Module):

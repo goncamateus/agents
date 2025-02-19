@@ -1,11 +1,10 @@
-import random
 import numpy as np
-import torch
+from abc import ABC
 
 
-class ReplayBuffer:
+class BaseReplayBuffer(ABC):
     """
-    ReplayBuffer is a class that implements a replay buffer for storing and sampling experiences in reinforcement learning.
+    BaseReplayBuffer is a class that implements a replay buffer for storing and sampling experiences in reinforcement learning.
 
     Attributes:
         max_size (int): The maximum size of the buffer.
@@ -91,14 +90,7 @@ class ReplayBuffer:
         Example:
             >>> states_v, actions_v, rewards_v, last_states_v, dones_t = buffer.sample(32)
         """
-        batch = random.sample(self.buffer, batch_size)
-        states, actions, rewards, next_states, dones = map(np.array, zip(*batch))
-        states_v = torch.Tensor(states).to(self.device)
-        actions_v = torch.tensor(actions, dtype=torch.float32).to(self.device)
-        rewards_v = torch.Tensor(rewards).to(self.device)
-        last_states_v = torch.Tensor(next_states).to(self.device)
-        dones_t = torch.BoolTensor(dones).to(self.device)
-        return states_v, actions_v, rewards_v, last_states_v, dones_t
+        ...
 
     def __len__(self):
         return len(self.buffer)

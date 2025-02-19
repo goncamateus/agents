@@ -1,10 +1,12 @@
 import pathlib
 import numpy as np
 
+from abc import abstractmethod
 from agents.methods.agent import Agent
 from gymnasium.spaces.discrete import Discrete
 from gymnasium.spaces.box import Box
 from typing import TypeVar, Dict
+
 
 T_space = TypeVar("T_space", Discrete, Box)
 
@@ -26,30 +28,30 @@ class QLearning(Agent):
 
     def __init__(self, hyper_parameters, observation_space, action_space):
         super().__init__(hyper_parameters, observation_space, action_space)
-        self.__set_table()
+        self.set_table()
 
-    def hyper_parameters(self, hyper_parameters: Dict):
+    def hyper_parameters(self, parameters: Dict):
         """Set the hyperparameters of the agent.
 
         Args:
-            hyper_parameters (dict): The hyperparameters for the agent.
+            parameters (dict): The hyperparameters for the agent.
 
         Raises:
             ValueError: When the hyperparameters are not set.
         """
         if not all(
-            key in hyper_parameters
+            key in parameters
             for key in ["gamma", "alpha", "epsilon", "epsilon_decay", "epsilon_min"]
         ):
             raise ValueError("Hyperparameters not set.")
-        self.gamma = hyper_parameters.get("gamma")
-        self.alpha = hyper_parameters.get("alpha")
-        self.epsilon = hyper_parameters.get("epsilon")
-        self.epsilon_decay = hyper_parameters.get("epsilon_decay")
-        self.epsilon_min = hyper_parameters.get("epsilon_min")
-        self.reward_scale = hyper_parameters.get("reward_scale")
+        self.gamma = parameters.get("gamma")
+        self.alpha = parameters.get("alpha")
+        self.epsilon = parameters.get("epsilon")
+        self.epsilon_decay = parameters.get("epsilon_decay")
+        self.epsilon_min = parameters.get("epsilon_min")
+        self.reward_scale = parameters.get("reward_scale")
 
-    def __set_input_space(self, observation_space: T_space):
+    def set_input_space(self, observation_space: T_space):
         """Set the input space of the agent.
 
         Args:
@@ -76,7 +78,7 @@ class QLearning(Agent):
         else:
             raise ValueError("Observation space must be of type Discrete or Box 2D.")
 
-    def __set_output_space(self, action_space: Discrete):
+    def set_output_space(self, action_space: Discrete):
         """Set the output space of the agent.
 
         Args:
@@ -90,10 +92,12 @@ class QLearning(Agent):
         self.action_space = action_space
         self.num_actions = action_space.n
 
-    def __set_table(self):
+    @abstractmethod
+    def set_table(self):
         """Initialize the Q-table with zeros."""
         ...
 
+    @abstractmethod
     def get_output(self, observation: int):
         """Get the output of the agent -> Argmax(Q(s, a)).
 
@@ -105,6 +109,7 @@ class QLearning(Agent):
         """
         ...
 
+    @abstractmethod
     def epsilon_greedy(self, observation: int):
         """Choose an action using epsilon-greedy policy.
 

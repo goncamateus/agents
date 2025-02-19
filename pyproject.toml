@@ -31,26 +31,28 @@ coverage = "^7.6.12"
 pytest-cov = "^6.0.0"
 taskipy = "^1.14.1"
 genbadge = {extras = ["all"], version = "^1.1.1"}
+pre-commit = "^4.1.0"
+coverage-badge = "^1.1.2"
 
 [tool.coverage.run]
 branch = true
-source = ["agents"]  
+source = ["agents"]
 
 [tool.coverage.report]
-show_missing = true  
-fail_under = 80  
+show_missing = true
+fail_under = 80
 omit = [
     "tests/",
     "*/__init__.py",
     "agents/methods/agent.py",
 ]
 
-[tool.coverage.html]  
+[tool.coverage.html]
 directory = "htmlcov"
 
 [tool.taskipy.tasks]
-test = "pytest --cov tests --cov-report html --junitxml=reports/junit/junit.xml"
-test-badge = "genbadge tests -o reports/tests-badge.svg"
+test = "pytest --cov"
+test-badge = "coverage-badge -fo reports/tests-badge.svg"
 
 [build-system]
 requires = ["poetry-core"]

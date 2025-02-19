@@ -1,12 +1,12 @@
 import pytest
 import numpy as np
 
-from agents.utils.replay_buffer import ReplayBuffer
+from agents.utils.replay_buffer.base import BaseReplayBuffer
 
 
 @pytest.fixture
 def replay_buffer():
-    return ReplayBuffer(max_size=10)
+    return BaseReplayBuffer(max_size=10)
 
 
 @pytest.fixture
@@ -39,13 +39,6 @@ def test_add(replay_buffer, experience):
 def test_add_multiple_experiences(replay_buffer, multiple_experiences):
     replay_buffer.add(*multiple_experiences)
     assert len(replay_buffer) == 2
-
-
-@pytest.mark.parametrize("batch_size", [1, 2])
-def test_sample(replay_buffer, multiple_experiences, batch_size):
-    replay_buffer.add(*multiple_experiences)
-    batch = replay_buffer.sample(batch_size)
-    assert batch[0].shape[0] == batch_size
 
 
 def test_clear(replay_buffer, multiple_experiences):
