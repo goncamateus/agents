@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-
 from torch.distributions import Normal
 
 from agents.methods.architectures.torch.utils import xavier_init
