@@ -1,5 +1,6 @@
-import numpy as np
 import random
+
+import numpy as np
 import torch
 
 from agents.utils.replay_buffer import ReplayBuffer

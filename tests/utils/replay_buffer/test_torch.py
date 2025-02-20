@@ -1,5 +1,5 @@
-import pytest
 import numpy as np
+import pytest
 
 from agents.utils.replay_buffer.torch import TorchReplayBuffer
 

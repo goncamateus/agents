@@ -1,12 +1,12 @@
 import pathlib
-import numpy as np
-
 from abc import abstractmethod
-from agents.methods.agent import Agent
-from gymnasium.spaces.discrete import Discrete
-from gymnasium.spaces.box import Box
-from typing import TypeVar, Dict
+from typing import Dict, TypeVar
 
+import numpy as np
+from gymnasium.spaces.box import Box
+from gymnasium.spaces.discrete import Discrete
+
+from agents.methods.agent import Agent
 
 T_space = TypeVar("T_space", Discrete, Box)
 

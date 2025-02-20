@@ -1,5 +1,6 @@
 import pytest
 import torch
+
 from agents.methods.architectures.torch.gaussian_policy import GaussianPolicy
 
 

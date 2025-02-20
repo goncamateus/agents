@@ -1,5 +1,6 @@
-import numpy as np
 from abc import ABC
+
+import numpy as np
 
 
 class BaseReplayBuffer(ABC):

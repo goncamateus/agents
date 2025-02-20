@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import logging
 from typing import Dict
 
 from gymnasium.spaces.space import Space
@@ -11,17 +12,13 @@ class Agent(ABC):
         observation_space: Space,
         action_space: Space,
     ):
+        self.logger = logging.getLogger(self.__class__.__name__)
         self.hyper_parameters(hyper_parameters)
         self.set_input_space(observation_space)
         self.set_output_space(action_space)
 
-    @property
     @abstractmethod
-    def hyper_parameters(self) -> Dict: ...
-
-    @hyper_parameters.setter
-    @abstractmethod
-    def hyper_parameters(self, parameters: Dict): ...
+    def hyper_parameters(self, *args): ...
 
     @abstractmethod
     def set_input_space(self, observation_space: Space): ...

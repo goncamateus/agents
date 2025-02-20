@@ -1,7 +1,8 @@
-import pytest
 import gymnasium as gym
+import pytest
 
-from agents.methods.value_based.q_learning.numpy import NumpyQLearning as QLearning
+from agents.methods.value_based.q_learning.numpy import \
+    NumpyQLearning as QLearning
 
 
 @pytest.fixture
@@ -30,8 +31,15 @@ def test_set_table(agent: QLearning):
     assert agent.q_table.shape == (agent.num_states, agent.num_actions)
 
 
-def test_get_output(agent: QLearning):
+def test_get_output_equal(agent: QLearning):
     agent.q_table = agent.q_table + 1
+    observation = 0
+    action = agent.get_output(observation)
+    assert agent.action_space.contains(action)
+
+
+def test_get_output_max(agent: QLearning):
+    agent.q_table[0][0] += 1
     observation = 0
     action = agent.get_output(observation)
     assert agent.action_space.contains(action)
@@ -39,6 +47,14 @@ def test_get_output(agent: QLearning):
 
 def test_epsilon_greedy(agent: QLearning):
     agent.q_table = agent.q_table + 1
+    observation = 0
+    action = agent.epsilon_greedy(observation)
+    assert isinstance(action, int)
+    assert agent.action_space.contains(action)
+
+
+def test_epsilon_greedy_max(agent: QLearning):
+    agent.q_table[0][0] += 1
     observation = 0
     action = agent.epsilon_greedy(observation)
     assert isinstance(action, int)
