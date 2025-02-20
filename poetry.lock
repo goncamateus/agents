@@ -960,6 +960,22 @@ test = ["packaging", "pickleshare", "pytest", "pytest-asyncio (<0.22)", "testpat
 test-extra = ["curio", "ipython[test]", "matplotlib (!=3.2.0)", "nbformat", "numpy (>=1.23)", "pandas", "trio"]
 
 [[package]]
+name = "isort"
+version = "6.0.0"
+description = "A Python utility / library to sort Python imports."
+category = "dev"
+optional = false
+python-versions = ">=3.9.0"
+files = [
+    {file = "isort-6.0.0-py3-none-any.whl", hash = "sha256:567954102bb47bb12e0fae62606570faacddd441e45683968c8d1734fb1af892"},
+    {file = "isort-6.0.0.tar.gz", hash = "sha256:75d9d8a1438a9432a7d7b54f2d3b45cad9a4a0fdba43617d9873379704a8bdf1"},
+]
+
+[package.extras]
+colors = ["colorama"]
+plugins = ["setuptools"]
+
+[[package]]
 name = "jax"
 version = "0.5.0"
 description = "Differentiate, compile, and transform Numpy code."
@@ -2782,6 +2798,7 @@ optree = ["optree (>=0.9.1)"]
 [package.source]
 type = "url"
 url = "https://download.pytorch.org/whl/cu121/torch-2.2.2%2Bcu121-cp310-cp310-linux_x86_64.whl"
+
 [[package]]
 name = "torch"
 version = "2.2.2+cu121"
@@ -2819,6 +2836,7 @@ optree = ["optree (>=0.9.1)"]
 [package.source]
 type = "url"
 url = "https://download.pytorch.org/whl/cu121/torch-2.2.2%2Bcu121-cp310-cp310-win_amd64.whl"
+
 [[package]]
 name = "traitlets"
 version = "5.14.3"
@@ -2966,4 +2984,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "5a10a275451b457e9b3536324e4b0d7e5426b983b221076876564dfb49f60b31"
+content-hash = "a0d0227c154c23b3749bdd9f3c7d70fe01121b6eabf3c9bf493767a057d83e6e"

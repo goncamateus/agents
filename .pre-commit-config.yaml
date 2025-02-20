@@ -19,6 +19,12 @@ repos:
             types_or: [python, pyi]
     - repo: local
       hooks:
+      - id: isort
+        name: isort
+        language: system
+        types: [python]
+        pass_filenames: true
+        entry: poetry run isort
       - id: pytest
         name: pytest
         entry: poetry run task test
