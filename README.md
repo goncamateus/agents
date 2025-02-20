@@ -1,19 +1,35 @@
-# DyLam: a dynamic reward weighting method for reinforcement learning policy gradient algorithms
+# Reinforcement Learning applied to RoboCIn context environments ![Tests Status](./reports/tests-badge.svg)
+This repository is a collection of Reinforcement Learning algorithms applied to RoboCIn context environments. The main goal is to provide a set of tools to help students and researchers to develop and test Reinforcement Learning algorithms in RoboCIn context environments.
 
-### Adapted Actor Critic Algorithms
-- PPO
-- SAC
+## Installation
 
-### Environments:
+Requirements:
+- Python 3.10
+- Poetry
+- Git
 
-- Box2D
-    - LunarLander
-    - LunarLanderContinuous
+To install the project, run the following commands:
 
-- Mujoco
-    - Humanoid
-    - HalfCheetah
+```bash
+poetry env use 3.10
+poetry install
+```
 
-- rSoccer
-    - VSS
-    - SSL-GoTo
+## Usage
+
+TBD
+
+## Structure
+
+The project is structured as follows:
+
+```
+.
+├── agents
+│   ├── methods
+│   │   ├── architectures
+│   │   ├── policy_gradient
+│   │   └── value_based
+│   └── utils
+└── tests
+```
