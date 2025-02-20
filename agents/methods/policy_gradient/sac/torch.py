@@ -1,16 +1,17 @@
+import pathlib
 from copy import deepcopy
 from typing import Tuple
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-from torch.optim import Adam
 import torch.types
-from agents.utils.replay_buffer.torch import TorchReplayBuffer as ReplayBuffer
+from torch.optim import Adam
+
 from agents.methods.architectures.torch.double_q import DoubleQNet
 from agents.methods.architectures.torch.gaussian_policy import GaussianPolicy
-
 from agents.methods.policy_gradient.sac.sac import SAC
+from agents.utils.replay_buffer.torch import TorchReplayBuffer as ReplayBuffer
 
 
 class TorchSAC(SAC, nn.Module):
@@ -169,3 +170,20 @@ class TorchSAC(SAC, nn.Module):
             policy_loss, alpha_loss = self.update_actor(state_batch)
 
         return policy_loss, qf1_loss, qf2_loss, alpha_loss
+
+    def save(self, path):
+        path = pathlib.Path(path)
+        path.mkdir(parents=True, exist_ok=True)
+        torch.save(self.actor.state_dict(), path / "actor.pt")
+        torch.save(self.critic.state_dict(), path / "critic.pt")
+
+    def load(self, path):
+        path = pathlib.Path(path)
+        self.actor.load_state_dict(
+            torch.load(path / "actor.pt", map_location=self.device, weights_only=True),
+        )
+        self.critic.load_state_dict(
+            torch.load(path / "critic.pt", map_location=self.device, weights_only=True),
+        )
+        self.actor.eval()
+        self.critic.eval()
