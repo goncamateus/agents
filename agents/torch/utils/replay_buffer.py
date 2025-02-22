@@ -3,10 +3,10 @@ import random
 import numpy as np
 import torch
 
-from agents.utils.replay_buffer.base import BaseReplayBuffer
+from agents.common.utils.replay_buffer import ReplayBuffer
 
 
-class TorchReplayBuffer(BaseReplayBuffer):
+class TorchReplayBuffer(ReplayBuffer):
     def sample(self, batch_size):
         batch = random.sample(self.buffer, batch_size)
         states, actions, rewards, next_states, dones = map(np.array, zip(*batch))

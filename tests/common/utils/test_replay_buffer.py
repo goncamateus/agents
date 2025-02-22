@@ -1,12 +1,12 @@
 import numpy as np
 import pytest
 
-from agents.utils.replay_buffer.base import BaseReplayBuffer
+from agents.common.utils.replay_buffer import ReplayBuffer
 
 
 @pytest.fixture
 def replay_buffer():
-    return BaseReplayBuffer(max_size=10)
+    return ReplayBuffer(max_size=10)
 
 
 @pytest.fixture
