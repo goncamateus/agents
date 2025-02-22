@@ -9,8 +9,10 @@ import numpy as np
 import torch
 import tyro
 from torch.utils.tensorboard import SummaryWriter
-from agents.torch.policy_gradient.sac import TorchSAC as SAC
+
 from agents.torch.architectures.utils import target_soft_update
+from agents.torch.policy_gradient.sac import TorchSAC as SAC
+
 
 @dataclass
 class Args:
@@ -22,12 +24,6 @@ class Args:
     """if toggled, `torch.backends.cudnn.deterministic=False`"""
     cuda: bool = True
     """if toggled, cuda will be enabled by default"""
-    track: bool = False
-    """if toggled, this experiment will be tracked with Weights and Biases"""
-    wandb_project_name: str = "cleanRL"
-    """the wandb's project name"""
-    wandb_entity: str = None
-    """the entity (team) of wandb's project"""
     capture_video: bool = False
     """whether to capture videos of the agent performances (check out `videos` folder)"""
 
@@ -44,8 +40,12 @@ class Args:
     """the discount factor gamma"""
     tau: float = 0.005
     """target smoothing coefficient (default: 0.005)"""
+    hidden_dim: int = 256
+    """the dimension for the hidden layers"""
     batch_size: int = 256
     """the batch size of sample from the reply memory"""
+    reward_scale: float = 1.0
+    """the value scaling of the rewards"""
     learning_starts: int = 5e3
     """timestep to start learning"""
     policy_lr: float = 3e-4
@@ -60,6 +60,22 @@ class Args:
     """Entropy regularization coefficient."""
     autotune: bool = True
     """automatic tuning of the entropy coefficient"""
+
+
+def get_hyperparameters(args, envs):
+    action_range = (envs.single_action_space.high, envs.single_action_space.low)
+    return {
+        "gamma": args.gamma,
+        "device": "cuda" if args.cuda else "cpu",
+        "reward_scale": args.reward_scale,
+        "buffer_size": args.buffer_size,
+        "hidden_dim": args.hidden_dim,
+        "q_learning_rate": args.q_lr,
+        "policy_learning_rate": args.policy_lr,
+        "alpha": args.alpha,
+        "automatic_entropy_tuning": args.autotune,
+        "action_range": action_range,
+    }
 
 
 def make_env(env_id, seed, idx, capture_video, run_name):
@@ -106,6 +122,12 @@ if __name__ == "__main__":
     )
 
     max_action = float(envs.single_action_space.high[0])
+    hyper_parameters = get_hyperparameters(args, envs)
+    agent = SAC(
+        hyper_parameters=hyper_parameters,
+        observation_space=envs.single_observation_space,
+        action_space=envs.single_action_space,
+    )
 
     start_time = time.time()
 
@@ -118,8 +140,7 @@ if __name__ == "__main__":
                 [envs.single_action_space.sample() for _ in range(envs.num_envs)]
             )
         else:
-            actions, _, _ = actor.get_action(torch.Tensor(obs).to(device))
-            actions = actions.detach().cpu().numpy()
+            actions = agent.get_action(obs)
 
         # TRY NOT TO MODIFY: execute the game and log data.
         next_obs, rewards, terminations, truncations, infos = envs.step(actions)
@@ -144,92 +165,30 @@ if __name__ == "__main__":
         for idx, trunc in enumerate(truncations):
             if trunc:
                 real_next_obs[idx] = infos["final_observation"][idx]
-        rb.add(obs, real_next_obs, actions, rewards, terminations, infos)
+        agent.replay_buffer.add(
+            obs, real_next_obs, actions, rewards, terminations, infos
+        )
 
         # TRY NOT TO MODIFY: CRUCIAL step easy to overlook
         obs = next_obs
 
         # ALGO LOGIC: training.
         if global_step > args.learning_starts:
-            data = rb.sample(args.batch_size)
-            with torch.no_grad():
-                next_state_actions, next_state_log_pi, _ = actor.get_action(
-                    data.next_observations
-                )
-                qf1_next_target = qf1_target(data.next_observations, next_state_actions)
-                qf2_next_target = qf2_target(data.next_observations, next_state_actions)
-                min_qf_next_target = (
-                    torch.min(qf1_next_target, qf2_next_target)
-                    - alpha * next_state_log_pi
-                )
-                next_q_value = data.rewards.flatten() + (
-                    1 - data.dones.flatten()
-                ) * args.gamma * (min_qf_next_target).view(-1)
-
-            qf1_a_values = qf1(data.observations, data.actions).view(-1)
-            qf2_a_values = qf2(data.observations, data.actions).view(-1)
-            qf1_loss = F.mse_loss(qf1_a_values, next_q_value)
-            qf2_loss = F.mse_loss(qf2_a_values, next_q_value)
-            qf_loss = qf1_loss + qf2_loss
-
-            # optimize the model
-            q_optimizer.zero_grad()
-            qf_loss.backward()
-            q_optimizer.step()
-
-            if global_step % args.policy_frequency == 0:  # TD 3 Delayed update support
-                for _ in range(
-                    args.policy_frequency
-                ):  # compensate for the delay by doing 'actor_update_interval' instead of 1
-                    pi, log_pi, _ = actor.get_action(data.observations)
-                    qf1_pi = qf1(data.observations, pi)
-                    qf2_pi = qf2(data.observations, pi)
-                    min_qf_pi = torch.min(qf1_pi, qf2_pi)
-                    actor_loss = ((alpha * log_pi) - min_qf_pi).mean()
-
-                    actor_optimizer.zero_grad()
-                    actor_loss.backward()
-                    actor_optimizer.step()
-
-                    if args.autotune:
-                        with torch.no_grad():
-                            _, log_pi, _ = actor.get_action(data.observations)
-                        alpha_loss = (
-                            -log_alpha.exp() * (log_pi + target_entropy)
-                        ).mean()
-
-                        a_optimizer.zero_grad()
-                        alpha_loss.backward()
-                        a_optimizer.step()
-                        alpha = log_alpha.exp().item()
-
+            update_actor = global_step % args.policy_frequency == 0
+            qf1_loss, qf2_loss, qf_loss, actor_loss, alpha_loss = agent.update(
+                args.batch_size, update_actor=update_actor
+            )
             # update the target networks
             if global_step % args.target_network_frequency == 0:
-                for param, target_param in zip(
-                    qf1.parameters(), qf1_target.parameters()
-                ):
-                    target_param.data.copy_(
-                        args.tau * param.data + (1 - args.tau) * target_param.data
-                    )
-                for param, target_param in zip(
-                    qf2.parameters(), qf2_target.parameters()
-                ):
-                    target_param.data.copy_(
-                        args.tau * param.data + (1 - args.tau) * target_param.data
-                    )
+                target_soft_update(agent.critic, agent.target_critic, tau=args.tau)
+                target_soft_update(agent.actor, agent.target_actor, tau=args.tau)
 
             if global_step % 100 == 0:
-                writer.add_scalar(
-                    "losses/qf1_values", qf1_a_values.mean().item(), global_step
-                )
-                writer.add_scalar(
-                    "losses/qf2_values", qf2_a_values.mean().item(), global_step
-                )
                 writer.add_scalar("losses/qf1_loss", qf1_loss.item(), global_step)
                 writer.add_scalar("losses/qf2_loss", qf2_loss.item(), global_step)
                 writer.add_scalar("losses/qf_loss", qf_loss.item() / 2.0, global_step)
                 writer.add_scalar("losses/actor_loss", actor_loss.item(), global_step)
-                writer.add_scalar("losses/alpha", alpha, global_step)
+                writer.add_scalar("losses/alpha", agent.alpha, global_step)
                 print("SPS:", int(global_step / (time.time() - start_time)))
                 writer.add_scalar(
                     "charts/SPS",
