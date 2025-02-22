@@ -28,7 +28,7 @@ class Args:
     """whether to capture videos of the agent performances (check out `videos` folder)"""
 
     # Algorithm specific arguments
-    env_id: str = "Hopper-v4"
+    env_id: str = "Hopper-v5"
     """the environment id of the task"""
     total_timesteps: int = 1000000
     """total timesteps of the experiments"""
@@ -165,9 +165,7 @@ if __name__ == "__main__":
         for idx, trunc in enumerate(truncations):
             if trunc:
                 real_next_obs[idx] = infos["final_observation"][idx]
-        agent.replay_buffer.add(
-            obs, real_next_obs, actions, rewards, terminations, infos
-        )
+        agent.replay_buffer.add(obs, actions, rewards, real_next_obs, terminations)
 
         # TRY NOT TO MODIFY: CRUCIAL step easy to overlook
         obs = next_obs
@@ -175,7 +173,7 @@ if __name__ == "__main__":
         # ALGO LOGIC: training.
         if global_step > args.learning_starts:
             update_actor = global_step % args.policy_frequency == 0
-            qf1_loss, qf2_loss, qf_loss, actor_loss, alpha_loss = agent.update(
+            policy_loss, qf1_loss, qf2_loss, alpha_loss = agent.update(
                 args.batch_size, update_actor=update_actor
             )
             # update the target networks
@@ -186,8 +184,7 @@ if __name__ == "__main__":
             if global_step % 100 == 0:
                 writer.add_scalar("losses/qf1_loss", qf1_loss.item(), global_step)
                 writer.add_scalar("losses/qf2_loss", qf2_loss.item(), global_step)
-                writer.add_scalar("losses/qf_loss", qf_loss.item() / 2.0, global_step)
-                writer.add_scalar("losses/actor_loss", actor_loss.item(), global_step)
+                writer.add_scalar("losses/actor_loss", policy_loss.item(), global_step)
                 writer.add_scalar("losses/alpha", agent.alpha, global_step)
                 print("SPS:", int(global_step / (time.time() - start_time)))
                 writer.add_scalar(
