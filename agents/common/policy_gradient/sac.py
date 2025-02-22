@@ -164,6 +164,13 @@ class SAC(Agent):
         Args:
             batch_size (int): The batch size.
             update_actor (bool, optional): Whether to update the actor. Defaults to True.
+
+        Returns:
+            Tuple[Any, Any, Any, Any]:
+                - q1_loss: The loss of the first Q-network.
+                - q2_loss: The loss of the second Q-network.
+                - actor_loss: The loss of the actor network.
+                - alpha_loss: The loss of the entropy coefficient.
         """
         ...
 

@@ -33,6 +33,7 @@ genbadge = {extras = ["all"], version = "^1.1.1"}
 pre-commit = "^4.1.0"
 coverage-badge = "^1.1.2"
 isort = "^6.0.0"
+tyro = "^0.9.16"
 
 [tool.coverage.run]
 branch = true
@@ -46,6 +47,7 @@ omit = [
     "*/__init__.py",
     "agents/common/agent.py",
     "agents/common/policy_gradient/sac.py",
+    "examples/",
 ]
 
 [tool.coverage.html]
