@@ -2,15 +2,16 @@ import pathlib
 from copy import deepcopy
 from typing import Tuple
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.types
 from torch.optim import Adam
 
+from agents.common.policy_gradient.sac import SAC
 from agents.torch.architectures.double_q import DoubleQNet
 from agents.torch.architectures.gaussian_policy import GaussianPolicy
-from agents.torch.policy_gradient.sac import SAC
 from agents.torch.utils.replay_buffer import TorchReplayBuffer as ReplayBuffer
 
 
@@ -28,11 +29,11 @@ class TorchSAC(SAC, nn.Module):
         self.actor = GaussianPolicy(
             self.num_inputs,
             self.num_outpts,
-            self.hidden_dim,
-            self.log_sig_min,
-            self.log_sig_max,
-            self.epsilon,
-            self.action_range,
+            hidden_dim=self.hidden_dim,
+            log_sig_min=self.log_sig_min,
+            log_sig_max=self.log_sig_max,
+            epsilon=self.epsilon,
+            action_range=self.action_range,
         )
         self.target_entropy = None
         self.log_alpha = None
@@ -73,7 +74,9 @@ class TorchSAC(SAC, nn.Module):
     def init_replay_buffer(self):
         self.replay_buffer = ReplayBuffer(self.buffer_size, self.device)
 
-    def get_action(self, observations, deterministic=False):
+    def get_action(self, observations: np.ndarray, deterministic=False):
+        if observations.ndim == 1:
+            observations = np.expand_dims(observations, 0)
         observations = torch.FloatTensor(observations).to(self.device)
         action, _, deterministic_action = self.actor.sample(observations)
         action = deterministic_action if deterministic else action

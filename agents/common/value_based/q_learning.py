@@ -1,6 +1,6 @@
 import pathlib
 from abc import abstractmethod
-from typing import Dict, TypeVar
+from typing import TypeVar
 
 import numpy as np
 from gymnasium.spaces.box import Box
@@ -30,26 +30,31 @@ class QLearning(Agent):
         super().__init__(hyper_parameters, observation_space, action_space)
         self.set_table()
 
-    def hyper_parameters(self, parameters: Dict):
+    def hyper_parameters(
+        self,
+        gamma: float,
+        alpha: float,
+        epsilon: float,
+        epsilon_decay: float,
+        epsilon_min: float,
+        reward_scale: float,
+    ):
         """Set the hyperparameters of the agent.
 
         Args:
-            parameters (dict): The hyperparameters for the agent.
-
-        Raises:
-            ValueError: When the hyperparameters are not set.
+            gamma (float): The discount factor.
+            alpha (float): The learning rate.
+            epsilon (float): The exploration rate.
+            epsilon_decay (float): The decay rate of epsilon.
+            epsilon_min (float): The minimum exploration rate.
+            reward_scale (float): The scaling factor for the reward
         """
-        if not all(
-            key in parameters
-            for key in ["gamma", "alpha", "epsilon", "epsilon_decay", "epsilon_min"]
-        ):
-            raise ValueError("Hyperparameters not set.")
-        self.gamma = parameters.get("gamma")
-        self.alpha = parameters.get("alpha")
-        self.epsilon = parameters.get("epsilon")
-        self.epsilon_decay = parameters.get("epsilon_decay")
-        self.epsilon_min = parameters.get("epsilon_min")
-        self.reward_scale = parameters.get("reward_scale")
+        self.gamma = gamma
+        self.alpha = alpha
+        self.epsilon = epsilon
+        self.epsilon_decay = epsilon_decay
+        self.epsilon_min = epsilon_min
+        self.reward_scale = reward_scale
 
     def set_input_space(self, observation_space: T_space):
         """Set the input space of the agent.

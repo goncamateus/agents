@@ -41,11 +41,12 @@ source = ["agents"]
 
 [tool.coverage.report]
 show_missing = true
-fail_under = 10
+fail_under = 80
 omit = [
     "tests/",
     "*/__init__.py",
     "agents/common/agent.py",
+    "agents/common/policy_gradient/sac.py",
 ]
 
 [tool.coverage.html]

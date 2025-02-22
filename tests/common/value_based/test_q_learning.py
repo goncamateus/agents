@@ -39,14 +39,12 @@ def agent(sample_env: gym.Env, monkeypatch):
 
 def test_hyper_parameters(agent: QLearning):
     agent.hyper_parameters(
-        {
-            "gamma": 0.98,
-            "alpha": 0.02,
-            "epsilon": 2.0,
-            "epsilon_decay": 0.989,
-            "epsilon_min": 0.02,
-            "reward_scale": 120,
-        }
+        gamma=0.98,
+        alpha=0.02,
+        epsilon=2.0,
+        epsilon_decay=0.989,
+        epsilon_min=0.02,
+        reward_scale=120,
     )
     assert agent.gamma == 0.98
     assert agent.alpha == 0.02

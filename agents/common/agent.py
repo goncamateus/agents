@@ -13,7 +13,7 @@ class Agent(ABC):
         action_space: Space,
     ):
         self.logger = logging.getLogger(self.__class__.__name__)
-        self.hyper_parameters(hyper_parameters)
+        self.hyper_parameters(**hyper_parameters)
         self.set_input_space(observation_space)
         self.set_output_space(action_space)
 

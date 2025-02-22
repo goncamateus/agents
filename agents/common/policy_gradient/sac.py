@@ -31,11 +31,12 @@ class SAC(Agent):
         hidden_dim: int,
         q_learning_rate: float,
         policy_learning_rate: float,
-        log_sig_min: float,
-        log_sig_max: float,
-        epsilon: float,
-        alpha: float,
-        automatic_entropy_tuning: bool,
+        log_sig_min: float = -5,
+        log_sig_max: float = 2,
+        alpha: float = 0.2,
+        automatic_entropy_tuning: bool = True,
+        epsilon: float = 1e-6,
+        action_range: tuple = None,
     ) -> None:
         """Set the hyperparameters of the agent.
 
@@ -47,11 +48,12 @@ class SAC(Agent):
             hidden_dim (int): The number of units in the hidden layers.
             q_learning_rate (float): The learning rate for the Q-network.
             policy_learning_rate (float): The learning rate for the policy network.
-            log_sig_min (float): The minimum log standard deviation.
-            log_sig_max (float): The maximum log standard deviation.
-            epsilon (float): The epsilon value for the target network update.
-            alpha (float): The entropy coefficient.
+            log_sig_min (float, optional): The minimum value for the log standard deviation. Defaults to -5.
+            log_sig_max (float, optional): The maximum value for the log standard deviation. Defaults to 2.
+            alpha (float, optional): The entropy coefficient. Defaults to 0.2.
             automatic_entropy_tuning (bool): Whether to automatically tune the entropy coefficient.
+            epsilon (float, optional): A small value to prevent division by zero. Defaults to 1e-6.
+            action_range (tuple, optional): The range of the action space. Defaults to None.
 
         Raises:
             ValueError: When the hyperparameters are not set.
@@ -68,6 +70,7 @@ class SAC(Agent):
         self.epsilon = epsilon
         self.alpha = alpha
         self.automatic_entropy_tuning = automatic_entropy_tuning
+        self.action_range = action_range
 
     def set_input_space(self, observation_space: Space):
         """Set the input space of the agent.
