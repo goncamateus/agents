@@ -75,8 +75,6 @@ class TorchSAC(SAC, nn.Module):
         self.replay_buffer = ReplayBuffer(self.buffer_size, self.device)
 
     def get_action(self, observations: np.ndarray, deterministic=False):
-        if observations.ndim == 1:
-            observations = np.expand_dims(observations, 0)
         observations = torch.FloatTensor(observations).to(self.device)
         action, _, deterministic_action = self.actor.sample(observations)
         action = deterministic_action if deterministic else action

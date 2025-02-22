@@ -1,4 +1,5 @@
 import gymnasium as gym
+import numpy as np
 import pytest
 
 from agents.torch.policy_gradient.sac import TorchSAC as SAC
@@ -31,12 +32,12 @@ def env():
 
 @pytest.fixture
 def observation_space(env):
-    return env.observation_space
+    return env.single_observation_space
 
 
 @pytest.fixture
 def action_space(env):
-    return env.action_space
+    return env.single_action_space
 
 
 @pytest.fixture
@@ -59,19 +60,16 @@ def agent_with_memory(env):
             "alpha": 0.2,
             "device": "cpu",
         },
-        env.observation_space,
-        env.action_space,
+        env.single_observation_space,
+        env.single_action_space,
     )
-    max_steps = 1000
-    done = True
-    truncated = False
-    for _ in range(max_steps):
-        if done or truncated:
-            state, _ = env.reset()
+    for _ in range(100):
         action = env.action_space.sample()
-        next_state, reward, done, truncated, _ = env.step(action)
+        state = env.observation_space.sample()
+        next_state = env.observation_space.sample()
+        reward = np.array([10 for _ in range(10)])
+        done = np.array([True for _ in range(10)])
         agent.replay_buffer.add(state, action, reward, next_state, done)
-        state = next_state
     return agent
 
 
@@ -110,10 +108,10 @@ def test_init_replay_buffer(sac_agent):
 def test_get_action(sac_agent, env):
     observation, _ = env.reset()
     action = sac_agent.get_action(observation)[0]
-    assert action.shape == env.action_space.shape
+    assert action.shape == env.single_action_space.shape
 
 
-def test_update_critic(agent_with_memory, observation_space, action_space):
+def test_update_critic(agent_with_memory):
     (
         state_batch,
         action_batch,

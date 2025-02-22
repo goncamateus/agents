@@ -22,7 +22,6 @@ torch = [
     {url = "https://download.pytorch.org/whl/cu121/torch-2.2.2%2Bcu121-cp310-cp310-linux_x86_64.whl", platform = "linux"}
 ]
 numpy = "1.26.4"
-rsoccer-gym = {git = "https://github.com/robocin/rSoccer.git"}
 
 [tool.poetry.group.dev.dependencies]
 ipython = "^8.32.0"
