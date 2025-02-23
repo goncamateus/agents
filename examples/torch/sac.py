@@ -164,7 +164,7 @@ if __name__ == "__main__":
         real_next_obs = next_obs.copy()
         for idx, trunc in enumerate(truncations):
             if trunc:
-                real_next_obs[idx] = infos["final_observation"][idx]
+                real_next_obs[idx] = obs[idx]
         agent.replay_buffer.add(obs, actions, rewards, real_next_obs, terminations)
 
         # TRY NOT TO MODIFY: CRUCIAL step easy to overlook

@@ -37,6 +37,7 @@ cython = "<3"
 mujoco = ">=2.1.5"
 ale-py = ">=0.9"
 tensorboard = "^2.19.0"
+gymnasium = {extras = ["other"], version = "^1.0.0"}
 
 [tool.coverage.run]
 branch = true
