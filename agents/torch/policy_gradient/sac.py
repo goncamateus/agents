@@ -46,7 +46,6 @@ class TorchSAC(SAC, nn.Module):
 
     def set_target_networks(self):
         self.target_critic = deepcopy(self.critic)
-        self.target_actor = deepcopy(self.actor)
 
     def build_optimizers(self):
         self.critic_optimizer = Adam(self.critic.parameters(), lr=self.q_learning_rate)
@@ -67,7 +66,6 @@ class TorchSAC(SAC, nn.Module):
         self.critic.to(device)
         self.target_critic.to(device)
         self.actor.to(device)
-        self.target_actor.to(device)
         self.log_alpha.to(device)
         return nn.Module.to(self, device)
 

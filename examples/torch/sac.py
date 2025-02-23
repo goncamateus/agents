@@ -179,7 +179,6 @@ if __name__ == "__main__":
             # update the target networks
             if global_step % args.target_network_frequency == 0:
                 target_soft_update(agent.critic, agent.target_critic, tau=args.tau)
-                target_soft_update(agent.actor, agent.target_actor, tau=args.tau)
 
             if global_step % 100 == 0:
                 writer.add_scalar("losses/qf1_loss", qf1_loss.item(), global_step)
