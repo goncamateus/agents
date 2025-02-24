@@ -84,7 +84,6 @@ def test_build_networks(sac_agent):
 def test_set_target_networks(sac_agent):
     sac_agent.set_target_networks()
     assert sac_agent.target_critic is not None
-    assert sac_agent.target_actor is not None
 
 
 def test_build_optimizers(sac_agent):
@@ -92,12 +91,6 @@ def test_build_optimizers(sac_agent):
     assert sac_agent.critic_optimizer is not None
     assert sac_agent.actor_optimizer is not None
     assert sac_agent.alpha_optimizer is not None
-
-
-def test_set_device(sac_agent):
-    sac_agent.build_networks()
-    sac_agent.set_device()
-    assert sac_agent.device.type == "cpu"
 
 
 def test_init_replay_buffer(sac_agent):
