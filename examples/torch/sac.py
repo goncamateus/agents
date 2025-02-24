@@ -146,19 +146,18 @@ if __name__ == "__main__":
         next_obs, rewards, terminations, truncations, infos = envs.step(actions)
 
         # TRY NOT TO MODIFY: record rewards for plotting purposes
-        if "final_info" in infos:
-            for info in infos["final_info"]:
-                if info is not None:
+        if "episode" in infos:
+            for i in range(len(infos["episode"]["r"])):
+                if terminations[i] or truncations[i]:
                     print(
-                        f"global_step={global_step}, episodic_return={info['episode']['r']}"
+                        f"global_step={global_step}, episodic_return={infos['episode']['r'][i]}"
                     )
                     writer.add_scalar(
-                        "charts/episodic_return", info["episode"]["r"], global_step
+                        "charts/episodic_return", infos["episode"]["r"][i], global_step
                     )
                     writer.add_scalar(
-                        "charts/episodic_length", info["episode"]["l"], global_step
+                        "charts/episodic_length", infos["episode"]["l"][i], global_step
                     )
-                    break
 
         # TRY NOT TO MODIFY: save data to reply buffer; handle `final_observation`
         real_next_obs = next_obs.copy()
@@ -178,7 +177,9 @@ if __name__ == "__main__":
             )
             # update the target networks
             if global_step % args.target_network_frequency == 0:
-                target_soft_update(agent.critic, agent.target_critic, tau=args.tau)
+                agent.target_critic = target_soft_update(
+                    agent.critic, agent.target_critic, tau=args.tau
+                )
 
             if global_step % 100 == 0:
                 writer.add_scalar("losses/qf1_loss", qf1_loss.item(), global_step)
