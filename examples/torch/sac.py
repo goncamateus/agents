@@ -26,6 +26,8 @@ class Args:
     """if toggled, cuda will be enabled by default"""
     capture_video: bool = False
     """whether to capture videos of the agent performances (check out `videos` folder)"""
+    video_frequency: int = 25
+    """record video every n episodes"""
 
     # Algorithm specific arguments
     env_id: str = "Hopper-v5"
@@ -78,11 +80,15 @@ def get_hyperparameters(args, envs):
     }
 
 
-def make_env(env_id, seed, idx, capture_video, run_name):
+def make_env(env_id, seed, idx, capture_video, run_name, video_frequency):
     def thunk():
         if capture_video and idx == 0:
             env = gym.make(env_id, render_mode="rgb_array")
-            env = gym.wrappers.RecordVideo(env, f"videos/{run_name}")
+            env = gym.wrappers.RecordVideo(
+                env,
+                f"videos/{run_name}",
+                episode_trigger=lambda x: x % video_frequency == 0,
+            )
         else:
             env = gym.make(env_id)
         env = gym.wrappers.RecordEpisodeStatistics(env)
@@ -113,7 +119,14 @@ if __name__ == "__main__":
     # env setup
     envs = gym.vector.SyncVectorEnv(
         [
-            make_env(args.env_id, args.seed + i, i, args.capture_video, run_name)
+            make_env(
+                args.env_id,
+                args.seed + i,
+                i,
+                args.capture_video,
+                run_name,
+                args.video_frequency,
+            )
             for i in range(args.num_envs)
         ]
     )
