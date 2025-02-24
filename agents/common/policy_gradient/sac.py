@@ -18,7 +18,6 @@ class SAC(Agent):
         self.build_networks()
         self.set_target_networks()
         self.build_optimizers()
-        self.set_device()
         self.init_replay_buffer()
         self.checkup()
 
@@ -59,7 +58,7 @@ class SAC(Agent):
             ValueError: When the hyperparameters are not set.
         """
         self.gamma = gamma
-        self.device = device
+        self.device_name = device
         self.reward_scale = reward_scale
         self.buffer_size = buffer_size
         self.hidden_dim = hidden_dim
@@ -98,11 +97,7 @@ class SAC(Agent):
         if self.automatic_entropy_tuning:
             assert self.target_entropy is not None, "Target entropy is not set."
             assert self.alpha_optimizer is not None, "Alpha optimizer is not set."
-        assert self.target_actor is not None, "Target actor network is not set."
         assert self.target_critic is not None, "Target critic networks are not set."
-
-    @abstractmethod
-    def set_device(self): ...
 
     @abstractmethod
     def build_networks(self): ...
@@ -164,6 +159,13 @@ class SAC(Agent):
         Args:
             batch_size (int): The batch size.
             update_actor (bool, optional): Whether to update the actor. Defaults to True.
+
+        Returns:
+            Tuple[Any, Any, Any, Any]:
+                - q1_loss: The loss of the first Q-network.
+                - q2_loss: The loss of the second Q-network.
+                - actor_loss: The loss of the actor network.
+                - alpha_loss: The loss of the entropy coefficient.
         """
         ...
 

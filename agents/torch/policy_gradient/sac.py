@@ -19,6 +19,16 @@ class TorchSAC(SAC, nn.Module):
     def __init__(self, hyper_parameters, observation_space, action_space):
         nn.Module.__init__(self)
         SAC.__init__(self, hyper_parameters, observation_space, action_space)
+        self.device = torch.device(self.device_name)
+        self.to(self.device)
+
+    def to(self, device):
+        self.device = device
+        self.replay_buffer.device = self.device
+        self.actor.action_bias = self.actor.action_bias.to(self.device)
+        self.actor.action_scale = self.actor.action_scale.to(self.device)
+        self.log_alpha = self.log_alpha.to(self.device)
+        return super().to(device)
 
     def build_networks(self):
         self.critic = DoubleQNet(
@@ -46,7 +56,6 @@ class TorchSAC(SAC, nn.Module):
 
     def set_target_networks(self):
         self.target_critic = deepcopy(self.critic)
-        self.target_actor = deepcopy(self.actor)
 
     def build_optimizers(self):
         self.critic_optimizer = Adam(self.critic.parameters(), lr=self.q_learning_rate)
@@ -56,23 +65,8 @@ class TorchSAC(SAC, nn.Module):
         if self.automatic_entropy_tuning:
             self.alpha_optimizer = Adam([self.log_alpha], lr=self.policy_learning_rate)
 
-    def set_device(self):
-        if self.device == "cuda" and not torch.cuda.is_available():
-            self.device = "cpu"
-            self.logger.warning("CUDA is not available. Running on CPU.")
-        self.to(self.device)
-
-    def to(self, device: str):
-        self.device = torch.device(self.device)
-        self.critic.to(device)
-        self.target_critic.to(device)
-        self.actor.to(device)
-        self.target_actor.to(device)
-        self.log_alpha.to(device)
-        return nn.Module.to(self, device)
-
     def init_replay_buffer(self):
-        self.replay_buffer = ReplayBuffer(self.buffer_size, self.device)
+        self.replay_buffer = ReplayBuffer(self.buffer_size)
 
     def get_action(self, observations: np.ndarray, deterministic=False):
         observations = torch.FloatTensor(observations).to(self.device)
